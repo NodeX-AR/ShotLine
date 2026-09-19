@@ -346,7 +346,6 @@ setShadowExtent(220);
 const muzzleLight=new THREE.PointLight(L(0xffb060),0,14,2);
 muzzleLight.position.set(0.2,-0.1,-1);camera.add(muzzleLight);
 
-// War-torn sky: smoky orange horizon, dusty blue zenith
 const skyMat=new THREE.ShaderMaterial({
   side:THREE.BackSide,depthWrite:false,fog:false,
   uniforms:{top:{value:L(0x3a5a80)},mid:{value:L(0xb08860)},bot:{value:L(0x8a6850)},sunDir:{value:SUN_DIR.clone()},time:{value:0}},
@@ -428,7 +427,6 @@ function addBox(cx,y,cz,w,h,d,color,collide,visual){
   if(collide)boxes.push({x0:cx-w/2,x1:cx+w/2,y0:y,y1:y+h,z0:cz-d/2,z1:cz+d/2});
 }
 
-// Ground: cracked dirt with burnt patches
 function makeGroundTex(){
   const c=document.createElement('canvas');c.width=c.height=512;const g=c.getContext('2d');
   g.fillStyle='#5f5a48';g.fillRect(0,0,512,512);
@@ -438,7 +436,6 @@ function makeGroundTex(){
     g.fillStyle=burnt?'rgba(30,25,20,'+(0.20+Math.random()*0.30)+')':'hsla('+(40+Math.random()*40)+',30%,'+(28+Math.random()*18)+'%,'+(0.16+Math.random()*0.20)+')';
     for(const ox of [-512,0,512])for(const oy of [-512,0,512]){g.beginPath();g.arc(x+ox,y+oy,r,0,6.2832);g.fill();}
   }
-  // Cracks
   for(let i=0;i<60;i++){
     g.strokeStyle='rgba(20,15,10,'+(0.15+Math.random()*0.3)+')';
     g.lineWidth=1+Math.random()*2;
@@ -455,7 +452,6 @@ function makeRoadTex(){
   const c=document.createElement('canvas');c.width=64;c.height=128;const g=c.getContext('2d');
   g.fillStyle='#3a3a38';g.fillRect(0,0,64,128);
   for(let i=0;i<400;i++){g.fillStyle='rgba(255,255,255,'+(Math.random()*0.08)+')';g.fillRect(Math.random()*64,Math.random()*128,2,2);}
-  // Cracks
   for(let i=0;i<8;i++){
     g.strokeStyle='rgba(10,8,5,0.6)';g.lineWidth=1+Math.random()*2;
     g.beginPath();let x=Math.random()*64,y=Math.random()*128;g.moveTo(x,y);
@@ -666,12 +662,10 @@ function buildingMulti(cx,cz,w,d,floors,doors){
   }
 }
 
-// Bunker — low, enterable, slit windows
 function bunker(cx,cz,w,d){
   w=w||8; d=d||6;
   const h=2.4, h2=1.4;
   const wc=0x6a6a5a;
-  // Four walls with slit openings
   for(let i=0;i<w;i+=2){
     addBox(cx-w/2+1+i,0,cz-d/2,0.9,h,0.4,wc);
     addBox(cx-w/2+1+i,h2,cz-d/2,1.6,0.4,0.4,wc);
@@ -681,14 +675,12 @@ function bunker(cx,cz,w,d){
   wallX(cx-w/2,cx+w/2,cz+d/2,h,wc,[{c:cx-1,w:2.0,y0:h2,y1:h2+0.5}]);
   wallZ(cz-d/2,cz+d/2,cx+w/2,h,wc,[]);
   addBox(cx,h,cz,w+0.6,0.4,d+0.6,0x4a4a3a);
-  // Sandbag ring outside
   for(let i=0;i<w+2;i++){
     addBox(cx-w/2-0.4+i*1.2,0,cz-d/2-0.8,1.0,0.6,0.7,0xa89868);
   }
   occupy(cx-w/2-0.5,cx+w/2+0.5,cz-d/2-0.5,cz+d/2+0.5,1);
 }
 
-// War-torn luxury hotel
 function luxuryHotel(cx,cz){
   const w=22,d=18,floors=5,fh=3.2,totalH=fh*floors;
   const wc=0xd0c0a0,rc=0x6a4030;
@@ -696,20 +688,16 @@ function luxuryHotel(cx,cz){
   wallX(cx-w/2,cx+w/2,cz+d/2,totalH,wc,makeOps(cx-w/2,cx+w/2,false));
   wallZ(cz-d/2,cz+d/2,cx-w/2,totalH,wc,makeOps(cz-d/2,cz+d/2,false));
   wallZ(cz-d/2,cz+d/2,cx+w/2,totalH,wc,makeOps(cz-d/2,cz+d/2,true));
-  // Blown-off section (remove upper floors on one corner)
   addBox(cx+w/4,fh*3,cz-d/4,6,1.5,5,0x2a2a2a,false);
   for(let fl=1;fl<floors;fl++){
     const y=fl*fh;
-    // Partial floor plate with holes
     if(fl<3){
       addBox(cx, y, cz, w-1, 0.2, d-1, 0x8a8a82);
     } else {
-      // Blown-out section
       addBox(cx-w/4, y, cz+d/4, w/2, 0.2, d/2, 0x8a8a82);
     }
   }
   addBox(cx,totalH+0.15,cz,w+0.6,0.4,d+0.6,rc);
-  // Balconies on the front
   for(let fl=1;fl<floors;fl++){
     const y=fl*fh;
     if(fl<3){
@@ -717,18 +705,14 @@ function luxuryHotel(cx,cz){
       addBox(cx,y+0.5,cz-d/2-1.5,w*0.7,0.9,0.08,0x6a6a68,false);
     }
   }
-  // Broken roof AC
   addBox(cx-w/4,totalH+0.6,cz+d/4,2,1,1.5,0x7a7a72);
   addBox(cx+w/4,totalH+0.6,cz-d/4,2,1,1.5,0x7a7a72);
-  // Ladder
-  ladder(cx-w/2,cz,totalH-0.5,'w',totalH-0.5);
+  ladder(cx-w/2,cz,'w',totalH-0.5,0);
   occupy(cx-w/2-1,cx+w/2+1,cz-d/2-1,cz+d/2+1,3);
 }
 
-// Bank with vault
 function bank(cx,cz){
   buildingMulti(cx,cz,20,16,3,['s','n']);
-  // Vault — solid inner room
   const vx=cx+2, vz=cz;
   addBox(vx,0,vz,5,4,5,0x4a4a4a);
   addBox(vx,4.2,vz,5.4,0.4,5.4,0x3a3a3a);
@@ -736,24 +720,19 @@ function bank(cx,cz){
   occupy(vx-3,vx+3,vz-3,vz+3,0.5);
 }
 
-// Ruined cathedral
 function cathedral(cx,cz){
   const w=24,d=14,h=14;
   const wc=0xb0a890;
-  // Main walls with huge openings
   wallX(cx-w/2,cx+w/2,cz-d/2,h,wc,[{c:cx-6,w:5,y0:0,y1:h},{c:cx+6,w:5,y0:0,y1:h},{c:cx,w:8,y0:4,y1:8}]);
   wallX(cx-w/2,cx+w/2,cz+d/2,h*0.7,wc,[{c:cx-4,w:5,y0:0,y1:h*0.5},{c:cx+4,w:5,y0:0,y1:h*0.5}]);
   wallZ(cz-d/2,cz+d/2,cx-w/2,h*0.85,wc,[{c:cz,w:4,y0:0,y1:6}]);
   wallZ(cz-d/2,cz+d/2,cx+w/2,h*0.85,wc,[{c:cz,w:4,y0:0,y1:6}]);
-  // Broken roof
   addBox(cx-w/3,h+0.2,cz,w/3,0.4,d+0.4,0x5a4a3a);
   addBox(cx+w/4,h-1.5,cz,w/3,0.4,d+0.4,0x5a4a3a);
-  // Two spires, one damaged
   addBox(cx-w/2+2,0,cz-d/2+1.5,3,h+6,3,wc);
   addBox(cx-w/2+2,h+6,cz-d/2+1.5,3.6,0.4,3.6,0x4a3a2a);
   addBox(cx+w/2-2,0,cz-d/2+1.5,3,h+4,3,wc);
   addBox(cx+w/2-2,h+4,cz-d/2+1.5,3.6,0.4,3.6,0x4a3a2a,false);
-  // Rubble in the nave
   for(let i=0;i<12;i++){
     const rx=cx+wr(-w/3,w/3),rz=cz+wr(-d/3,d/3);
     addBox(rx,0,rz,wr(0.5,1.2),wr(0.3,0.8),wr(0.5,1.2),wpick(CONCRETEC));
@@ -761,25 +740,20 @@ function cathedral(cx,cz){
   occupy(cx-w/2-1,cx+w/2+1,cz-d/2-1,cz+d/2+1,2);
 }
 
-// Bunker ruins — collapsed building with one wall standing
 function ruinedBlock(cx,cz,w,d){
   const pc=wpick(CONCRETEC);
   const h=wpick([3.5,4.5,5.5]);
-  // Two standing walls
   wallX(cx-w/2,cx+w/2,cz-d/2,h*0.9,pc,[{c:cx+wr(-w/3,w/3),w:wr(4,7),y0:0,y1:h}]);
   wallZ(cz-d/2,cz+d/2,cx-w/2,h*0.7,pc,[]);
-  // Rubble piles
   for(let i=0;i<20;i++){
     const rx=cx+wr(-w/2,w/2),rz=cz+wr(-d/2,d/2);
     const s=wr(0.4,1.6);
     addBox(rx,0,rz,s,wr(0.3,1.0),s,shade(pc,0.6+rand()*0.4));
   }
-  // Broken columns
   for(let i=0;i<3;i++){
     const rx=cx+wr(-w/3,w/3),rz=cz+wr(-d/3,d/3);
     addBox(rx,0,rz,0.7,wr(1.5,3.5),0.7,shade(pc,0.85));
   }
-  // Twisted rebar (thin vertical rods)
   for(let i=0;i<10;i++){
     const rx=cx+wr(-w/3,w/3),rz=cz+wr(-d/3,d/3);
     addBox(rx,wr(0,0.5),rz,0.06,wr(1.5,3.0),0.06,0x6a3a2a,false);
@@ -787,19 +761,16 @@ function ruinedBlock(cx,cz,w,d){
   occupy(cx-w/2,cx+w/2,cz-d/2,cz+d/2,1);
 }
 
-// Burning / burnt out car wreck
 function burntCar(cx,cz,yaw){
   const w=2.2,l=4.2,h=1.4,t=0.12;
   const color=wpick(BURNT_CAR);
   addBox(cx,0,cz,w,h*0.6,l,color);
   addBox(cx,h*0.6,cz,w-0.1,0.05,l-1.2,color);
   addBox(cx,h,cz-0.3,w-0.1,0.12,l-1.6,color);
-  // Broken windows
   addBox(cx-w/2+t/2,h*0.6,cz-l/2+0.6,t,h*0.4,t,color);
   addBox(cx+w/2-t/2,h*0.6,cz-l/2+0.6,t,h*0.4,t,color);
   addBox(cx-w/2+t/2,h*0.6,cz+l/2-0.6,t,h*0.4,t,color);
   addBox(cx+w/2-t/2,h*0.6,cz+l/2-0.6,t,h*0.4,t,color);
-  // Wheels (some missing)
   for(const [dx,dz] of [[-1.1,-1.4],[1.1,-1.4],[-1.1,1.4],[1.1,1.4]]){
     if(rand()<0.3)continue;
     const wx=cx+dx*Math.cos(yaw)-dz*Math.sin(yaw);
@@ -808,7 +779,6 @@ function burntCar(cx,cz,yaw){
     wheel.rotation.z=Math.PI/2;wheel.rotation.y=yaw;
     wheel.position.set(wx,0.4,wz);wheel.castShadow=true;scene.add(wheel);
   }
-  // Debris around
   for(let i=0;i<4;i++){
     addBox(cx+wr(-3,3),0,cz+wr(-3,3),wr(0.3,0.8),wr(0.15,0.4),wr(0.3,0.8),0x1a1a1a);
   }
@@ -816,19 +786,13 @@ function burntCar(cx,cz,yaw){
 
 function tankWreck(cx,cz,yaw){
   const color=wpick(MILITARY_GREEN);
-  // Hull
   addBox(cx,0.4,cz,3.2,1.4,6.5,color);
-  // Turret
   addBox(cx,1.8,cz-0.5,2.6,1.0,3.0,shade(color,0.9));
-  // Barrel (broken, tilted)
   const sin=Math.sin(yaw),cos=Math.cos(yaw);
   addBox(cx+sin*2,1.8,cz+cos*2,0.3,0.3,3.5,shade(color,0.8));
-  // Damaged side
   addBox(cx+1.7,0.8,cz,0.4,1.2,4,0x2a2a2a);
-  // Tracks
   addBox(cx-1.6,0.2,cz,0.6,0.6,6.5,0x1a1a1a);
   addBox(cx+1.6,0.2,cz,0.6,0.6,6.5,0x1a1a1a);
-  // Smoke damage
   addBox(cx-0.5,2.6,cz-1,1.5,0.15,1.5,0x1a1a1a,false);
   occupy(cx-2,cx+2,cz-3.5,cz+3.5,0.5);
 }
@@ -844,13 +808,11 @@ function sandbags(x,z,count){
 
 function barbedWireLine(x1,z1,x2,z2){
   const dx=x2-x1,dz=z2-z1,len=Math.hypot(dx,dz);
-  const ux=dx/len,uz=dz/len;
   const posts=Math.max(2,Math.round(len/3));
   for(let i=0;i<=posts;i++){
     const t=i/posts,px=x1+dx*t,pz=z1+dz*t;
     addBox(px,0,pz,0.12,1.0,0.12,0x3a3a3a);
   }
-  // Wire (visual only)
   const mcx=(x1+x2)/2,mcz=(z1+z2)/2;
   const alongX=Math.abs(dx)>Math.abs(dz);
   if(alongX)addBox(mcx,0.9,mcz,len,0.04,0.04,0x5a5a5a,false);
@@ -951,44 +913,85 @@ function streetLamp(x,z){
   addBox(x+0.7,5.3,z-0.4,0.3,0.3,0.5,0x8a8a60,false);
 }
 
+function fenceLine(x1,z1,x2,z2,h){
+  const dx=x2-x1,dz=z2-z1;
+  const len=Math.hypot(dx,dz);
+  const posts=Math.max(2,Math.round(len/2.5));
+  const postC=0x8a7a5a,railC=0x6a5a40;
+  for(let i=0;i<=posts;i++){
+    const t=i/posts;
+    const px=x1+dx*t, pz=z1+dz*t;
+    addBox(px,0,pz,0.15,h,0.15,postC);
+    addBox(px,h,pz,0.22,0.08,0.22,shade(postC,0.8),false);
+  }
+  const mcx=(x1+x2)/2, mcz=(z1+z2)/2;
+  const alongX=Math.abs(dx)>Math.abs(dz);
+  if(alongX){
+    addBox(mcx,h-0.15,mcz,len,0.08,0.08,railC);
+    addBox(mcx,h*0.5,mcz,len,0.06,0.06,railC,false);
+  } else {
+    addBox(mcx,h-0.15,mcz,0.08,0.08,len,railC);
+    addBox(mcx,h*0.5,mcz,0.06,0.06,len,railC,false);
+  }
+}
+
+function house(cx,cz,w,d){
+  const h=wpick([3.4,3.8,4.2]);
+  const roofC=wpick([0x8a4a3a,0x6a5a4a,0x4a3a30]);
+  const doors=wpick([['n','s'],['e','w'],['n'],['s'],['e'],['w']]);
+  const x0=cx-w/2,x1=cx+w/2,z0=cz-d/2,z1=cz+d/2;
+  const wc=wpick(WALLC);
+  wallX(x0,x1,z0,h,wc,makeOps(x0,x1,doors.includes('n')));
+  wallX(x0,x1,z1,h,wc,makeOps(x0,x1,doors.includes('s')));
+  wallZ(z0,z1,x0,h,wc,makeOps(z0,z1,doors.includes('w')));
+  wallZ(z0,z1,x1,h,wc,makeOps(z0,z1,doors.includes('e')));
+  addBox(cx,h,cz,w+0.6,0.4,d+0.6,roofC);
+  addBox(cx,h+0.4,cz,w*0.6,0.5,d*0.6,shade(roofC,1.2),false);
+  addBox(cx,h+0.15,cz+d/2+1.2,w*0.6,0.2,2.4,0x6a5a4a);
+  addBox(cx-w*0.3,0,cz+d/2+2.4,0.15,h+0.5,0.15,0x6a5a4a);
+  addBox(cx+w*0.3,0,cz+d/2+2.4,0.15,h+0.5,0.15,0x6a5a4a);
+  addBox(cx,h+0.4,cz+d/2+1.2,w*0.7,0.15,2.8,roofC);
+  if(rand()<0.7){
+    addBox(cx-w/3,h+0.3,cz-d/3,0.7,1.8,0.7,0x8a3a2a);
+    addBox(cx-w/3,h+2.1,cz-d/3,0.9,0.15,0.9,0x3a3a3a,false);
+  }
+  const pad=4;
+  fenceLine(cx-w/2-pad,cz-d/2-pad,cx+w/2+pad,cz-d/2-pad,1.0);
+  fenceLine(cx-w/2-pad,cz+d/2+pad,cx+w/2+pad,cz+d/2+pad,1.0);
+  fenceLine(cx-w/2-pad,cz-d/2-pad,cx-w/2-pad,cz+d/2+pad,1.0);
+  fenceLine(cx+w/2+pad,cz-d/2-pad,cx+w/2+pad,cz+d/2+pad,1.0);
+  addBox(cx-w/2-2.5,0,cz+wr(-2,2),1.2,0.5,1.2,0x3a5a30,false);
+  occupy(x0-pad,x1+pad,z0-pad,z1+pad,1);
+}
+
 /* ================================================================
    Layout — war-torn luxury city
 ================================================================ */
 (function(){
-  // ---- Central plaza with a fallen monument ----
   const PX=0, PZ=0;
-  // Broken fountain
   addBox(PX,0,PZ,6,0.5,6,0xa8a090);
   addBox(PX,0.4,PZ,5.5,0.2,5.5,0x8a8a80,false);
   addBox(PX,0,PZ-1,5.4,0.7,0.4,0x6a6a60);
   addBox(PX,0,PZ+1,5.4,0.7,0.4,0x6a6a60);
   addBox(PX-1,0,PZ,0.4,0.7,5.4,0x6a6a60);
   addBox(PX+1,0,PZ,0.4,0.7,5.4,0x6a6a60);
-  // Fallen statue (toppled)
   const sx=PX+4,sz=PZ-3;
   addBox(sx,0.3,sz,3.0,0.8,1.2,0xa89878);
   addBox(sx+0.8,0.6,sz-0.5,1.2,1.2,1.2,0xa89878);
   addBox(sx+2.4,0.5,sz-0.8,0.6,0.6,0.6,0xa89878);
   occupy(-8,8,-8,8,0.5);
 
-  // ---- Military checkpoint at the plaza edge ----
   const CPX=20, CPZ=0;
-  // Concrete barriers
   addBox(CPX-4,0,CPZ,0.8,1.0,4,0xa0a096);
   addBox(CPX+4,0,CPZ,0.8,1.0,4,0xa0a096);
-  // Watchtower
   watchtower(CPX,CPZ+12,14);
-  // Sandbag ring
   sandbags(CPX-2,CPZ-4,10);
   sandbags(CPX+2,CPZ+4,10);
-  // Barbed wire
   barbedWireLine(CPX-10,CPZ-6,CPX-10,CPZ+6);
   barbedWireLine(CPX+10,CPZ-6,CPX+10,CPZ+6);
-  // Bunker
   bunker(CPX+8,CPZ+2,8,6);
 })();
 
-/* ---- Landmark buildings ---- */
 luxuryHotel(-120,-100);
 luxuryHotel(120,100);
 luxuryHotel(-100,120);
@@ -997,8 +1000,6 @@ bank(80,-40);
 cathedral(-200,-200);
 cathedral(200,200);
 
-/* ---- Ring of buildings ---- */
-// Inner ring — mixed mid-size
 for(let i=0;i<28;i++){
   const a=(i/28)*TAU + wr(-0.06,0.06);
   const r=170+wr(-25,25);
@@ -1014,7 +1015,6 @@ for(let i=0;i<28;i++){
   else cathedral(x,z);
 }
 
-// Mid ring
 for(let i=0;i<40;i++){
   const a=(i/40)*TAU + wr(-0.05,0.05);
   const r=280+wr(-35,35);
@@ -1030,7 +1030,6 @@ for(let i=0;i<40;i++){
   else bunker(x,z,w*0.5,d*0.5);
 }
 
-// Outer ring
 for(let i=0;i<48;i++){
   const a=(i/48)*TAU + wr(-0.05,0.05);
   const r=400+wr(-35,35);
@@ -1046,7 +1045,6 @@ for(let i=0;i<48;i++){
   else bunker(x,z,w*0.5,d*0.5);
 }
 
-/* ---- Off-ring fill ---- */
 for(let i=0,placed=0;i<2000&&placed<220;i++){
   const x=wr(-MAP+30, MAP-30), z=wr(-MAP+30, MAP-30);
   const r=Math.hypot(x,z);
@@ -1063,7 +1061,6 @@ for(let i=0,placed=0;i<2000&&placed<220;i++){
   placed++;
 }
 
-/* ---- Watchtowers ---- */
 for(let i=0,placed=0;i<500&&placed<24;i++){
   const x=wr(-MAP+30, MAP-30), z=wr(-MAP+30, MAP-30);
   if(!isFree(x,z,6))continue;
@@ -1071,7 +1068,6 @@ for(let i=0,placed=0;i<500&&placed<24;i++){
   placed++;
 }
 
-/* ---- Container yards ---- */
 for(let i=0,placed=0;i<800&&placed<24;i++){
   const x=wr(-MAP+20,MAP-20),z=wr(-MAP+20,MAP-20);
   if(!isFree(x,z,9))continue;
@@ -1085,7 +1081,6 @@ for(let i=0,placed=0;i<800&&placed<24;i++){
   occupy(x-6,x+6,z-6,z+6,1.5);placed++;
 }
 
-/* ---- Vehicles — burnt cars and tank wrecks ---- */
 for(let i=0,placed=0;i<800&&placed<70;i++){
   const onRoad=rand()<0.5;let x,z;
   if(onRoad){
@@ -1099,7 +1094,6 @@ for(let i=0,placed=0;i<800&&placed<70;i++){
   occupy(x-5,x+5,z-5,z+5,1);placed++;
 }
 
-/* ---- Planks ---- */
 for(let i=0,placed=0;i<500&&placed<20;i++){
   const x=wr(-MAP+40,MAP-40),z=wr(-MAP+40,MAP-40);
   if(!isFree(x,z,6))continue;
@@ -1108,7 +1102,6 @@ for(let i=0,placed=0;i<500&&placed<20;i++){
   occupy(x-w/2-1,x+w/2+1,z-d/2-1,z+d/2+1,0.5);placed++;
 }
 
-/* ---- Treehouses (sniping posts) ---- */
 for(let i=0,placed=0;i<500&&placed<18;i++){
   const x=wr(-MAP+20,MAP-20),z=wr(-MAP+20,MAP-20);
   if(!isFree(x,z,4))continue;
@@ -1116,7 +1109,6 @@ for(let i=0,placed=0;i<500&&placed<18;i++){
   occupy(x-3,x+3,z-3,z+3,1);placed++;
 }
 
-/* ---- Power poles and lamps ---- */
 for(let i=0;i<50;i++){
   const x=wr(-MAP+20,MAP-20), z=wr(-MAP+20,MAP-20);
   if(!isFree(x,z,1))continue;
@@ -1128,7 +1120,6 @@ for(let i=0;i<80;i++){
   streetLamp(x,z);
 }
 
-/* ---- Dense prop scatter ---- */
 for(let i=0,placed=0;i<3000&&placed<220;i++){
   const x=wr(-MAP+8,MAP-8),z=wr(-MAP+8,MAP-8);
   if(!isFree(x,z,1.6))continue;
@@ -1149,7 +1140,6 @@ for(let i=0,placed=0;i<2500&&placed<150;i++){
   if(!isFree(x,z,3))continue;
   sandbags(x,z,5+((rand()*8)|0));placed++;
 }
-// Barbed wire lines scattered
 for(let i=0,placed=0;i<600&&placed<40;i++){
   const x=wr(-MAP+20,MAP-20),z=wr(-MAP+20,MAP-20);
   if(!isFree(x,z,4))continue;
@@ -1158,7 +1148,6 @@ for(let i=0,placed=0;i<600&&placed<40;i++){
   placed++;
 }
 
-/* ---- Rubble piles (scattered debris) ---- */
 for(let i=0,placed=0;i<3000&&placed<200;i++){
   const x=wr(-MAP+6,MAP-6),z=wr(-MAP+6,MAP-6);
   if(!isFree(x,z,1.5))continue;
@@ -1171,19 +1160,16 @@ for(let i=0,placed=0;i<3000&&placed<200;i++){
   placed++;
 }
 
-/* ---- Trees ---- */
 for(let i=0,placed=0;i<3000&&placed<280;i++){
   const x=wr(-MAP+6,MAP-6),z=wr(-MAP+6,MAP-6);
   if(!isFree(x,z,2))continue;tree(x,z);placed++;
 }
 
-/* ---- Perimeter wall ---- */
 (function(){
   const E=MAP+1.5,LL=MAP*2+6,c=0x4a4a42;
   addBox(0,0,-E,LL,9,3,c);addBox(0,0,E,LL,9,3,c);addBox(-E,0,0,3,9,LL,c);addBox(E,0,0,3,9,LL,c);
 })();
 
-/* ---- Finalize static mesh ---- */
 (function(){
   const g=new THREE.BufferGeometry();
   g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(batch.pos),3));
@@ -1194,7 +1180,6 @@ for(let i=0,placed=0;i<3000&&placed<280;i++){
   m.frustumCulled=false;m.castShadow=true;m.receiveShadow=true;scene.add(m);
 })();
 
-/* ---- Grass (dry, sparse) ---- */
 let grassMesh=null;
 (function(){
   const gr=mulberry32(99),N=8000;
@@ -1212,21 +1197,18 @@ let grassMesh=null;
   im.count=n;im.frustumCulled=false;scene.add(im);grassMesh=im;
 })();
 
-/* ---- Distant hills ---- */
 for(let i=0;i<56;i++){
   const a=i/56*TAU+wr(-.1,.1),r=wr(760,980),h=wr(60,160);
   const m=new THREE.Mesh(new THREE.ConeGeometry(wr(60,120),h,6),lam(0x5a6a58));
   m.position.set(Math.cos(a)*r,h/2-2,Math.sin(a)*r);scene.add(m);
 }
 
-/* ---- Medkits ---- */
 const medSpots=[];
 for(let i=0;i<2000&&medSpots.length<52;i++){
   const x=wr(-MAP+10,MAP-10),z=wr(-MAP+10,MAP-10);
   if(isFree(x,z,2))medSpots.push([x,z]);
 }
 
-/* ---- Graphics quality ---- */
 function applyGfx(level){
   const dpr=window.devicePixelRatio||1;
   renderer.setPixelRatio(level==='high'?Math.min(dpr,2):level==='medium'?Math.min(dpr,1.5):1);
@@ -1331,7 +1313,6 @@ function makeLabel(name){
   s.scale.set(2.6,0.65,1);s.position.y=2.25;return s;
 }
 
-/* ---- Procedural skins ---- */
 function hashStr(s){
   let h=2166136261>>>0;
   for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}
@@ -1352,7 +1333,6 @@ function makeSkinTexture(seed,palette){
     case 5:{for(let i=0;i<18;i++){g.strokeStyle=palette.blotches[Math.floor(rng()*4)];g.lineWidth=3+rng()*6;g.beginPath();let x=rng()*128,y=rng()*128;g.moveTo(x,y);for(let j=0;j<6;j++){x+=(rng()-0.5)*30;y+=(rng()-0.5)*30;g.lineTo(x,y);}g.stroke();}break;}
     case 6:{for(let i=0;i<300;i++){g.strokeStyle=palette.blotches[Math.floor(rng()*4)];g.lineWidth=1+rng()*2;g.beginPath();let x=rng()*128,y=rng()*128;g.moveTo(x,y);for(let j=0;j<4;j++){x+=(rng()-0.5)*15;y+=(rng()-0.5)*15;g.lineTo(x,y);}g.stroke();}break;}
   }
-  // Pockets/straps
   g.fillStyle='rgba(0,0,0,0.22)';
   g.fillRect(8,78,34,20);g.fillRect(86,78,34,20);
   g.fillStyle='rgba(255,255,255,0.08)';g.fillRect(0,40,128,3);
@@ -1385,30 +1365,23 @@ function getSkin(name){
   return palette;
 }
 
-/* ---- NoDeX reserved skin ---- */
 const NODEX_PALETTE=(()=>{
   const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d');const rng=mulberry32(0xDEADBEEF);
-  // Dark charcoal tactical base
   g.fillStyle='#1e2018';g.fillRect(0,0,128,128);
-  // Fine grey noise
   const cols=['#2a2c1e','#3a3c28','#181a10','#4a4a30','#25281a'];
   for(let i=0;i<160;i++){
     g.fillStyle=cols[Math.floor(rng()*cols.length)];
     g.beginPath();g.arc(rng()*128,rng()*128,2+rng()*10,0,6.2832);g.fill();
   }
-  // Gold trim lines
   g.strokeStyle='#d4af37';g.lineWidth=2.5;
   g.beginPath();g.moveTo(0,60);g.lineTo(128,60);g.stroke();
   g.beginPath();g.moveTo(0,92);g.lineTo(128,92);g.stroke();
   g.beginPath();g.moveTo(0,30);g.lineTo(128,30);g.stroke();
-  // Panel outlines
   g.strokeStyle='rgba(0,0,0,0.6)';g.lineWidth=1.5;
   g.strokeRect(8,66,30,22);g.strokeRect(90,66,30,22);
   g.strokeRect(8,96,30,22);g.strokeRect(90,96,30,22);
-  // Gold chevron patch
   g.fillStyle='#d4af37';g.fillRect(50,66,28,4);
   g.fillStyle='rgba(0,0,0,0.8)';g.fillRect(50,70,28,2);
-  // Shoulder rank tab
   g.fillStyle='#c0392b';g.fillRect(50,100,28,14);
   g.fillStyle='#d4af37';g.fillRect(52,102,24,2);
   const tex=new THREE.CanvasTexture(c);tex.encoding=THREE.sRGBEncoding;
@@ -1417,7 +1390,6 @@ const NODEX_PALETTE=(()=>{
           holster:true,radio:true,texture:tex,special:true};
 })();
 
-/* ---- Detailed player mesh ---- */
 function makePlayerMesh(f){
   const g=new THREE.Group();
   const isNoDeX=f.name==='NoDeX';
@@ -1438,12 +1410,11 @@ function makePlayerMesh(f){
     (parent||g).add(me);return me;
   };
 
-  /* ---- Legs (multi-part) ---- */
   f.legL=new THREE.Group();f.legL.position.set(-0.14,0.76,0);
-  mk(0.24,0.38,0.28,cloth,0,-0.19,0,f.legL);          // thigh
-  mk(0.22,0.36,0.26,cloth,0,-0.55,0.01,f.legL);        // shin
-  mk(0.28,0.18,0.40,boot,0,-0.79,-0.04,f.legL);        // boot
-  mk(0.30,0.06,0.42,boot,0,-0.85,-0.04,f.legL);        // sole
+  mk(0.24,0.38,0.28,cloth,0,-0.19,0,f.legL);
+  mk(0.22,0.36,0.26,cloth,0,-0.55,0.01,f.legL);
+  mk(0.28,0.18,0.40,boot,0,-0.79,-0.04,f.legL);
+  mk(0.30,0.06,0.42,boot,0,-0.85,-0.04,f.legL);
   if(palette.pads)mk(0.24,0.14,0.18,dark,0,-0.42,-0.14,f.legL);
   g.add(f.legL);
 
@@ -1455,38 +1426,29 @@ function makePlayerMesh(f){
   if(palette.pads)mk(0.24,0.14,0.18,dark,0,-0.42,-0.14,f.legR);
   g.add(f.legR);
 
-  /* ---- Hips / belt ---- */
   mk(0.62,0.22,0.36,dark,0,0.80,0);
-  mk(0.60,0.06,0.34,accent,0,0.90,0);   // belt stripe
+  mk(0.60,0.06,0.34,accent,0,0.90,0);
   if(palette.holster){
     mk(0.14,0.28,0.10,dark,0.32,0.70,0.10);
     mk(0.11,0.17,0.06,metal,0.32,0.66,0.04);
   }
 
-  /* ---- Torso ---- */
   mk(0.62,0.72,0.34,cloth,0,1.08,0);
-  // Neck
   mk(0.16,0.08,0.16,skinM,0,1.50,0);
 
-  /* ---- Vest / plate carrier ---- */
   if(palette.vest){
     mk(0.68,0.46,0.40,clothDark,0,1.15,0);
-    // Front pouches
     mk(0.16,0.17,0.06,dark,-0.17,1.05,-0.22);
     mk(0.16,0.17,0.06,dark,0,1.05,-0.22);
     mk(0.16,0.17,0.06,dark,0.17,1.05,-0.22);
-    // Shoulder straps
     mk(0.09,0.11,0.36,dark,-0.26,1.40,0);
     mk(0.09,0.11,0.36,dark,0.26,1.40,0);
-    // Accent patch
     mk(0.12,0.07,0.02,accent,-0.17,1.22,-0.23);
-    // Rank tab on right shoulder
     if(isNoDeX){
       mk(0.10,0.05,0.14,accent,0.28,1.50,0);
     }
   }
 
-  /* ---- Backpack ---- */
   if(palette.back){
     mk(0.44,0.54,0.24,clothDark,0,1.14,0.26);
     mk(0.38,0.10,0.02,accent,0,1.32,0.39);
@@ -1498,21 +1460,15 @@ function makePlayerMesh(f){
     }
   }
 
-  /* ---- Head + headgear ---- */
   mk(0.30,0.30,0.30,skinM,0,1.60,0);
   if(palette.helmet){
-    // Helmet dome
     mk(0.36,0.20,0.36,clothDark,0,1.76,0);
-    // Brim
     mk(0.38,0.06,0.38,dark,0,1.68,0);
-    // NVG mount
     mk(0.10,0.08,0.08,metal,0,1.78,-0.20);
     mk(0.06,0.06,0.12,dark,0,1.74,-0.24);
     mk(0.03,0.03,0.03,accent,0,1.74,-0.30);
-    // Side rails
     mk(0.04,0.08,0.24,dark,-0.20,1.74,0);
     mk(0.04,0.08,0.24,dark,0.20,1.74,0);
-    // Chin strap
     mk(0.32,0.03,0.03,dark,0,1.52,-0.10);
   } else if(palette.cap){
     mk(0.34,0.12,0.34,clothDark,0,1.78,0);
@@ -1524,43 +1480,31 @@ function makePlayerMesh(f){
     mk(0.38,0.10,0.38,clothDark,0,1.76,0);
     mk(0.42,0.05,0.42,clothDark,0,1.70,0);
   }
-  // Visor / shades
   mk(0.32,0.10,0.06,dark,0,1.63,-0.16);
   mk(0.28,0.06,0.03,glass,0,1.60,-0.18);
-  // For NoDeX, glowing eye slit
   if(isNoDeX){
     mk(0.24,0.03,0.02,accent,0,1.60,-0.19);
   }
 
-  /* ---- Arms (multi-part, gripping a rifle in front) ---- */
-  // Right arm — upper, forearm, hand
   f.armR=new THREE.Group();f.armR.position.set(0.34,1.32,0);
-  mk(0.16,0.24,0.18,cloth,0,-0.10,-0.02,f.armR);       // upper arm
-  mk(0.14,0.24,0.16,cloth,0.02,-0.32,-0.14,f.armR);    // forearm
-  mk(0.13,0.10,0.15,skinM,0.04,-0.48,-0.24,f.armR);    // hand
+  mk(0.16,0.24,0.18,cloth,0,-0.10,-0.02,f.armR);
+  mk(0.14,0.24,0.16,cloth,0.02,-0.32,-0.14,f.armR);
+  mk(0.13,0.10,0.15,skinM,0.04,-0.48,-0.24,f.armR);
   g.add(f.armR);
 
-  // Left arm — reach further forward to support the handguard
   f.armL=new THREE.Group();f.armL.position.set(-0.34,1.32,0);
   mk(0.16,0.24,0.18,cloth,0,-0.10,-0.02,f.armL);
   mk(0.14,0.24,0.16,cloth,-0.02,-0.30,-0.20,f.armL);
   mk(0.13,0.10,0.15,skinM,-0.04,-0.44,-0.40,f.armL);
   g.add(f.armL);
 
-  /* ---- Weapon in the hands ---- */
   f.gunGrip=new THREE.Group();
-  // Receiver
   mk(0.07,0.11,0.55,dark,0.04,1.06,-0.42,f.gunGrip);
-  // Barrel
   mk(0.045,0.045,0.36,metal,0.04,1.08,-0.86,f.gunGrip);
-  // Magazine
   mk(0.06,0.14,0.11,dark,0.06,0.88,-0.42,f.gunGrip);
-  // Stock
   mk(0.055,0.08,0.20,dark,0.04,1.06,-0.12,f.gunGrip);
-  // Sights
   mk(0.04,0.04,0.08,metal,0.04,1.15,-0.30,f.gunGrip);
   mk(0.04,0.04,0.06,metal,0.04,1.15,-0.66,f.gunGrip);
-  // Grip
   mk(0.055,0.14,0.08,dark,0.04,0.94,-0.20,f.gunGrip);
   g.add(f.gunGrip);
 
@@ -1951,7 +1895,6 @@ function stopNet(){
   for(const id of Array.from(remotes.keys()))removeRemote(id);
 }
 
-// Wall-clock state sender — survives rAF throttling in background tabs
 setInterval(()=>{
   if(mode==='multi' && net.ws && net.ws.readyState===1 &&
      (state==='playing'||state==='dead')){
@@ -1959,7 +1902,6 @@ setInterval(()=>{
   }
 }, 50);
 
-// Request a fresh roster on tab focus so the peer list is always up to date
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='visible' &&
      net.ws && net.ws.readyState===1 && mode==='multi'){
@@ -2139,10 +2081,8 @@ function updatePlayer(dt){
   P.kick=Math.max(0,P.kick-dt*9);P.flash=Math.max(0,P.flash-dt);P.swap=Math.max(0,P.swap-dt*4);
   P.swayX*=Math.max(0,1-dt*10);P.swayY*=Math.max(0,1-dt*10);
 
-  // Layered reload animation
   const rl01=P.reload>0?1-P.reload/P.reloadTotal:0;
-  // Reload curve: 0→0.25 dip down, 0.25→0.7 hold low & rotate, 0.7→1 return up
-  let reloadLower=0, reloadRot=0;
+  let reloadLower=0,reloadRot=0;
   if(P.reload>0){
     if(rl01<0.25) reloadLower=rl01/0.25;
     else if(rl01<0.75) reloadLower=1;
@@ -2150,11 +2090,9 @@ function updatePlayer(dt){
     reloadRot=Math.sin(rl01*Math.PI);
   }
 
-  // Idle breathing sway
   const idleX=Math.sin(P.idleSway*1.4)*0.0035*(1-P.adsT);
   const idleY=Math.sin(P.idleSway*1.1)*0.0040*(1-P.adsT);
 
-  // ADS position vs hip
   const a=P.adsT;
   const hipX=0.20, hipY=-0.19, hipZ=-0.42;
   const adsX=0.0,  adsY=-0.09, adsZ=-0.36;
@@ -2286,16 +2224,13 @@ function syncMeshes(dt){
     const m=b.mesh;
     m.position.set(b.x,b.y,b.z);m.rotation.y=b.yaw;
     if(b.alive){
-      // Walk cycle — legs swing in opposite phase
       if(b.speed>0.6&&b.onGround){b.walk+=b.speed*dt*1.5;b.legL.rotation.x=Math.sin(b.walk)*0.7;b.legR.rotation.x=-Math.sin(b.walk)*0.7;}
       else{b.legL.rotation.x*=0.8;b.legR.rotation.x*=0.8;}
-      // Arms stay roughly forward, small sway
       if(b.armR&&b.armL){
         const idle=Math.sin(T*1.5+b.x*0.1)*0.05;
         b.armR.rotation.x=idle;
         b.armL.rotation.x=-idle;
       }
-      // Gun bobs slightly
       if(b.gunGrip){
         b.gunGrip.position.y=Math.sin(b.walk*2)*0.015;
       }
@@ -2304,7 +2239,6 @@ function syncMeshes(dt){
     }else{
       b.deathT+=dt;
       m.rotation.x=-Math.min(b.deathT*3,1.45);
-      // Ragdoll-ish legs splay
       if(b.legL)b.legL.rotation.x=0.6;
       if(b.legR)b.legR.rotation.x=-0.4;
       b.label.visible=false;
