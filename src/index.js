@@ -57,18 +57,16 @@ export class Arena extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
 
-    this.sessions   = new Map();   // WebSocket -> session
-    this.boxes      = [];          // world colliders, uploaded by first client
+    this.sessions   = new Map();
+    this.boxes      = [];
     this.mapReady   = false;
     this.chatHistory = [];
 
-    // Restore any connections that survived a hibernation eviction
     for (const ws of this.ctx.getWebSockets()) {
       const att = ws.deserializeAttachment();
       if (att) this.sessions.set(ws, att);
     }
 
-    // Free ping/pong without waking the DO from hibernation
     this.ctx.setWebSocketAutoResponse(
       new WebSocketRequestResponsePair("ping", "pong")
     );
@@ -183,7 +181,7 @@ export class Arena extends DurableObject {
     s.joined = true;
     ws.serializeAttachment(s);
 
-    // Send newcomer the current roster
+    // Roster to the newcomer
     const roster = [...this.sessions.values()]
       .filter(o => o !== s && o.joined)
       .map(o => ({
@@ -199,7 +197,8 @@ export class Arena extends DurableObject {
   }
 
   /* ----------------------------------------------------------------
-     State — speed / teleport rejection
+     State — speed / teleport rejection, includes name + color
+     so the client can auto-create peers from state packets alone.
   ---------------------------------------------------------------- */
   onState(ws, s, msg) {
     if (!s.joined) return;
@@ -224,7 +223,6 @@ export class Arena extends DurableObject {
     s.alive = !!msg.alive;
     s.lastMove = now;
 
-    // First transition to alive — tell everyone so they can build a mesh
     if (!wasAlive && s.alive && !s.spawnedAt) {
       s.spawnedAt = now;
       this.broadcast({
@@ -235,6 +233,7 @@ export class Arena extends DurableObject {
 
     this.broadcast({
       t: "state", id: s.id,
+      n: s.name, c: s.color,
       x: s.x, y: s.y, z: s.z, yaw: s.yaw,
       hp: s.hp, alive: s.alive ? 1 : 0,
       kills: s.kills, deaths: s.deaths,
@@ -274,7 +273,6 @@ export class Arena extends DurableObject {
     d[0] /= dl; d[1] /= dl; d[2] /= dl;
     const spread = Math.max(0, Math.min(0.2, +msg.spread || 0));
 
-    // Relay the tracer to other clients
     this.broadcast({
       t: "fire", id: s.id,
       o: [round2(o[0]), round2(o[1]), round2(o[2])],
@@ -282,7 +280,6 @@ export class Arena extends DurableObject {
       w: wi,
     }, ws);
 
-    // Collect hits for all pellets
     const others  = [...this.sessions.values()].filter(o => o !== s && o.joined && o.alive);
     const victims = new Map();
 
@@ -290,7 +287,6 @@ export class Arena extends DurableObject {
       let dx = d[0], dy = d[1], dz = d[2];
 
       if (spread > 0) {
-        // Random cone in a perpendicular basis
         const a = Math.random() * Math.PI * 2;
         const r = Math.sqrt(Math.random()) * spread;
         let ux = 0, uy = 1, uz = 0;
@@ -346,7 +342,6 @@ export class Arena extends DurableObject {
       }
     }
 
-    // Apply
     for (const [vid, e] of victims) {
       const victim = [...this.sessions.values()].find(x => x.id === vid);
       if (!victim || !victim.alive) continue;
@@ -379,7 +374,7 @@ export class Arena extends DurableObject {
   }
 
   /* ----------------------------------------------------------------
-     Global chat with per-session rate limit
+     Global chat
   ---------------------------------------------------------------- */
   onChat(ws, s, msg) {
     if (!s.joined) return;
@@ -404,7 +399,6 @@ export class Arena extends DurableObject {
   onAdmin(ws, s, msg) {
     if (!s.joined) return;
 
-    // Only NoDeX can even attempt this
     if (s.name !== ADMIN_NAME) {
       ws.send(JSON.stringify({ t: "private", m: "Access denied." }));
       return;
@@ -419,7 +413,6 @@ export class Arena extends DurableObject {
       return;
     }
 
-    // Constant-time comparison
     const given = String(msg.pass || "");
     let diff = given.length === expected.length ? 0 : 1;
     const n = Math.max(given.length, expected.length);
@@ -431,7 +424,6 @@ export class Arena extends DurableObject {
       return;
     }
 
-    // Sweep — kill every alive player within ADMIN_RADIUS
     const victims = [];
     for (const other of this.sessions.values()) {
       if (other === s || !other.alive || !other.joined) continue;
@@ -444,7 +436,6 @@ export class Arena extends DurableObject {
       victims.push(other);
     }
 
-    // Emit one kill event per victim — looks identical to a normal kill
     for (const v of victims) {
       this.broadcast({
         t: "kill",
@@ -490,7 +481,7 @@ export class Arena extends DurableObject {
 }
 
 /* ================================================================
-   Ray / AABB intersection (matches client math)
+   Ray / AABB
 ================================================================ */
 function rayBox(o, d, b, maxT) {
   let tmin = 0, tmax = maxT;
