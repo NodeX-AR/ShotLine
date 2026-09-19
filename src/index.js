@@ -265,12 +265,12 @@ export class Arena extends DurableObject {
 
     for (const [vid, e] of victims) {
       const victim = [...this.sessions.values()].find(x => x.id === vid);
-      if (!victim || !victim.alive) continue;
+      if (!victim || !victim.alive) continue;   // already dead — dedup
       const dmg = Math.min(DAMAGE_CAP, e.dmg);
       victim.hp -= dmg;
       if (victim.hp <= 0) {
         victim.hp = 0;
-        victim.alive = false;
+        victim.alive = false;   // flag first so subsequent pellets can't double-kill
         victim.deaths++;
         s.kills++;
         this.broadcast({
