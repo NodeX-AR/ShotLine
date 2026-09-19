@@ -1,0 +1,14 @@
+{
+  "name": "shotline-arena",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Shotline — a browser FPS with a Cloudflare Durable Object game server",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "wrangler": "^3.90.0"
+  }
+}
