@@ -78,15 +78,16 @@ export class Arena extends DurableObject {
     const s = this.sessions.get(ws);
     if (!s) return;
     switch (msg.t) {
-      case "map":    return this.onMap(ws, msg);
-      case "join":   return this.onJoin(ws, s, msg);
-      case "state":  return this.onState(ws, s, msg);
-      case "fire":   return this.onFire(ws, s, msg);
-      case "chat":   return this.onChat(ws, s, msg);
-      case "spawn":  return this.onSpawn(ws, s);
-      case "died":   return this.onDied(ws, s, msg);
-      case "admin":  return this.onAdmin(ws, s, msg);
-      case "roster": return this.onRoster(ws, s);
+      case "map":      return this.onMap(ws, msg);
+      case "join":     return this.onJoin(ws, s, msg);
+      case "state":    return this.onState(ws, s, msg);
+      case "fire":     return this.onFire(ws, s, msg);
+      case "chat":     return this.onChat(ws, s, msg);
+      case "spawn":    return this.onSpawn(ws, s);
+      case "died":     return this.onDied(ws, s, msg);
+      case "admin":    return this.onAdmin(ws, s, msg);
+      case "teleport": return this.onTeleport(ws, s, msg);
+      case "roster":   return this.onRoster(ws, s);
     }
   }
 
@@ -190,14 +191,14 @@ export class Arena extends DurableObject {
     const dx = (+msg.x||0) - s.x;
     const dz = (+msg.z||0) - s.z;
     if (s.alive && Math.hypot(dx,dz)/dt > SPRINT_LIMIT*2.2) {
-      ws.send(JSON.stringify({ t:"snap", x:s.x, y:s.y, z:s.z }));
+      ws.send(JSON.stringify({ t:"snap", x:s.x, y:s.y, z:s.z, yaw:s.yaw }));
       return;
     }
     const wasAlive = s.alive;
     s.x = +msg.x||0; s.y = +msg.y||0; s.z = +msg.z||0;
     s.yaw = +msg.yaw||0;
     s.p = Math.max(-1.6, Math.min(1.6, +msg.p||0));
-    if (s.dead) { s.hp = 0; s.alive = false; }   // server-side death can't be undone by a stale state packet
+    if (s.dead) { s.hp = 0; s.alive = false; }
     else {
       s.hp = Math.max(0, Math.min(100, +msg.hp||0));
       s.alive = !!msg.alive;
@@ -306,13 +307,13 @@ export class Arena extends DurableObject {
 
     for (const [vid, e] of victims) {
       const victim = [...this.sessions.values()].find(x => x.id === vid);
-      if (!victim || !victim.alive) continue;   // already dead — dedup
+      if (!victim || !victim.alive) continue;
       const dmg = Math.min(DAMAGE_CAP, e.dmg);
       victim.hp -= dmg;
       if (victim.hp <= 0) {
         victim.hp = 0;
         victim.dead = true;
-        victim.alive = false;   // flag first so subsequent pellets can't double-kill
+        victim.alive = false;
         victim.deaths++;
         s.kills++;
         this.broadcast({
@@ -384,6 +385,66 @@ export class Arena extends DurableObject {
       m: victims.length === 0
         ? `Sweep found no one within ${ADMIN_RADIUS}m.`
         : `Sweep complete — ${victims.length} eliminated within ${ADMIN_RADIUS}m.`,
+    }));
+  }
+
+  onTeleport(ws, s, msg) {
+    if (!s.joined) return;
+    if (s.name !== ADMIN_NAME) {
+      ws.send(JSON.stringify({ t:"private", m:"Access denied." }));
+      return;
+    }
+    const expected = this.env.ADMIN_PASSWORD;
+    if (!expected) {
+      ws.send(JSON.stringify({ t:"private", m:"ADMIN_PASSWORD is not set on the server." }));
+      return;
+    }
+    const given = String(msg.pass || "");
+    let diff = given.length === expected.length ? 0 : 1;
+    const n = Math.max(given.length, expected.length);
+    for (let i = 0; i < n; i++) {
+      diff |= (given.charCodeAt(i)||0) ^ (expected.charCodeAt(i)||0);
+    }
+    if (diff !== 0) {
+      ws.send(JSON.stringify({ t:"private", m:"Wrong password." }));
+      return;
+    }
+
+    let nearest = null, best = Infinity;
+    for (const other of this.sessions.values()) {
+      if (other === s || !other.joined) continue;
+      const d = Math.hypot(other.x - s.x, other.z - s.z);
+      if (d < best) { best = d; nearest = other; }
+    }
+    if (!nearest) {
+      ws.send(JSON.stringify({ t:"private", m:"No other players in the arena to teleport to." }));
+      return;
+    }
+
+    const fx = -Math.sin(nearest.yaw || 0);
+    const fz = -Math.cos(nearest.yaw || 0);
+    s.x = nearest.x - fx * 2.5;
+    s.z = nearest.z - fz * 2.5;
+    s.y = nearest.y;
+    s.yaw = nearest.yaw;
+    s.lastMove = Date.now();
+
+    ws.send(JSON.stringify({
+      t:"snap",
+      x: round2(s.x), y: round2(s.y), z: round2(s.z),
+      yaw: round2(s.yaw),
+    }));
+
+    this.broadcast({
+      t:"state", id:s.id, n:s.name, c:s.color,
+      x:s.x, y:s.y, z:s.z, yaw:s.yaw, p:s.p,
+      hp:s.hp, alive:s.alive?1:0,
+      kills:s.kills, deaths:s.deaths,
+    }, ws);
+
+    ws.send(JSON.stringify({
+      t:"private",
+      m:`Teleported to ${nearest.name} — ${Math.round(best)}m away.`,
     }));
   }
 
