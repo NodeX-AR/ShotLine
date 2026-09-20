@@ -996,6 +996,7 @@ function spawnOK(x,z){
 const fighters=[];
 const BOT_NAMES=['ShadowFox','NovaStrike','IronWolf','PixelReaper','Vortex','GhostRider','Blaze','Cipher','Havoc','Rogue7','Kraken'];
 const BOT_COLORS=[0xc0392b,0x2e86c1,0x27ae60,0x8e44ad,0xd68910,0x16a085,0xc2185b,0x5d6d7e,0xa04000,0x1f618d,0x7d3c98];
+const BOT_WEAPON_POOL=['rifle','smg','rifle','bullpup','dmr','shotgun','lmg','rifle','sniper','smg','pistol'];
 
 function makeFighter(name,isPlayer,color){
   return {name,isPlayer,color,x:0,y:0,z:0,vx:0,vy:0,vz:0,yaw:0,hp:100,alive:false,kills:0,deaths:0,
@@ -1004,7 +1005,8 @@ function makeFighter(name,isPlayer,color){
     strafe:1,strafeT:0,side:Math.random()<0.5?1:-1,tx:0,tz:0,stuckT:0,px:0,pz:0,walk:0,sprint:false,
     mesh:null,body:null,legL:null,legR:null,armL:null,armR:null,gunGrip:null,label:null,
     animT:Math.random()*10,remote:false,isBot:!isPlayer&&name!=='You',
-    idleChatT:0,persona:BotChat.persona(),pitch:0,vyE:0,landT:0,peakY:0,stepOff:0,climb:null,mantle:null,deathSign:-1};
+    idleChatT:0,persona:BotChat.persona(),pitch:0,vyE:0,landT:0,peakY:0,stepOff:0,climb:null,mantle:null,deathSign:-1,
+    weaponKind:'rifle'};
 }
 function makeLabel(name){
   const c=document.createElement('canvas');c.width=256;c.height=64;const g=c.getContext('2d');
@@ -1017,21 +1019,17 @@ function makeLabel(name){
 function hashStr(s){let h=2166136261>>>0;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
 const skinCache=new Map();
 
-/* ---- detailed fabric skin texture ---- */
 function makeSkinTexture(seed,palette){
   const S=256;
   const c=document.createElement('canvas');c.width=c.height=S;
   const g=c.getContext('2d');
   const rng=mulberry32(seed^0xa5a5a5);
-
   g.fillStyle=palette.base;g.fillRect(0,0,S,S);
-
   const grad=g.createLinearGradient(0,0,0,S);
   grad.addColorStop(0,'rgba(255,255,255,0.09)');
   grad.addColorStop(0.5,'rgba(0,0,0,0)');
   grad.addColorStop(1,'rgba(0,0,0,0.24)');
   g.fillStyle=grad;g.fillRect(0,0,S,S);
-
   switch(palette.pattern){
     case 0: break;
     case 1:{
@@ -1063,9 +1061,7 @@ function makeSkinTexture(seed,palette){
       for(let i=0;i<22;i++){
         g.fillStyle=palette.blotches[Math.floor(rng()*4)];
         g.globalAlpha=0.6+rng()*0.32;
-        g.save();
-        g.translate(rng()*S,rng()*S);
-        g.rotate(-0.4+(rng()-0.5)*0.8);
+        g.save();g.translate(rng()*S,rng()*S);g.rotate(-0.4+(rng()-0.5)*0.8);
         const w=3+rng()*8,h=40+rng()*80;
         g.fillRect(-w/2,-h/2,w,h);
         g.beginPath();g.moveTo(-w/2,-h/2);g.lineTo(w/2,-h/2);g.lineTo(0,-h/2-9);g.closePath();g.fill();
@@ -1098,58 +1094,30 @@ function makeSkinTexture(seed,palette){
       for(let i=0;i<45;i++){
         g.fillStyle=palette.blotches[Math.floor(rng()*4)];
         g.globalAlpha=0.4+rng()*0.32;
-        const x=rng()*S;
-        g.fillRect(x,0,2+rng()*7,S);
+        g.fillRect(rng()*S,0,2+rng()*7,S);
       }
       break;
     }
   }
   g.globalAlpha=1;
-
-  g.globalAlpha=0.13;
-  g.strokeStyle='#000';g.lineWidth=0.5;
+  g.globalAlpha=0.13;g.strokeStyle='#000';g.lineWidth=0.5;
   for(let i=0;i<S;i+=3){g.beginPath();g.moveTo(i,0);g.lineTo(i,S);g.stroke();}
   g.strokeStyle='#fff';
   for(let i=0;i<S;i+=3){g.beginPath();g.moveTo(0,i);g.lineTo(S,i);g.stroke();}
   g.globalAlpha=1;
-
   g.strokeStyle='rgba(0,0,0,0.32)';g.lineWidth=1.1;
-  for(let i=0;i<14;i++){
-    g.beginPath();
-    let x=rng()*S,y=rng()*S;g.moveTo(x,y);
-    for(let j=0;j<5;j++){x+=(rng()-0.5)*20;y+=rng()*14;g.lineTo(x,y);}
-    g.stroke();
-  }
+  for(let i=0;i<14;i++){g.beginPath();let x=rng()*S,y=rng()*S;g.moveTo(x,y);for(let j=0;j<5;j++){x+=(rng()-0.5)*20;y+=rng()*14;g.lineTo(x,y);}g.stroke();}
   g.strokeStyle='rgba(255,255,255,0.13)';g.lineWidth=0.8;
-  for(let i=0;i<10;i++){
-    g.beginPath();
-    let x=rng()*S,y=rng()*S;g.moveTo(x,y);
-    for(let j=0;j<4;j++){x+=(rng()-0.5)*14;y+=rng()*11;g.lineTo(x,y);}
-    g.stroke();
-  }
-
-  for(let i=0;i<20;i++){
-    g.fillStyle='rgba(28,22,16,'+(0.10+rng()*0.18)+')';
-    g.beginPath();g.arc(rng()*S,rng()*S,5+rng()*18,0,Math.PI*2);g.fill();
-  }
-
+  for(let i=0;i<10;i++){g.beginPath();let x=rng()*S,y=rng()*S;g.moveTo(x,y);for(let j=0;j<4;j++){x+=(rng()-0.5)*14;y+=rng()*11;g.lineTo(x,y);}g.stroke();}
+  for(let i=0;i<20;i++){g.fillStyle='rgba(28,22,16,'+(0.10+rng()*0.18)+')';g.beginPath();g.arc(rng()*S,rng()*S,5+rng()*18,0,Math.PI*2);g.fill();}
   g.strokeStyle='rgba(0,0,0,0.55)';g.lineWidth=1;
-  g.setLineDash([3,2]);
-  g.beginPath();g.moveTo(S*0.25,0);g.lineTo(S*0.25,S);g.stroke();
-  g.beginPath();g.moveTo(S*0.75,0);g.lineTo(S*0.75,S);g.stroke();
-  g.setLineDash([]);
+  g.setLineDash([3,2]);g.beginPath();g.moveTo(S*0.25,0);g.lineTo(S*0.25,S);g.stroke();
+  g.beginPath();g.moveTo(S*0.75,0);g.lineTo(S*0.75,S);g.stroke();g.setLineDash([]);
   g.strokeStyle='rgba(0,0,0,0.42)';
-  g.strokeRect(S*0.05,S*0.30,S*0.15,S*0.14);
-  g.strokeRect(S*0.80,S*0.30,S*0.15,S*0.14);
-  g.fillStyle='rgba(60,60,60,0.7)';
-  g.fillRect(S*0.48,S*0.02,3,12);
-
-  const tex=new THREE.CanvasTexture(c);
-  tex.encoding=THREE.sRGBEncoding;
-  tex.magFilter=THREE.NearestFilter;
-  tex.minFilter=THREE.LinearMipmapLinearFilter;
-  tex.generateMipmaps=true;
-  tex.anisotropy=4;
+  g.strokeRect(S*0.05,S*0.30,S*0.15,S*0.14);g.strokeRect(S*0.80,S*0.30,S*0.15,S*0.14);
+  g.fillStyle='rgba(60,60,60,0.7)';g.fillRect(S*0.48,S*0.02,3,12);
+  const tex=new THREE.CanvasTexture(c);tex.encoding=THREE.sRGBEncoding;
+  tex.magFilter=THREE.NearestFilter;tex.minFilter=THREE.LinearMipmapLinearFilter;tex.generateMipmaps=true;tex.anisotropy=4;
   return tex;
 }
 function getSkin(name){
@@ -1178,83 +1146,38 @@ function getSkin(name){
   skinCache.set(name,palette);
   return palette;
 }
-
-/* ---- NoDeX reserved skin ---- */
 const NODEX_PALETTE=(()=>{
   const S=256;
   const c=document.createElement('canvas');c.width=c.height=S;
   const g=c.getContext('2d');
   const rng=mulberry32(0xDEADBEEF);
-
   g.fillStyle='#12100e';g.fillRect(0,0,S,S);
-
   for(let i=0;i<44;i++){
     g.fillStyle=rng()<0.5?'#1a1714':'#07060a';
-    g.save();
-    g.translate(rng()*S,rng()*S);
-    g.rotate(-0.5+(rng()-0.5)*0.6);
-    const w=3+rng()*9,h=40+rng()*95;
-    g.fillRect(-w/2,-h/2,w,h);
-    g.restore();
+    g.save();g.translate(rng()*S,rng()*S);g.rotate(-0.5+(rng()-0.5)*0.6);
+    const w=3+rng()*9,h=40+rng()*95;g.fillRect(-w/2,-h/2,w,h);g.restore();
   }
-
-  g.fillStyle='rgba(176,20,30,0.55)';
-  g.fillRect(0,S*0.34,S,S*0.06);
-
+  g.fillStyle='rgba(176,20,30,0.55)';g.fillRect(0,S*0.34,S,S*0.06);
   g.strokeStyle='#d4af37';g.lineWidth=3;
   g.beginPath();g.moveTo(0,S*0.30);g.lineTo(S,S*0.30);g.stroke();
   g.beginPath();g.moveTo(0,S*0.72);g.lineTo(S,S*0.72);g.stroke();
-
   const pcx=S*0.50,pcy=S*0.50;
-  g.fillStyle='#d4af37';
-  g.beginPath();
-  for(let i=0;i<16;i++){
-    const a=(i/16)*Math.PI*2-Math.PI/2;
-    const r=i%2===0?15:6;
-    g.lineTo(pcx+Math.cos(a)*r,pcy+Math.sin(a)*r);
-  }
+  g.fillStyle='#d4af37';g.beginPath();
+  for(let i=0;i<16;i++){const a=(i/16)*Math.PI*2-Math.PI/2;const r=i%2===0?15:6;g.lineTo(pcx+Math.cos(a)*r,pcy+Math.sin(a)*r);}
   g.closePath();g.fill();
-  g.fillStyle='#8a0a14';
-  g.beginPath();g.arc(pcx,pcy,4,0,Math.PI*2);g.fill();
+  g.fillStyle='#8a0a14';g.beginPath();g.arc(pcx,pcy,4,0,Math.PI*2);g.fill();
+  g.fillStyle='#d4af37';g.beginPath();g.arc(pcx,pcy,1.6,0,Math.PI*2);g.fill();
   g.fillStyle='#d4af37';
-  g.beginPath();g.arc(pcx,pcy,1.6,0,Math.PI*2);g.fill();
-
-  g.fillStyle='#d4af37';
-  for(let i=0;i<8;i++){
-    const x=S*0.06+i*S*0.12,y=S*0.87;
-    g.save();g.translate(x,y);g.rotate(Math.PI/4);
-    g.fillRect(-3,-3,6,6);
-    g.restore();
-  }
-
-  for(let i=0;i<28;i++){
-    g.fillStyle='rgba(0,0,0,'+(0.15+rng()*0.2)+')';
-    g.beginPath();g.arc(rng()*S,rng()*S,3+rng()*12,0,Math.PI*2);g.fill();
-  }
-
-  g.globalAlpha=0.1;
-  g.strokeStyle='#000';g.lineWidth=0.5;
+  for(let i=0;i<8;i++){const x=S*0.06+i*S*0.12,y=S*0.87;g.save();g.translate(x,y);g.rotate(Math.PI/4);g.fillRect(-3,-3,6,6);g.restore();}
+  for(let i=0;i<28;i++){g.fillStyle='rgba(0,0,0,'+(0.15+rng()*0.2)+')';g.beginPath();g.arc(rng()*S,rng()*S,3+rng()*12,0,Math.PI*2);g.fill();}
+  g.globalAlpha=0.1;g.strokeStyle='#000';g.lineWidth=0.5;
   for(let i=0;i<S;i+=3){g.beginPath();g.moveTo(i,0);g.lineTo(i,S);g.stroke();}
   g.globalAlpha=1;
-
-  const tex=new THREE.CanvasTexture(c);
-  tex.encoding=THREE.sRGBEncoding;
-  tex.magFilter=THREE.NearestFilter;
-  tex.minFilter=THREE.LinearFilter;
-
-  return {
-    base:'#12100e',
-    dark:'#050506',
-    light:'#2a2418',
-    accent:'#d4af37',
-    accent2:'#b0141e',
-    skinTone:'#8a6a4a',
-    helmet:true,cap:false,beret:false,boonie:false,
-    vest:true,back:true,pads:true,
-    holster:true,radio:true,
-    texture:tex,
-    special:true,
-  };
+  const tex=new THREE.CanvasTexture(c);tex.encoding=THREE.sRGBEncoding;
+  tex.magFilter=THREE.NearestFilter;tex.minFilter=THREE.LinearFilter;
+  return {base:'#12100e',dark:'#050506',light:'#2a2418',accent:'#d4af37',accent2:'#b0141e',skinTone:'#8a6a4a',
+          helmet:true,cap:false,beret:false,boonie:false,vest:true,back:true,pads:true,
+          holster:true,radio:true,texture:tex,special:true};
 })();
 
 const _upY=new THREE.Vector3(0,1,0);
@@ -1274,10 +1197,29 @@ function segMesh(parent,x1,y1,z1,x2,y2,z2,w,h,mat){
   return m;
 }
 
+/* ---- per-weapon arm anchors ----
+   R_HA  = right hand / gun grip position (body local)
+   L_HA  = left hand position, or null for one-handed weapons
+   L rest = left arm relaxed at side for one-handed weapons */
+const TP_ANCHOR={
+  pistol:  {R:[0.22,1.10,-0.10], L:null,
+            lRest:[[-0.32,1.42,0.02],[-0.36,1.14,0.10],[-0.34,0.88,0.16]]},
+  smg:     {R:[0.22,1.12,-0.14], L:[0.04,1.14,-0.44]},
+  rifle:   {R:[0.24,1.14,-0.16], L:[0.02,1.18,-0.50]},
+  bullpup: {R:[0.24,1.14,-0.20], L:[0.04,1.18,-0.56]},
+  dmr:     {R:[0.24,1.14,-0.16], L:[0.02,1.18,-0.52]},
+  lmg:     {R:[0.26,1.14,-0.18], L:[0.04,1.16,-0.54]},
+  shotgun: {R:[0.24,1.14,-0.14], L:[0.02,1.16,-0.46]},
+  sniper:  {R:[0.24,1.14,-0.16], L:[0.02,1.18,-0.56]},
+};
+
 function makePlayerMesh(f){
   const g=new THREE.Group();
   const isNoDeX=f.name && /^NoDeX$/i.test(f.name);
   const palette=isNoDeX?NODEX_PALETTE:getSkin(f.name);
+  const kind=f.weaponKind||'rifle';
+  const anchor=TP_ANCHOR[kind]||TP_ANCHOR.rifle;
+
   const cloth=new THREE.MeshLambertMaterial({map:palette.texture,color:0xffffff});
   const clothDark=lam(palette.dark);
   const skinM=lam(palette.skinTone);
@@ -1321,10 +1263,8 @@ function makePlayerMesh(f){
   }
   mk(body,0.10,0.10,0.06,dark,-0.28,0.72,0.14);
   mk(body,0.10,0.10,0.06,dark,0.28,0.72,0.14);
-
   mk(body,0.62,0.72,0.34,cloth,0,1.10,0);
   mk(body,0.16,0.10,0.16,skinM,0,1.52,0);
-
   if(palette.vest){
     mk(body,0.68,0.50,0.40,clothDark,0,1.16,0);
     mk(body,0.16,0.18,0.06,dark,-0.19,1.06,-0.22);
@@ -1349,7 +1289,6 @@ function makePlayerMesh(f){
       mk(body,0.05,0.05,0.05,accent,0.24,1.82,0.22);
     }
   }
-
   mk(body,0.30,0.32,0.30,skinM,0,1.66,0);
   mk(body,0.06,0.06,0.06,skinM,0,1.58,-0.14);
   if(palette.helmet){
@@ -1376,14 +1315,15 @@ function makePlayerMesh(f){
     mk(body,0.28,0.05,0.02,accent2,0,1.72,-0.16);
   }
 
-  /* ARMS: static rifle-hold pose */
+  /* ARMS — pose per weapon */
   const R_SH=[0.32,1.42,0.02];
   const R_EL=[0.36,1.24,-0.04];
-  const R_HA=[0.24,1.14,-0.16];
+  const R_HA=anchor.R;
 
   const L_SH=[-0.32,1.42,0.02];
-  const L_EL=[-0.16,1.28,-0.18];
-  const L_HA=[0.02,1.18,-0.50];
+  let L_EL, L_HA;
+  if(anchor.L){ L_EL=[-0.16,1.28,-0.18]; L_HA=anchor.L; }
+  else if(anchor.lRest){ L_EL=anchor.lRest[1]; L_HA=anchor.lRest[2]; }
 
   if(palette.pads){
     mk(body,0.20,0.10,0.20,dark,R_SH[0],R_SH[1],R_SH[2]);
@@ -1399,7 +1339,7 @@ function makePlayerMesh(f){
   f.gunGrip=new THREE.Group();
   f.gunGrip.position.set(R_HA[0],R_HA[1],R_HA[2]);
   body.add(f.gunGrip);
-  buildTPGun(f.gunGrip, isNoDeX);
+  buildTPGun(f.gunGrip, isNoDeX, kind, anchor.L?([anchor.L[0]-R_HA[0], anchor.L[1]-R_HA[1], anchor.L[2]-R_HA[2]]):null);
 
   f.body=body;
   f.label=makeLabel(f.name);
@@ -1408,8 +1348,13 @@ function makePlayerMesh(f){
   scene.add(g);
   f.mesh=g;
 }
-function buildTPGun(parent, isNoDeX){
+
+/* Third-person weapon — a distinct silhouette per weapon kind.
+   `fg` = local offset of the foregrip (left hand). null for one-handed. */
+function buildTPGun(parent, isNoDeX, kind, fg){
+  kind=kind||'rifle';
   const dk=0x23262b,md=0x3a4048,lt=0x555c66,blk=0x0e1014;
+  const steel=0x8a8f96,wood=0x6b4a2b,brass=0xc9a54a;
   const accent=isNoDeX?0xd4af37:0xff6a2b;
   const accent2=isNoDeX?0xb0141e:0x8a3a2a;
 
@@ -1425,58 +1370,256 @@ function buildTPGun(parent, isNoDeX){
     else if(axis==='z')m.rotation.x=Math.PI/2;
     m.position.set(x,y,z);m.castShadow=true;parent.add(m);return m;
   };
+  const hand=(x,y,z,c)=>{
+    const m=new THREE.Mesh(boxGeo,lam(c||0xd9a577));
+    m.scale.set(0.10,0.10,0.11);m.position.set(x,y,z);m.castShadow=true;
+    parent.add(m);return m;
+  };
 
-  p(0.05,0.14,0.075,0,-0.09,0.03,blk);
-  p(0.05,0.03,0.09,0,-0.02,0.05,dk);
-  p(0.06,0.07,0.16,0,-0.005,-0.06,md);
-  p(0.07,0.02,0.16,0,-0.045,-0.06,dk);
-  p(0.012,0.03,0.014,0,-0.045,-0.06,blk);
+  const fgX=fg?fg[0]:0, fgY=fg?fg[1]:0, fgZ=fg?fg[2]:0;
 
-  p(0.05,0.13,0.055,0,-0.10,-0.10,dk);
-  p(0.05,0.05,0.05,0,-0.17,-0.115,dk);
+  if(kind==='pistol'){
+    p(0.05,0.14,0.075,0,-0.09,0.03,blk);                 // grip
+    p(0.05,0.03,0.09,0,-0.02,0.05,dk);                    // beavertail
+    p(0.055,0.055,0.20,0,-0.005,-0.10,md);                // frame
+    p(0.058,0.075,0.22,0,0.055,-0.12,dk);                 // slide
+    for(let i=0;i<5;i++)p(0.062,0.006,0.006,0,0.088,-0.02-i*0.014,0x18191d);
+    p(0.02,0.045,0.06,0.031,0.05,-0.14,0x050607);         // ejection port
+    p(0.014,0.024,0.014,0,0.11,-0.24,blk);                // front sight
+    p(0.028,0.016,0.02,0,0.11,-0.02,blk);                 // rear sight
+    cyl(0.012,0.03,0,0.045,-0.30,blk,'z');                // muzzle
+    cyl(0.005,0.008,0,0.045,-0.315,0x050607,'z');
+    p(0.05,0.13,0.05,0,-0.13,-0.02,lt);                   // mag
+    p(0.052,0.012,0.052,0,-0.195,-0.02,dk);
+    p(0.012,0.03,0.014,0,-0.06,-0.06,blk);                // trigger
+    p(0.05,0.016,0.06,0,-0.05,-0.06,dk);
+    p(0.062,0.008,0.05,0,0.00,-0.14,accent);              // accent
+    hand(0.02,-0.04,0.03);                                // right hand on grip
+    p(0.03,0.02,0.03,-0.035,-0.10,0.02,0x9a7a5a);
+    return;
+  }
+  if(kind==='smg'){
+    p(0.05,0.13,0.075,0,-0.10,-0.04,blk);
+    p(0.06,0.06,0.20,0,-0.02,-0.12,md);
+    p(0.062,0.07,0.26,0,0.045,-0.16,dk);
+    p(0.05,0.02,0.24,0,0.09,-0.18,lt);
+    for(let i=0;i<6;i++)p(0.05,0.010,0.010,0,0.10,-0.05-i*0.030,dk);
+    p(0.02,0.04,0.06,0.032,0.05,-0.14,0x050607);
+    p(0.014,0.024,0.014,0,0.11,-0.32,blk);
+    p(0.028,0.016,0.02,0,0.11,-0.02,blk);
+    p(0.055,0.055,0.12,fgX,0.02,fgZ,md);                  // handguard @ foregrip
+    cyl(0.014,0.16,fgX+0.01,0.02,fgZ-0.16,blk,'z');        // barrel
+    cyl(0.024,0.05,fgX+0.01,0.02,fgZ-0.28,blk,'z');        // muzzle
+    p(0.05,0.13,0.05,0,-0.10,-0.10,lt);                    // mag
+    p(0.047,0.012,0.062,0,-0.185,-0.11,dk);
+    p(0.055,0.09,0.14,0,-0.005,0.08,md);                   // stock
+    p(0.06,0.12,0.02,0,-0.005,0.17,blk);
+    p(0.012,0.03,0.014,0,-0.05,-0.06,blk);
+    p(0.062,0.008,0.04,0,0.00,-0.22,accent);
+    hand(0.02,-0.04,0.03);
+    hand(fgX,fgY?fgY:0.02,fgZ);
+    p(0.03,0.05,0.04,fgX-0.05,0.01,fgZ,0x9a7a5a);
+    return;
+  }
+  if(kind==='bullpup'){
+    p(0.05,0.13,0.08,0,-0.10,-0.18,blk);                  // forward grip
+    p(0.062,0.07,0.26,0,-0.02,-0.14,md);
+    p(0.066,0.08,0.36,0,0.05,-0.18,dk);
+    p(0.02,0.04,0.07,0.034,0.06,-0.13,0x050607);
+    p(0.05,0.02,0.32,0,0.10,-0.20,lt);
+    for(let i=0;i<8;i++)p(0.05,0.010,0.010,0,0.11,-0.05-i*0.030,dk);
+    p(0.055,0.055,0.14,fgX,0.02,fgZ,md);
+    cyl(0.014,0.20,fgX+0.01,0.02,fgZ-0.18,blk,'z');
+    cyl(0.024,0.05,fgX+0.01,0.02,fgZ-0.32,blk,'z');
+    // mag BEHIND the grip — bullpup signature
+    p(0.055,0.16,0.07,0,-0.13,0.06,dk);
+    p(0.058,0.04,0.06,0,-0.21,0.04,dk);
+    p(0.055,0.09,0.20,0,0.02,0.16,md);                    // integrated stock
+    p(0.06,0.12,0.03,0,-0.01,0.28,blk);
+    p(0.014,0.024,0.014,0,0.11,-0.36,blk);
+    p(0.028,0.016,0.02,0,0.11,-0.02,blk);
+    p(0.012,0.03,0.014,0,-0.05,-0.18,blk);
+    p(0.066,0.008,0.05,0,0.00,-0.28,accent);
+    hand(0.02,-0.04,0.03);
+    hand(fgX,fgY?fgY:0.02,fgZ);
+    p(0.03,0.05,0.04,fgX-0.05,0.01,fgZ,0x9a7a5a);
+    return;
+  }
+  if(kind==='dmr'){
+    p(0.05,0.14,0.08,0,-0.10,-0.02,blk);
+    p(0.06,0.06,0.22,0,-0.02,-0.12,md);
+    p(0.062,0.08,0.42,0,0.05,-0.24,dk);
+    p(0.02,0.04,0.06,0.032,0.05,-0.18,0x050607);
+    p(0.05,0.02,0.36,0,0.10,-0.28,lt);
+    for(let i=0;i<10;i++)p(0.05,0.010,0.010,0,0.108,-0.10-i*0.032,dk);
+    // scope rings + tube
+    p(0.05,0.04,0.03,0,0.14,-0.14,dk);
+    p(0.05,0.04,0.03,0,0.14,-0.38,dk);
+    cyl(0.036,0.34,0,0.20,-0.26,blk,'z');
+    cyl(0.042,0.05,0,0.20,-0.08,blk,'z');
+    cyl(0.040,0.05,0,0.20,-0.43,blk,'z');
+    p(0.035,0.05,0.05,0,0.26,-0.26,blk);                  // elevation turret
+    p(0.05,0.035,0.04,0.065,0.20,-0.26,blk);              // windage turret
+    p(0.06,0.06,0.20,fgX,0.02,fgZ,md);                    // handguard
+    cyl(0.014,0.32,fgX+0.01,0.02,fgZ-0.24,blk,'z');
+    cyl(0.026,0.07,fgX+0.01,0.02,fgZ-0.44,blk,'z');
+    tag=mk=>mk; // noop
+    // (mag/bolt tagged elsewhere - not needed for TPS)
+    p(0.06,0.15,0.07,0,-0.14,-0.13,dk);
+    p(0.058,0.05,0.06,0,-0.22,-0.15,dk);
+    p(0.022,0.022,0.09,0.036,0.06,-0.10,lt);              // bolt handle
+    p(0.055,0.10,0.28,0,-0.005,0.12,md);
+    p(0.05,0.04,0.18,0,0.055,0.14,dk);
+    p(0.06,0.13,0.03,0,-0.015,0.28,blk);
+    p(0.05,0.016,0.07,0,-0.055,-0.06,dk);
+    p(0.012,0.026,0.014,0,-0.055,-0.07,blk);
+    p(0.062,0.008,0.06,0,0.00,-0.32,accent);
+    hand(0.02,-0.04,0.03);
+    hand(fgX,fgY?fgY:0.02,fgZ);
+    return;
+  }
+  if(kind==='lmg'){
+    p(0.05,0.15,0.09,0,-0.14,-0.06,blk);
+    p(0.075,0.08,0.28,0,-0.02,-0.16,md);
+    p(0.085,0.10,0.46,0,0.06,-0.26,dk);
+    p(0.09,0.02,0.30,0,0.12,-0.26,md);                    // feed cover
+    p(0.05,0.018,0.30,0,0.135,-0.28,lt);
+    for(let i=0;i<8;i++)p(0.05,0.008,0.008,0,0.142,-0.14-i*0.030,dk);
+    p(0.014,0.03,0.014,0,0.155,-0.54,blk);
+    p(0.03,0.018,0.02,0,0.155,-0.06,blk);
+    // carry handle
+    p(0.06,0.02,0.14,0,0.165,-0.16,dk);
+    p(0.02,0.03,0.02,-0.03,0.16,-0.10,dk);p(0.02,0.03,0.02,0.03,0.16,-0.10,dk);
+    p(0.02,0.03,0.02,-0.03,0.16,-0.22,dk);p(0.02,0.03,0.02,0.03,0.16,-0.22,dk);
+    p(0.07,0.07,0.18,fgX,0.03,fgZ,md);                    // handguard
+    cyl(0.020,0.42,fgX+0.01,0.03,fgZ-0.28,blk,'z');
+    cyl(0.032,0.08,fgX+0.01,0.03,fgZ-0.52,blk,'z');
+    // bipod legs folded
+    p(0.02,0.02,0.16,fgX+0.04,0.02,fgZ-0.20,blk);
+    p(0.02,0.18,0.02,fgX+0.04,-0.06,fgZ-0.30,blk);
+    p(0.02,0.02,0.05,fgX+0.04,-0.14,fgZ-0.30,blk);
+    p(0.02,0.18,0.02,fgX-0.04,-0.06,fgZ-0.30,blk);
+    p(0.02,0.02,0.05,fgX-0.04,-0.14,fgZ-0.30,blk);
+    // ammo box
+    p(0.16,0.20,0.22,0,-0.16,-0.22,dk);
+    p(0.14,0.03,0.20,0,-0.06,-0.22,md);
+    p(0.03,0.03,0.10,0.06,0.06,-0.16,brass);              // belt
+    p(0.014,0.03,0.016,0,-0.06,-0.10,blk);
+    p(0.06,0.018,0.08,0,-0.06,-0.10,dk);
+    p(0.026,0.026,0.10,-0.05,0.10,-0.10,lt);              // charging handle
+    p(0.06,0.12,0.22,0,-0.005,0.14,md);
+    p(0.065,0.15,0.03,0,-0.015,0.27,blk);
+    p(0.085,0.010,0.07,0,0.00,-0.42,accent);
+    hand(0.02,-0.04,0.03);
+    hand(fgX,fgY?fgY:0.02,fgZ);
+    return;
+  }
+  if(kind==='shotgun'){
+    p(0.055,0.12,0.28,0,-0.03,0.14,wood);                 // stock
+    p(0.06,0.14,0.03,0,-0.03,0.29,blk);
+    p(0.05,0.10,0.14,0,-0.05,0.02,wood);
+    p(0.07,0.09,0.24,0,0.02,-0.06,md);                    // receiver
+    p(0.05,0.04,0.10,0,0.04,-0.06,dk);
+    p(0.02,0.03,0.03,0.036,0.05,-0.06,0x050607);
+    // barrel + tube
+    cyl(0.022,0.62,0,0.05,fgZ-0.30,dk,'z');
+    cyl(0.018,0.60,0,-0.005,fgZ-0.30,lt,'z');
+    for(let i=0;i<7;i++)p(0.008,0.012,0.020,0,0.08,fgZ-0.10-i*0.075,blk);
+    cyl(0.030,0.05,0,0.05,fgZ-0.62,blk,'z');
+    p(0.012,0.012,0.012,0,0.09,fgZ-0.58,blk);
+    p(0.08,0.07,0.22,fgX,-0.02,fgZ,wood);                 // pump/forend
+    p(0.084,0.006,0.03,fgX,-0.055,fgZ+0.04,0x4a3220);
+    p(0.084,0.006,0.03,fgX,-0.055,fgZ-0.04,0x4a3220);
+    p(0.05,0.018,0.07,0,-0.055,-0.02,dk);
+    p(0.014,0.03,0.014,0,-0.055,-0.03,blk);
+    p(0.07,0.008,0.06,0,0.00,-0.24,accent);
+    hand(0.02,-0.04,0.03);
+    hand(fgX,fgY?fgY:0.0,fgZ);
+    return;
+  }
+  if(kind==='sniper'){
+    p(0.05,0.14,0.08,0,-0.12,-0.02,blk);
+    p(0.06,0.06,0.28,0,-0.02,-0.14,md);
+    p(0.062,0.09,0.50,0,0.055,-0.26,dk);
+    p(0.02,0.045,0.08,0.033,0.06,-0.20,0x050607);
+    p(0.05,0.02,0.36,0,0.11,-0.30,lt);
+    for(let i=0;i<11;i++)p(0.05,0.010,0.010,0,0.118,-0.14-i*0.032,dk);
+    // big scope
+    p(0.06,0.05,0.03,0,0.15,-0.20,dk);
+    p(0.06,0.05,0.03,0,0.15,-0.42,dk);
+    cyl(0.040,0.40,0,0.21,-0.32,blk,'z');
+    cyl(0.048,0.05,0,0.21,-0.10,blk,'z');
+    cyl(0.046,0.08,0,0.21,-0.55,blk,'z');
+    p(0.04,0.06,0.06,0,0.28,-0.32,blk);
+    p(0.06,0.04,0.045,0.078,0.21,-0.32,blk);
+    p(0.06,0.06,0.16,fgX,0.03,fgZ,md);
+    cyl(0.016,0.48,fgX+0.01,0.03,fgZ-0.30,blk,'z');
+    cyl(0.028,0.09,fgX+0.01,0.03,fgZ-0.58,blk,'z');
+    p(0.06,0.13,0.08,0,-0.13,-0.13,dk);
+    p(0.058,0.04,0.06,0,-0.20,-0.15,dk);
+    p(0.024,0.024,0.10,0.055,0.09,-0.08,lt);
+    p(0.028,0.028,0.028,0.075,0.09,-0.06,steel);
+    p(0.055,0.10,0.30,0,-0.005,0.14,md);
+    p(0.05,0.045,0.20,0,0.06,0.16,dk);
+    p(0.06,0.14,0.03,0,-0.015,0.30,blk);
+    p(0.05,0.018,0.07,0,-0.055,-0.06,dk);
+    p(0.012,0.028,0.014,0,-0.055,-0.07,blk);
+    p(0.062,0.008,0.06,0,0.00,-0.36,accent);
+    hand(0.02,-0.04,0.03);
+    hand(fgX,fgY?fgY:0.02,fgZ);
+    return;
+  }
 
-  p(0.062,0.085,0.36,0,0.055,-0.22,dk);
+  /* default — rifle */
+  p(0.05,0.14,0.08,0,-0.12,-0.02,blk);
+  p(0.062,0.06,0.22,0,-0.02,-0.12,md);
+  p(0.075,0.09,0.10,0,-0.08,-0.10,md);
+  p(0.065,0.08,0.34,0,0.045,-0.20,dk);
+  p(0.02,0.04,0.06,0.032,0.05,-0.16,0x050607);
+  p(0.05,0.02,0.32,0,0.095,-0.22,lt);
+  for(let i=0;i<10;i++)p(0.05,0.010,0.010,0,0.105,-0.06-i*0.030,dk);
+  p(0.065,0.065,0.26,fgX,0.025,fgZ,md);                   // handguard
+  p(0.06,0.05,0.24,fgX,0.055,fgZ,dk);
+  p(0.04,0.05,0.06,fgX,0.035,fgZ-0.14,dk);                // gas block
+  cyl(0.008,0.16,fgX+0.02,0.045,fgZ-0.06,steel,'z');      // gas tube
+  cyl(0.014,0.28,fgX+0.01,0.025,fgZ-0.28,blk,'z');        // barrel
+  cyl(0.024,0.06,fgX+0.01,0.025,fgZ-0.44,blk,'z');        // muzzle brake
+  p(0.012,0.03,0.012,0,0.10,-0.58,blk);
+  p(0.03,0.018,0.02,0,0.115,-0.04,blk);
+  p(0.05,0.016,0.07,0,-0.055,-0.06,dk);
+  p(0.012,0.026,0.014,0,-0.055,-0.07,blk);
+  p(0.06,0.14,0.07,0,-0.14,-0.13,dk);                     // mag
+  p(0.058,0.05,0.06,0,-0.21,-0.16,dk);
+  p(0.022,0.022,0.09,0.036,0.06,-0.10,lt);                // charging handle
+  p(0.055,0.10,0.24,0,-0.005,0.10,md);                    // stock
+  p(0.06,0.13,0.03,0,-0.015,0.23,blk);
+  p(0.055,0.03,0.14,0,0.05,0.12,dk);
+  p(0.065,0.008,0.06,0,0.00,-0.32,accent);
+  hand(0.02,-0.04,0.03);
+  hand(fgX,fgY?fgY:0.02,fgZ);
+  p(0.03,0.05,0.04,fgX-0.05,0.01,fgZ,0x9a7a5a);
+}
 
-  p(0.05,0.018,0.30,0,0.108,-0.24,lt);
-  for(let i=0;i<8;i++)p(0.05,0.008,0.010,0,0.115,-0.12-i*0.030,blk);
-
-  p(0.02,0.045,0.06,0.032,0.05,-0.16,0x050607);
-
-  p(0.014,0.024,0.014,0,0.135,-0.38,blk);
-  p(0.028,0.016,0.02,0,0.135,-0.04,blk);
-
-  const hgX=-0.22, hgZ=-0.34;
-  p(0.055,0.055,0.18,hgX,0.02,hgZ,md);
-  p(0.05,0.04,0.16,hgX,0.045,hgZ,dk);
-  p(0.05,0.008,0.02,hgX,0.065,hgZ-0.03,0x16181b);
-  p(0.05,0.008,0.02,hgX,0.065,hgZ+0.03,0x16181b);
-
-  cyl(0.014,0.26,hgX+0.01,0.02,hgZ-0.22,blk,'z');
-  cyl(0.024,0.06,hgX+0.01,0.02,hgZ-0.38,blk,'z');
-
-  p(0.055,0.10,0.20,0,-0.005,0.10,md);
-  p(0.06,0.13,0.025,0,-0.005,0.21,blk);
-  p(0.055,0.03,0.12,0,0.05,0.11,dk);
-
-  p(0.062,0.008,0.06,0,0.00,-0.30,accent);
-
-  p(0.11,0.11,0.12,hgX,0.015,hgZ,0xd9a577);
-  p(0.03,0.05,0.04,hgX-0.05,0.01,hgZ,0x9a7a5a);
-
-  p(0.10,0.10,0.10,0.02,-0.04,0.03,0xd9a577);
-  p(0.03,0.02,0.03,-0.035,-0.10,0.02,0x9a7a5a);
-
-  p(0.010,0.010,0.030,-0.03,-0.02,0.14,0x8a8f96);
-
-  if(isNoDeX){
-    p(0.05,0.012,0.04,0.02,0.06,0.02,0xd4af37);
-    p(0.03,0.012,0.03,-0.02,0.05,-0.05,0xb0141e);
+/* Swap a fighter's weapon by rebuilding the whole mesh (arms and all).
+   Called when weaponKind changes so the pose matches the weapon. */
+function setFighterWeapon(f, kind){
+  if(!kind)kind='rifle';
+  if(f.weaponKind===kind && f.mesh) return;
+  f.weaponKind=kind;
+  if(f.mesh){scene.remove(f.mesh);f.mesh=null;}
+  makePlayerMesh(f);
+  if(f.mesh){
+    f.mesh.visible=true;
+    f.mesh.rotation.set(0,0,0);
+    f.mesh.position.set(f.x,f.y,f.z);
+    f.mesh.rotation.y=f.yaw;
   }
 }
+
 const player=makeFighter('You',true,0x6fe3ff);
 fighters.push(player);
 const botPool=[];
-for(let i=0;i<NUM_BOTS;i++){const b=makeFighter(BOT_NAMES[i],false,BOT_COLORS[i]);makePlayerMesh(b);botPool.push(b);fighters.push(b);}
+for(let i=0;i<NUM_BOTS;i++){const b=makeFighter(BOT_NAMES[i],false,BOT_COLORS[i]);b.weaponKind='rifle';makePlayerMesh(b);botPool.push(b);fighters.push(b);}
 
 const WEAPONS=[
   {key:'pistol',name:'R-9 Pistol',short:'Pistol',dmg:18,head:1.8,rate:0.14,mag:15,reload:1.5,hip:0.012,ads:0.003,recoil:0.006,auto:false,pellets:1,adsFov:60,falloff:[30,120,0.5],flashZ:-0.50,recoilKick:0.6,recoilReturn:14},
@@ -1852,7 +1995,7 @@ WEAPONS.forEach(function(w,i){
     if(c.userData.tag==='mag'){g.userData.mag=c;c.userData.by=c.position.y;c.userData.bz=c.position.z;c.userData.bx=c.position.x;}
     else if(c.userData.tag==='slide'){g.userData.slide=c;c.userData.bz=c.position.z;}
     else if(c.userData.tag==='bolt'){g.userData.bolt=c;c.userData.bz=c.position.z;c.userData.by=c.position.y;c.userData.bx=c.position.x;}
-    else if(c.userData.tag==='cover'){g.userData.cover=c;c.userData.baseZ=c.position.z;c.userData.baseY=c.position.y;}
+    else if(c.userData.tag==='cover'){g.userData.cover=c;c.userData.baseZ=c.position.z;g.userData.baseY=c.position.y;}
   }
   g.visible=(i===0);gunRoot.add(g);guns.push(g);
 });
@@ -2104,6 +2247,7 @@ function addRemote(id,info){
   let f=remotes.get(id);if(f)return f;
   f=makeFighter(info.name||'Player',false,info.color||BOT_COLORS[0]);
   f.remote=true;f.id=id;f.isBot=false;
+  f.weaponKind=info.wk||'rifle';
   f.nx=info.x||0;f.ny=info.y||0;f.nz=info.z||0;f.nyaw=info.yaw||0;f.x=f.nx;f.y=f.ny;f.z=f.nz;f.yaw=f.nyaw;
   f.hasState=true;f.alive=info.alive!==0;f.kills=info.kills||0;f.deaths=info.deaths||0;f.lastMsg=performance.now();
   remotes.set(id,f);fighters.push(f);makePlayerMesh(f);f.mesh.visible=f.alive;return f;
@@ -2113,11 +2257,12 @@ function onRemoteState(msg){
   if(msg.id===net.selfId)return;
   if(msg.n&&player.name&&msg.n.toLowerCase()===player.name.toLowerCase())return;
   let f=remotes.get(msg.id);
-  if(!f){f=addRemote(msg.id,{name:msg.n||'Player',color:msg.c});if(!f)return;}
+  if(!f){f=addRemote(msg.id,{name:msg.n||'Player',color:msg.c,wk:msg.wk});if(!f)return;}
   f.lastMsg=performance.now();
   if(Math.hypot(msg.x-f.x,msg.z-f.z)>30){f.x=msg.x;f.y=msg.y;f.z=msg.z;}
   f.nx=msg.x;f.ny=msg.y;f.nz=msg.z;f.nyaw=msg.yaw;f.pitch=msg.p||0;
   f.hp=msg.hp;f.kills=msg.kills|0;f.deaths=msg.deaths|0;
+  if(msg.wk)setFighterWeapon(f,msg.wk);
   const alive=!!msg.alive;
   if(alive&&!f.alive){f.alive=true;f.mesh.visible=true;f.mesh.rotation.set(0,0,0);f.deathT=0;}
   else if(!alive&&f.alive){f.alive=false;f.deathT=0;}
@@ -2132,7 +2277,7 @@ function onRemoteFire(msg){
 function sendMyState(){
   if(!net.ws||net.ws.readyState!==1)return;
   const p=player;
-  net.ws.send(JSON.stringify({t:'state',x:r2(p.x),y:r2(p.y),z:r2(p.z),yaw:r2(yaw),p:r2(pitch),hp:Math.round(p.hp),alive:p.alive?1:0}));
+  net.ws.send(JSON.stringify({t:'state',x:r2(p.x),y:r2(p.y),z:r2(p.z),yaw:r2(yaw),p:r2(pitch),hp:Math.round(p.hp),alive:p.alive?1:0,wk:WEAPONS[P.cur]?WEAPONS[P.cur].key:'rifle'}));
 }
 function updateRemotes(dt){
   const k=1-Math.exp(-dt*14);const now=performance.now();
@@ -2177,6 +2322,10 @@ function spawn(f){
   f.x=best[0];f.z=best[1];f.y=0;f.vx=f.vy=f.vz=0;f.hp=100;f.alive=true;f.invuln=2.5;f.yaw=rnd(0,TAU);
   f.target=null;f.deathT=0;f.onGround=true;f.px=f.x;f.pz=f.z;f.stuckT=0;f.reactT=0;f.nextShot=T+0.5;
   f.peakY=0;f.stepOff=0;f.climb=null;f.mantle=null;f.deathSign=-1;
+  if(f.isBot){
+    const pick=BOT_WEAPON_POOL[(Math.random()*BOT_WEAPON_POOL.length)|0];
+    setFighterWeapon(f,pick);
+  }
   if(f.mesh){f.mesh.visible=true;f.mesh.rotation.set(0,0,0);}
   if(f.isPlayer){yaw=f.yaw;pitch=0;deadT=0;camera.rotation.z=0;P.lastHitAt=T;P.landDip=0;P.streak=0;}
   else{newWander(f);BotChat.event('respawn',{bot:f});}
@@ -2545,8 +2694,7 @@ function updatePlayer(dt){
     gb.rotation.set(boltRotX,0,0);
   }
   if(kind==='lmg'&&gu.userData.cover){
-    const c=gu.userData.cover;
-    c.rotation.x=-coverOpen*1.1;
+    gu.userData.cover.rotation.x=-coverOpen*1.1;
   }
   const sprintAim=Math.max(0,(sprinting?1:0)-P.adsT);
   P.sprintSway=lerp(P.sprintSway,sprintAim,Math.min(1,dt*8));
@@ -2706,10 +2854,8 @@ function syncMeshes(dt){
         b.legL.rotation.z=lerp(b.legL.rotation.z,lift,0.30);
         b.legR.rotation.z=lerp(b.legR.rotation.z,-lift,0.30);
       }else{
-        b.legL.rotation.x*=0.85;
-        b.legR.rotation.x*=0.85;
-        b.legL.rotation.z*=0.85;
-        b.legR.rotation.z*=0.85;
+        b.legL.rotation.x*=0.85;b.legR.rotation.x*=0.85;
+        b.legL.rotation.z*=0.85;b.legR.rotation.z*=0.85;
       }
       if(b.body){
         const walkBob=moving?Math.abs(Math.sin(b.walk*2))*0.028*(sprinting?1.6:1):0;
@@ -2717,14 +2863,12 @@ function syncMeshes(dt){
         b.body.position.y=walkBob+breathe-(b.landT>0?0.16*b.landT:0);
         const counter=moving?Math.sin(b.walk)*0.10*normSpeed:0;
         const sway=moving?Math.sin(b.walk*2)*0.035*normSpeed:0;
-        b.body.rotation.y=counter;
-        b.body.rotation.z=sway;
+        b.body.rotation.y=counter;b.body.rotation.z=sway;
         const kick=Math.max(0,1-(T-b.lastFire)*9)*0.10;
         const leanF=(moving&&!firing?-normSpeed*(sprinting?0.26:0.11):0);
         b.body.rotation.x=leanF+kick;
         if(b.landT>0)b.landT=Math.max(0,b.landT-dt*4);
       }
-      /* arms are static — no per-frame arm animation */
       if(b.gunGrip){
         if(b.gunGrip.userData.baseY===undefined){
           b.gunGrip.userData.baseY=b.gunGrip.position.y;
