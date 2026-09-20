@@ -67,7 +67,7 @@ export const EMOTES = {
   celebrate: { dur: 2.2, sym: '🎉', color: '#a0ff9a' },
 };
 
-export const BOT_NAMES = ['Vex','Rook','Kite','Nova','Jinx','Onyx','Pyre','Sable','Talon','Wisp','Zeal','Ghost','Bravo','Viper','Echo','Spectre'];
+export const BOT_NAMES = ['Rex','Xravind','Panda','Harish','Gamerfleet','Sreenand','P3rcy','_parasog_','Alvro','Vex42','Mikey.exe','Ghost_Rider','Bravo','Viper','Echo','Spectre'];
 export const BOT_COLORS = [
   0xc0392b,0x2e86c1,0x27ae60,0x8e44ad,0xd68910,0x16a085,0xc2185b,0x5d6d7e,
   0xa04000,0x1f618d,0x7d3c98,0x2c3e50,0x165b33,0xb8860b,0x708090,0x4a235a
