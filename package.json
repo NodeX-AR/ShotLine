@@ -4,7 +4,8 @@
   "private": true,
   "description": "Shotline — a browser FPS with a Cloudflare Durable Object game server",
   "scripts": {
-    "dev": "wrangler dev",
+    "dev": "wrangler dev --port 3000 --ip 0.0.0.0",
+    "build": "mkdir -p dist && cp -r public/* dist/",
     "deploy": "wrangler deploy",
     "tail": "wrangler tail"
   },

@@ -71,7 +71,7 @@ export const BOT_NAMES = ['Vex','Rook','Kite','Nova','Jinx','Onyx','Pyre','Sable
 export const BOT_COLORS = [0xc0392b,0x2e86c1,0x27ae60,0x8e44ad,0xd68910,0x16a085,0xc2185b,0x5d6d7e,0xa04000,0x1f618d,0x7d3c98];
 
 /* ================================================================
-   TEXTURES
+   TEXTURES & PROCEDURAL NORMAL MAPS
 ================================================================ */
 function canvas2D(size) {
   const c = document.createElement('canvas');
@@ -88,50 +88,95 @@ function texFromCanvas(c, rep, color) {
   return t;
 }
 
+function normalMapFromCanvas(srcCanvas, strength = 1.8) {
+  const S = srcCanvas.width;
+  const sCtx = srcCanvas.getContext('2d');
+  const src = sCtx.getImageData(0, 0, S, S).data;
+  const outCanvas = canvas2D(S);
+  const outCtx = outCanvas.getContext('2d');
+  const outData = outCtx.createImageData(S, S);
+  const d = outData.data;
+
+  for (let y = 0; y < S; y++) {
+    const ym = (y - 1 + S) % S, yp = (y + 1) % S;
+    for (let x = 0; x < S; x++) {
+      const xm = (x - 1 + S) % S, xp = (x + 1) % S;
+      const hL = src[(y * S + xm) * 4];
+      const hR = src[(y * S + xp) * 4];
+      const hU = src[(ym * S + x) * 4];
+      const hD = src[(yp * S + x) * 4];
+      const dx = (hR - hL) / 255.0 * strength;
+      const dy = (hD - hU) / 255.0 * strength;
+      const dz = 1.0;
+      const len = Math.hypot(dx, dy, dz) || 1;
+      const idx = (y * S + x) * 4;
+      d[idx]     = Math.floor((-dx / len * 0.5 + 0.5) * 255);
+      d[idx + 1] = Math.floor((-dy / len * 0.5 + 0.5) * 255);
+      d[idx + 2] = Math.floor((dz / len * 0.5 + 0.5) * 255);
+      d[idx + 3] = 255;
+    }
+  }
+  outCtx.putImageData(outData, 0, 0);
+  return texFromCanvas(outCanvas, 1, false);
+}
+
 function brickTex(seed, hue) {
   const S = 512, c = canvas2D(S), g = c.getContext('2d'), rng = mulberry32(seed);
-  g.fillStyle = `hsl(${hue},12%,28%)`;
+  // Realistic London mortar base
+  g.fillStyle = '#8f887d';
   g.fillRect(0, 0, S, S);
-  const bw = 64, bh = 28, gap = 3;
+  const bw = 64, bh = 28, gap = 4;
   for (let y = 0; y < S; y += bh) {
     const off = ((y / bh) | 0) % 2 ? bw / 2 : 0;
     for (let x = -bw; x < S + bw; x += bw) {
-      const l = 22 + rng() * 18;
-      g.fillStyle = `hsl(${hue + rng() * 14 - 7},${18 + rng() * 14}%,${l}%)`;
+      const l = 24 + rng() * 22;
+      const sat = 22 + rng() * 18;
+      g.fillStyle = `hsl(${hue + rng() * 12 - 6},${sat}%,${l}%)`;
+      // Main brick face
       g.fillRect(x + off + gap / 2, y + gap / 2, bw - gap, bh - gap);
+      // Subtle top/left bevel highlight
+      g.fillStyle = 'rgba(255,255,255,0.12)';
+      g.fillRect(x + off + gap / 2, y + gap / 2, bw - gap, 2);
+      g.fillRect(x + off + gap / 2, y + gap / 2, 2, bh - gap);
+      // Bottom/right shadow
+      g.fillStyle = 'rgba(0,0,0,0.22)';
+      g.fillRect(x + off + gap / 2, y + bh - gap / 2 - 2, bw - gap, 2);
+      g.fillRect(x + off + bw - gap / 2 - 2, y + gap / 2, 2, bh - gap);
     }
   }
-  for (let i = 0; i < 20000; i++) {
-    g.fillStyle = `hsla(0,0%,${rng() * 100}%,${rng() * 0.06})`;
-    g.fillRect(rng() * S, rng() * S, 1, 1);
+  // Realistic urban weathering, soot drips & grime
+  for (let i = 0; i < 30000; i++) {
+    const rx = rng() * S, ry = rng() * S;
+    g.fillStyle = `hsla(30,10%,${rng() * 60}%,${rng() * 0.12})`;
+    g.fillRect(rx, ry, 1 + rng() * 2, 1 + rng() * 2);
   }
   return c;
 }
 
 function concreteTex(seed) {
   const S = 512, c = canvas2D(S), g = c.getContext('2d'), rng = mulberry32(seed);
-  g.fillStyle = '#6a665c';
+  g.fillStyle = '#7a766c';
   g.fillRect(0, 0, S, S);
-  for (let i = 0; i < 200; i++) {
-    const x = rng() * S, y = rng() * S, r = 6 + rng() * 40;
-    g.fillStyle = `hsla(30,8%,${30 + rng() * 25}%,0.4)`;
+  for (let i = 0; i < 400; i++) {
+    const x = rng() * S, y = rng() * S, r = 4 + rng() * 35;
+    g.fillStyle = `hsla(35,10%,${32 + rng() * 35}%,0.35)`;
     for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) {
       g.beginPath(); g.arc(x + ox, y + oy, r, 0, 6.28); g.fill();
     }
   }
-  for (let i = 0; i < 8000; i++) {
-    g.fillStyle = `hsla(30,6%,${20 + rng() * 40}%,${rng() * 0.35})`;
+  for (let i = 0; i < 16000; i++) {
+    g.fillStyle = `hsla(30,8%,${15 + rng() * 50}%,${rng() * 0.35})`;
     g.fillRect(rng() * S, rng() * S, 1 + rng() * 2, 1 + rng() * 2);
   }
-  for (let i = 0; i < 20; i++) {
-    g.strokeStyle = `rgba(15,12,10,${0.15 + rng() * 0.35})`;
+  for (let i = 0; i < 25; i++) {
+    g.strokeStyle = `rgba(18,14,10,${0.2 + rng() * 0.35})`;
     g.lineWidth = 1 + rng() * 2;
     g.beginPath();
     let x = rng() * S, y = rng() * S;
     g.moveTo(x, y);
     for (let j = 0; j < 6; j++) {
-      x += (rng() - 0.5) * 60;
-      y += (rng() - 0.5) * 60;
+      x += (rng() - 0.5) * 50;
+      y += (rng() - 0.5) * 50;
       g.lineTo(x, y);
     }
     g.stroke();
@@ -139,30 +184,68 @@ function concreteTex(seed) {
   return c;
 }
 
+function pavingTex(seed) {
+  const S = 512, c = canvas2D(S), g = c.getContext('2d'), rng = mulberry32(seed);
+  g.fillStyle = '#4a4844';
+  g.fillRect(0, 0, S, S);
+  const sw = 64, sh = 64, gap = 4;
+  for (let y = 0; y < S; y += sh) {
+    const off = ((y / sh) | 0) % 2 ? sw / 2 : 0;
+    for (let x = -sw; x < S + sw; x += sw) {
+      const l = 42 + rng() * 16;
+      g.fillStyle = `hsl(38, 6%, ${l}%)`;
+      g.fillRect(x + off + gap / 2, y + gap / 2, sw - gap, sh - gap);
+      g.fillStyle = 'rgba(255,255,255,0.08)';
+      g.fillRect(x + off + gap / 2, y + gap / 2, sw - gap, 2);
+      g.fillRect(x + off + gap / 2, y + gap / 2, 2, sh - gap);
+      g.fillStyle = 'rgba(0,0,0,0.18)';
+      g.fillRect(x + off + gap / 2, y + sh - gap / 2 - 2, sw - gap, 2);
+      g.fillRect(x + off + sw - gap / 2 - 2, y + gap / 2, 2, sh - gap);
+    }
+  }
+  for (let i = 0; i < 15000; i++) {
+    g.fillStyle = `hsla(0,0%,${rng() * 100}%,${rng() * 0.08})`;
+    g.fillRect(rng() * S, rng() * S, 1 + rng() * 2, 1 + rng() * 2);
+  }
+  return c;
+}
+
 function asphaltTex(seed) {
   const S = 512, c = canvas2D(S), g = c.getContext('2d'), rng = mulberry32(seed);
-  g.fillStyle = '#2a2a2c';
+  g.fillStyle = '#222326';
   g.fillRect(0, 0, S, S);
-  for (let i = 0; i < 40000; i++) {
-    g.fillStyle = `hsla(0,0%,${10 + rng() * 50}%,${rng() * 0.4})`;
+  // Fine aggregate
+  for (let i = 0; i < 50000; i++) {
+    g.fillStyle = `hsla(0,0%,${8 + rng() * 55}%,${rng() * 0.45})`;
     g.fillRect(rng() * S, rng() * S, 1 + rng() * 2, 1 + rng() * 2);
+  }
+  // Subtle reflective damp sheen / puddles
+  for (let i = 0; i < 15; i++) {
+    const x = rng() * S, y = rng() * S, rx = 20 + rng() * 50, ry = 10 + rng() * 25;
+    const grad = g.createRadialGradient(x, y, 2, x, y, rx);
+    grad.addColorStop(0, 'rgba(15, 20, 25, 0.45)');
+    grad.addColorStop(1, 'rgba(15, 20, 25, 0.0)');
+    g.fillStyle = grad;
+    g.beginPath();
+    g.ellipse(x, y, rx, ry, rng() * Math.PI, 0, 6.28);
+    g.fill();
   }
   return c;
 }
 
 function rustTex(seed) {
   const S = 512, c = canvas2D(S), g = c.getContext('2d'), rng = mulberry32(seed);
-  g.fillStyle = '#4a3520';
+  g.fillStyle = '#45321f';
   g.fillRect(0, 0, S, S);
-  for (let i = 0; i < 200; i++) {
-    const x = rng() * S, y = rng() * S, r = 8 + rng() * 50;
-    g.fillStyle = `hsla(${15 + rng() * 25},${35 + rng() * 30}%,${20 + rng() * 25}%,0.6)`;
+  for (let i = 0; i < 300; i++) {
+    const x = rng() * S, y = rng() * S, r = 6 + rng() * 45;
+    g.fillStyle = `hsla(${14 + rng() * 26},${40 + rng() * 30}%,${18 + rng() * 26}%,0.65)`;
     for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) {
       g.beginPath(); g.arc(x + ox, y + oy, r, 0, 6.28); g.fill();
     }
   }
-  for (let i = 0; i < 10000; i++) {
-    g.fillStyle = `hsla(${20 + rng() * 30},${40 + rng() * 40}%,${15 + rng() * 40}%,${rng() * 0.5})`;
+  for (let i = 0; i < 16000; i++) {
+    g.fillStyle = `hsla(${18 + rng() * 30},${45 + rng() * 40}%,${12 + rng() * 45}%,${rng() * 0.55})`;
     g.fillRect(rng() * S, rng() * S, 1 + rng() * 3, 1 + rng() * 3);
   }
   return c;
@@ -170,22 +253,91 @@ function rustTex(seed) {
 
 function woodTex(seed) {
   const S = 512, c = canvas2D(S), g = c.getContext('2d'), rng = mulberry32(seed);
-  g.fillStyle = '#5a3a22';
+  g.fillStyle = '#553721';
   g.fillRect(0, 0, S, S);
   for (let y = 0; y < S; y += 3) {
-    const b = 0.75 + rng() * 0.5;
-    g.fillStyle = `rgba(${100 * b},${60 * b},${30 * b},${rng() * 0.55})`;
+    const b = 0.7 + rng() * 0.6;
+    g.fillStyle = `rgba(${110 * b},${68 * b},${34 * b},${rng() * 0.6})`;
     g.fillRect(0, y, S, 2 + rng() * 3);
   }
-  for (let i = 0; i < 60; i++) {
-    g.strokeStyle = `rgba(20,10,5,${0.15 + rng() * 0.35})`;
+  for (let i = 0; i < 80; i++) {
+    g.strokeStyle = `rgba(18,10,4,${0.2 + rng() * 0.4})`;
     g.lineWidth = 1;
     g.beginPath();
     const y = rng() * S;
     g.moveTo(0, y);
-    for (let x = 0; x < S; x += 8) g.lineTo(x, y + (rng() - 0.5) * 4);
+    for (let x = 0; x < S; x += 8) g.lineTo(x, y + (rng() - 0.5) * 5);
     g.stroke();
   }
+  // Plank joints
+  for (let x = 0; x < S; x += 64) {
+    g.fillStyle = 'rgba(0,0,0,0.35)';
+    g.fillRect(x, 0, 2, S);
+  }
+  return c;
+}
+
+function woodDarkTex(seed) {
+  const S = 512, c = canvas2D(S), g = c.getContext('2d'), rng = mulberry32(seed);
+  g.fillStyle = '#2b1a10';
+  g.fillRect(0, 0, S, S);
+  for (let y = 0; y < S; y += 2) {
+    const b = 0.6 + rng() * 0.7;
+    g.fillStyle = `rgba(${70 * b},${40 * b},${22 * b},${rng() * 0.5})`;
+    g.fillRect(0, y, S, 2 + rng() * 2);
+  }
+  for (let i = 0; i < 40; i++) {
+    g.strokeStyle = `rgba(10,5,2,${0.3 + rng() * 0.3})`;
+    g.lineWidth = 1;
+    g.beginPath();
+    const y = rng() * S;
+    g.moveTo(0, y);
+    for (let x = 0; x < S; x += 8) g.lineTo(x, y + (rng() - 0.5) * 3);
+    g.stroke();
+  }
+  return c;
+}
+
+function tacticalFabricTex(seed) {
+  const S = 256, c = canvas2D(S), g = c.getContext('2d'), rng = mulberry32(seed);
+  g.fillStyle = '#222622';
+  g.fillRect(0, 0, S, S);
+  // Ripstop grid
+  for (let x = 0; x < S; x += 8) {
+    g.fillStyle = 'rgba(255,255,255,0.06)';
+    g.fillRect(x, 0, 1, S);
+  }
+  for (let y = 0; y < S; y += 8) {
+    g.fillStyle = 'rgba(255,255,255,0.06)';
+    g.fillRect(0, y, S, 1);
+  }
+  for (let i = 0; i < 6000; i++) {
+    g.fillStyle = `hsla(110,8%,${15 + rng() * 20}%,${rng() * 0.3})`;
+    g.fillRect(rng() * S, rng() * S, 2, 2);
+  }
+  return c;
+}
+
+function screenTex() {
+  const S = 256, c = canvas2D(S), g = c.getContext('2d');
+  g.fillStyle = '#061218';
+  g.fillRect(0, 0, S, S);
+  g.strokeStyle = '#0df5c6';
+  g.lineWidth = 2;
+  // Radar circle
+  g.beginPath(); g.arc(128, 128, 90, 0, Math.PI * 2); g.stroke();
+  g.beginPath(); g.arc(128, 128, 50, 0, Math.PI * 2); g.stroke();
+  g.beginPath(); g.moveTo(128, 20); g.lineTo(128, 236); g.stroke();
+  g.beginPath(); g.moveTo(20, 128); g.lineTo(236, 128); g.stroke();
+  // Tactical telemetry text
+  g.font = 'bold 16px monospace';
+  g.fillStyle = '#0df5c6';
+  g.fillText('ZONE 4: ACTIVE', 24, 40);
+  g.fillText('SECTOR D-7', 24, 60);
+  g.font = '12px monospace';
+  g.fillStyle = '#4ee3ff';
+  g.fillText('RADAR SCAN: 360°', 24, 215);
+  g.fillText('SYNC: ONLINE', 24, 235);
   return c;
 }
 
@@ -205,20 +357,44 @@ function roughnessFrom(albedoCanvas, variance) {
 let TEX = null;
 export function buildTextures() {
   if (TEX) return TEX;
+  const cBrickRed = brickTex(1, 14);
+  const cBrickBrown = brickTex(2, 24);
+  const cBrickCream = brickTex(3, 40);
+  const cConcrete = concreteTex(4);
+  const cConcrete2 = concreteTex(5);
+  const cPaving = pavingTex(10);
+  const cAsphalt = asphaltTex(6);
+  const cRust = rustTex(7);
+  const cRust2 = rustTex(8);
+  const cWood = woodTex(9);
+  const cWoodDark = woodDarkTex(11);
+  const cTacticalFabric = tacticalFabricTex(12);
+  const cScreen = screenTex();
+
   TEX = {
-    brickRed:   texFromCanvas(brickTex(1, 15), 1, true),
-    brickBrown: texFromCanvas(brickTex(2, 25), 1, true),
-    brickCream: texFromCanvas(brickTex(3, 40), 1, true),
-    concrete:   texFromCanvas(concreteTex(4), 1, true),
-    concrete2:  texFromCanvas(concreteTex(5), 1, true),
-    asphalt:    texFromCanvas(asphaltTex(6), 1, true),
-    rust:       texFromCanvas(rustTex(7), 1, true),
-    rust2:      texFromCanvas(rustTex(8), 1, true),
-    wood:       texFromCanvas(woodTex(9), 1, true),
+    brickRed:   texFromCanvas(cBrickRed, 1, true),
+    brickBrown: texFromCanvas(cBrickBrown, 1, true),
+    brickCream: texFromCanvas(cBrickCream, 1, true),
+    concrete:   texFromCanvas(cConcrete, 1, true),
+    concrete2:  texFromCanvas(cConcrete2, 1, true),
+    paving:     texFromCanvas(cPaving, 1, true),
+    asphalt:    texFromCanvas(cAsphalt, 1, true),
+    rust:       texFromCanvas(cRust, 1, true),
+    rust2:      texFromCanvas(cRust2, 1, true),
+    wood:       texFromCanvas(cWood, 1, true),
+    woodDark:   texFromCanvas(cWoodDark, 1, true),
+    fabric:     texFromCanvas(cTacticalFabric, 1, true),
+    screen:     texFromCanvas(cScreen, 1, true),
   };
-  TEX.concreteRough = texFromCanvas(roughnessFrom(TEX.concrete.image, 80), 1, false);
-  TEX.brickRough    = texFromCanvas(roughnessFrom(TEX.brickRed.image, 60), 1, false);
-  TEX.metalRough    = texFromCanvas(roughnessFrom(TEX.rust.image, 100), 1, false);
+
+  TEX.concreteRough = texFromCanvas(roughnessFrom(cConcrete, 70), 1, false);
+  TEX.brickRough    = texFromCanvas(roughnessFrom(cBrickRed, 60), 1, false);
+  TEX.metalRough    = texFromCanvas(roughnessFrom(cRust, 90), 1, false);
+
+  TEX.brickNorm     = normalMapFromCanvas(cBrickRed, 2.2);
+  TEX.pavingNorm    = normalMapFromCanvas(cPaving, 2.0);
+  TEX.concreteNorm  = normalMapFromCanvas(cConcrete, 1.4);
+  TEX.woodNorm      = normalMapFromCanvas(cWood, 1.5);
   return TEX;
 }
 
@@ -236,31 +412,43 @@ export function buildMaterials() {
       roughness: opts.r !== undefined ? opts.r : 0.85,
       metalness: opts.m !== undefined ? opts.m : 0.0,
       map: opts.map || null,
+      normalMap: opts.nm || null,
+      normalScale: opts.ns ? new THREE.Vector2(opts.ns, opts.ns) : (opts.nm ? new THREE.Vector2(1, 1) : null),
       roughnessMap: opts.rm || null,
-      envMapIntensity: opts.env !== undefined ? opts.env : 0.7,
+      envMapIntensity: opts.env !== undefined ? opts.env : 0.8,
       side: opts.side || THREE.FrontSide,
       transparent: opts.tr || false,
       opacity: opts.op !== undefined ? opts.op : 1,
+      emissive: opts.em || 0x000000,
+      emissiveIntensity: opts.emi || 0,
+      emissiveMap: opts.emMap || null,
     });
   }
   MAT = {
-    brickA:    pbr(0xffffff, { r:0.95, map:T.brickRed,   rm:T.brickRough, env:0.4 }),
-    brickB:    pbr(0xffffff, { r:0.95, map:T.brickBrown, rm:T.brickRough, env:0.4 }),
-    brickC:    pbr(0xffffff, { r:0.95, map:T.brickCream, rm:T.brickRough, env:0.4 }),
-    concrete:  pbr(0xffffff, { r:0.96, map:T.concrete,   rm:T.concreteRough, env:0.4 }),
-    concrete2: pbr(0xffffff, { r:0.96, map:T.concrete2,  rm:T.concreteRough, env:0.4 }),
-    asphalt:   pbr(0xffffff, { r:0.85, map:T.asphalt, env:0.6 }),
-    rust:      pbr(0xffffff, { r:0.75, m:0.55, map:T.rust,  rm:T.metalRough, env:1.1 }),
-    rust2:     pbr(0xffffff, { r:0.70, m:0.60, map:T.rust2, rm:T.metalRough, env:1.1 }),
-    wood:      pbr(0xffffff, { r:0.85, map:T.wood, env:0.3 }),
-    metal:     pbr(0x3a4048, { r:0.35, m:0.90, env:1.4 }),
-    paintedRed:   pbr(0xa82030, { r:0.4, m:0.15, env:1.0 }),
-    paintedBlue:  pbr(0x1a3a5a, { r:0.4, m:0.15, env:1.0 }),
-    paintedGreen: pbr(0x2a5a3a, { r:0.4, m:0.15, env:1.0 }),
-    paintedBlack: pbr(0x141414, { r:0.4, m:0.20, env:1.0 }),
+    brickA:       pbr(0xffffff, { r:0.92, map:T.brickRed, nm:T.brickNorm, rm:T.brickRough, env:0.5 }),
+    brickB:       pbr(0xffffff, { r:0.92, map:T.brickBrown, nm:T.brickNorm, rm:T.brickRough, env:0.5 }),
+    brickC:       pbr(0xffffff, { r:0.92, map:T.brickCream, nm:T.brickNorm, rm:T.brickRough, env:0.5 }),
+    concrete:     pbr(0xffffff, { r:0.94, map:T.concrete, nm:T.concreteNorm, rm:T.concreteRough, env:0.5 }),
+    concrete2:    pbr(0xffffff, { r:0.94, map:T.concrete2, nm:T.concreteNorm, rm:T.concreteRough, env:0.5 }),
+    paving:       pbr(0xffffff, { r:0.86, map:T.paving, nm:T.pavingNorm, env:0.7 }),
+    asphalt:      pbr(0xffffff, { r:0.72, m:0.08, map:T.asphalt, env:0.85 }),
+    rust:         pbr(0xffffff, { r:0.75, m:0.55, map:T.rust, rm:T.metalRough, env:1.2 }),
+    rust2:        pbr(0xffffff, { r:0.70, m:0.60, map:T.rust2, rm:T.metalRough, env:1.2 }),
+    wood:         pbr(0xffffff, { r:0.82, map:T.wood, nm:T.woodNorm, env:0.4 }),
+    woodDark:     pbr(0xffffff, { r:0.55, map:T.woodDark, env:0.6 }),
+    metal:        pbr(0x3a4048, { r:0.32, m:0.92, env:1.5 }),
+    metalDark:    pbr(0x181c22, { r:0.40, m:0.88, env:1.4 }),
+    paintedRed:   pbr(0xa82030, { r:0.35, m:0.18, env:1.1 }),
+    paintedBlue:  pbr(0x1a3a5a, { r:0.35, m:0.18, env:1.1 }),
+    paintedGreen: pbr(0x2a5a3a, { r:0.35, m:0.18, env:1.1 }),
+    paintedBlack: pbr(0x141414, { r:0.38, m:0.22, env:1.1 }),
+    cautionYellow:pbr(0xe5a912, { r:0.42, m:0.10, env:1.0 }),
+    leather:      pbr(0x221a14, { r:0.60, m:0.05, env:0.7 }),
+    screenGlow:   pbr(0xffffff, { r:0.2, m:0.1, map:T.screen, em:0xffffff, emi:1.4, emMap:T.screen }),
+    fabricTactical: pbr(0xffffff, { r:0.92, m:0.0, map:T.fabric, env:0.4 }),
     glass: new THREE.MeshStandardMaterial({
-      color: 0x8ab8d0, transparent: true, opacity: 0.35,
-      roughness: 0.06, metalness: 0.0, envMapIntensity: 1.6, side: THREE.DoubleSide,
+      color: 0x8ab8d0, transparent: true, opacity: 0.32,
+      roughness: 0.04, metalness: 0.1, envMapIntensity: 2.0, side: THREE.DoubleSide,
     }),
   };
   return MAT;
@@ -370,15 +558,21 @@ export const BATCH = {
   brickC:    { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'brickC' },
   concrete:  { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'concrete' },
   concrete2: { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'concrete2' },
+  paving:    { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'paving' },
   asphalt:   { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'asphalt' },
   rust:      { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'rust' },
   rust2:     { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'rust2' },
   wood:      { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'wood' },
+  woodDark:  { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'woodDark' },
   metal:     { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'metal' },
+  metalDark: { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'metalDark' },
   red:       { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'paintedRed' },
   blue:      { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'paintedBlue' },
   green:     { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'paintedGreen' },
   black:     { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'paintedBlack' },
+  yellow:    { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'cautionYellow' },
+  leather:   { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'leather' },
+  screen:    { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'screenGlow' },
   glass:     { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'glass' },
 };
 
@@ -533,9 +727,17 @@ export function physics(f, dt) {
   f.x = clamp(f.x, -LL, LL);
   f.z = clamp(f.z, -LL, LL);
   let g = 0;
-  const cand = queryGrid(f.x, f.z, 1.5);
+  const cand = queryGrid(f.x, f.z, 1.8);
+  const stepMargin = R * 0.82; // smooth stair step-on margin
   for (const b of cand) {
-    if (f.x > b.x0 - 0.25 && f.x < b.x1 + 0.25 && f.z > b.z0 - 0.25 && f.z < b.z1 + 0.25 && b.y1 <= f.y + STEP + 1e-4 && b.y1 > g) g = b.y1;
+    if (f.x > b.x0 - stepMargin && f.x < b.x1 + stepMargin && f.z > b.z0 - stepMargin && f.z < b.z1 + stepMargin && b.y1 <= f.y + STEP + 0.08 && b.y1 > g) {
+      g = b.y1;
+    }
+  }
+  // Smooth stair step elevation when moving on ground
+  if (f.onGround && g > f.y && g <= f.y + STEP + 0.08) {
+    f.y = g;
+    f.vy = 0;
   }
   f.vy -= GRAV * dt;
   const oy = f.y;
@@ -558,8 +760,277 @@ export function spawnOK(x, z) {
 }
 
 /* ================================================================
-   LONDON CITY GENERATOR
+   LONDON CITY GENERATOR & ARCHITECTURAL SYSTEMS
 ================================================================ */
+
+export function addStairs(sx, sy, sz, width, totalRise, stepsCount, facing, matKey = 'concrete2') {
+  const stepH = totalRise / stepsCount;
+  const stepD = 0.32;
+  const isX = facing === 'e' || facing === 'w';
+  const sign = (facing === 's' || facing === 'e') ? 1 : -1;
+
+  for (let i = 0; i < stepsCount; i++) {
+    const curY = sy + i * stepH;
+    const curOff = (i + 0.5) * stepD * sign;
+    const stepX = isX ? sx + curOff : sx;
+    const stepZ = isX ? sz : sz + curOff;
+    const sw = isX ? stepD : width;
+    const sd = isX ? width : stepD;
+    addBox(stepX, curY, stepZ, sw, stepH, sd, matKey, true, true);
+  }
+
+  // Handrail on the open side
+  const railSideSign = 1;
+  const railOffset = (width / 2 - 0.08) * railSideSign;
+  const totalD = stepsCount * stepD;
+  const midY = sy + totalRise / 2;
+  const midOff = (totalD / 2) * sign;
+  const handrailH = 0.95;
+
+  for (let p = 0; p <= stepsCount; p += 3) {
+    const py = sy + p * stepH;
+    const poff = p * stepD * sign;
+    const px = isX ? sx + poff : sx + railOffset;
+    const pz = isX ? sz + railOffset : sz + poff;
+    addBox(px, py, pz, 0.06, handrailH, 0.06, 'metal', true, true);
+  }
+  const rx = isX ? sx + midOff : sx + railOffset;
+  const rz = isX ? sz + railOffset : sz + midOff;
+  addBox(rx, midY + handrailH, rz, isX ? totalD : 0.08, 0.08, isX ? 0.08 : totalD, 'metal', false, true);
+}
+
+export function addDesk(cx, cy, cz, facing = 'n') {
+  const isX = facing === 'e' || facing === 'w';
+  const w = isX ? 1.0 : 1.8;
+  const d = isX ? 1.8 : 1.0;
+  addBox(cx, cy + 0.72, cz, w, 0.06, d, 'woodDark', true, true);
+  const lx = w / 2 - 0.1, lz = d / 2 - 0.1;
+  addBox(cx - lx, cy, cz - lz, 0.08, 0.72, 0.08, 'metalDark', false, true);
+  addBox(cx + lx, cy, cz - lz, 0.08, 0.72, 0.08, 'metalDark', false, true);
+  addBox(cx - lx, cy, cz + lz, 0.08, 0.72, 0.08, 'metalDark', false, true);
+  addBox(cx + lx, cy, cz + lz, 0.08, 0.72, 0.08, 'metalDark', false, true);
+  const sign = facing === 's' ? 1 : -1;
+  addBox(cx - (isX ? 0 : 0.35), cy + 0.78, cz + (isX ? -0.35 : 0), isX ? 0.05 : 0.5, 0.32, isX ? 0.5 : 0.05, 'screen', false, true);
+  addBox(cx + (isX ? 0 : 0.35), cy + 0.78, cz + (isX ? 0.35 : 0), isX ? 0.05 : 0.5, 0.32, isX ? 0.5 : 0.05, 'screen', false, true);
+  addBox(cx, cy + 0.78, cz + sign * 0.25, isX ? 0.16 : 0.45, 0.02, isX ? 0.45 : 0.16, 'black', false, true);
+  const chZ = cz - sign * 0.65;
+  addBox(cx, cy, chZ, 0.5, 0.46, 0.5, 'leather', true, true);
+  addBox(cx, cy + 0.46, chZ - sign * 0.2, 0.48, 0.55, 0.08, 'leather', false, true);
+}
+
+export function addSofa(cx, cy, cz, facing = 'n') {
+  const isX = facing === 'e' || facing === 'w';
+  const w = isX ? 1.0 : 2.2;
+  const d = isX ? 2.2 : 1.0;
+  addBox(cx, cy, cz, w, 0.42, d, 'leather', true, true);
+  const sign = facing === 's' ? 1 : -1;
+  const bz = isX ? cz : cz - sign * (d / 2 - 0.12);
+  const bx = isX ? cx - sign * (w / 2 - 0.12) : cx;
+  addBox(bx, cy + 0.42, bz, isX ? 0.24 : w, 0.48, isX ? d : 0.24, 'leather', false, true);
+  const tfZ = isX ? cz : cz + sign * 0.9;
+  const tfX = isX ? cx + sign * 0.9 : cx;
+  addBox(tfX, cy, tfZ, isX ? 0.6 : 1.2, 0.35, isX ? 1.2 : 0.6, 'wood', true, true);
+}
+
+export function addBookshelf(cx, cy, cz, facing = 'n') {
+  const isX = facing === 'e' || facing === 'w';
+  const w = isX ? 0.5 : 1.6;
+  const d = isX ? 1.6 : 0.5;
+  addBox(cx, cy, cz, w, 2.2, d, 'woodDark', true, true);
+  for (let s = 0; s < 4; s++) {
+    const by = cy + 0.4 + s * 0.48;
+    addBox(cx, by, cz, isX ? 0.3 : 1.4, 0.3, isX ? 1.4 : 0.3, wpick(['red', 'blue', 'yellow', 'green']), false, true);
+  }
+}
+
+export function addCrateStack(cx, cy, cz) {
+  addBox(cx, cy, cz, 1.1, 1.1, 1.1, 'wood', true, true);
+  addBox(cx + 1.15, cy, cz, 1.1, 1.1, 1.1, 'wood', true, true);
+  addBox(cx + 0.55, cy + 1.1, cz, 1.0, 1.0, 1.0, 'wood', true, true);
+  addBox(cx - 0.2, cy, cz + 1.1, 1.0, 1.0, 1.0, 'wood', true, true);
+}
+
+export function addBarrels(cx, cy, cz) {
+  addBox(cx, cy, cz, 0.75, 1.05, 0.75, 'rust', true, true);
+  addBox(cx + 0.8, cy, cz + 0.2, 0.75, 1.05, 0.75, 'rust2', true, true);
+  addBox(cx + 0.3, cy, cz - 0.75, 0.75, 1.05, 0.75, 'metal', true, true);
+}
+
+export function addRooftopAC(cx, cy, cz) {
+  addBox(cx, cy, cz, 2.2, 1.4, 1.6, 'metalDark', true, true);
+  addBox(cx + 0.5, cy + 1.4, cz, 0.9, 0.15, 0.9, 'metal', false, true);
+  addBox(cx - 0.6, cy + 0.4, cz + 0.85, 0.6, 0.6, 0.4, 'rust', false, true);
+  addBox(cx - 1.3, cy + 0.4, cz, 0.5, 0.5, 1.2, 'metal', true, true);
+}
+
+export function addBusStop(x, z, facing = 'n') {
+  const isX = facing === 'e' || facing === 'w';
+  const w = isX ? 1.8 : 3.6, d = isX ? 3.6 : 1.8;
+  addBox(x, 0, z, w, 0.1, d, 'paving', false, true);
+  addBox(x, 0, z - (isX ? 0 : 0.8), isX ? 0.08 : 3.4, 2.6, isX ? 3.4 : 0.08, 'glass', true, true);
+  addBox(x, 2.6, z, w + 0.2, 0.12, d + 0.2, 'metalDark', false, true);
+  addBox(x, 0.45, z - (isX ? 0 : 0.3), isX ? 0.4 : 2.4, 0.1, isX ? 2.4 : 0.4, 'wood', true, true);
+  addBox(x + (isX ? 0 : 1.4), 0.8, z - (isX ? 0 : 0.75), isX ? 0.1 : 0.6, 1.0, isX ? 0.6 : 0.1, 'yellow', false, true);
+}
+
+export function accessibleTownhouse(cx, cz, floors = 3, facing = 's') {
+  const w = 14, d = 12;
+  const floorH = 2.88;
+  const totalH = floors * floorH;
+  const sign = (facing === 's' || facing === 'e') ? 1 : -1;
+  const brick = wpick(['brickA', 'brickB', 'brickC']);
+
+  addBox(cx, 0, cz, w, 0.1, d, 'paving', false, true);
+
+  const frontZ = cz + (d / 2 - 0.15) * sign;
+  const leftX = cx - (w / 2 - 0.15);
+  const rightX = cx + (w / 2 - 0.15);
+  const backZ = cz - (d / 2 - 0.15) * sign;
+
+  addBox(leftX, 0, cz, 0.3, totalH, d, brick, true, true);
+  addBox(rightX, 0, cz, 0.3, totalH, d, brick, true, true);
+  addBox(cx, 0, backZ, w, totalH, 0.3, brick, true, true);
+
+  const doorWidth = 2.4;
+  const frontSideW = (w - doorWidth) / 2;
+  addBox(cx - (w / 2 - frontSideW / 2), 0, frontZ, frontSideW, totalH, 0.3, brick, true, true);
+  addBox(cx + (w / 2 - frontSideW / 2), 0, frontZ, frontSideW, totalH, 0.3, brick, true, true);
+  addBox(cx, 2.5, frontZ, doorWidth, totalH - 2.5, 0.3, brick, true, true);
+
+  addBox(cx - 1.2, 0, cz, 0.2, floorH, d * 0.6, 'woodDark', true, true);
+  addDesk(cx - 3.8, 0, cz - 1.5, 's');
+  addBookshelf(cx - 5.5, 0, cz + 1.2, 'e');
+  addCrateStack(cx + 4.2, 0, cz - 3.5);
+
+  const stair1X = cx + (w / 2 - 1.2);
+  addStairs(stair1X, 0, cz + 2.2, 1.8, floorH, 12, 'n', 'concrete2');
+
+  addBox(cx - 1.5, floorH - 0.12, cz, w - 3.8, 0.15, d - 0.6, 'wood', true, true);
+  addBox(stair1X, floorH - 0.12, cz - 2.8, 2.2, 0.15, 2.4, 'wood', true, true);
+
+  addSofa(cx - 2.5, floorH, cz - 2.0, 's');
+  addBookshelf(cx - 5.5, floorH, cz - 2.0, 'e');
+  addDesk(cx - 3.5, floorH, cz + 2.5, 'n');
+
+  addBox(cx - 3.5, floorH + 0.9, frontZ, 1.8, 1.5, 0.1, 'glass', false, true);
+  addBox(cx + 3.5, floorH + 0.9, frontZ, 1.8, 1.5, 0.1, 'glass', false, true);
+
+  const stair2X = cx - (w / 2 - 1.2);
+  addStairs(stair2X, floorH, cz - 2.0, 1.8, floorH, 12, 's', 'concrete2');
+
+  const roofY = floorH * 2;
+  addBox(cx + 1.2, roofY - 0.12, cz, w - 3.2, 0.18, d - 0.6, 'concrete2', true, true);
+  addBox(stair2X, roofY - 0.12, cz + 2.6, 2.2, 0.18, 2.2, 'concrete2', true, true);
+
+  const parapetH = 1.1;
+  addBox(leftX, roofY, cz, 0.3, parapetH, d, 'brickB', true, true);
+  addBox(rightX, roofY, cz, 0.3, parapetH, d, 'brickB', true, true);
+  addBox(cx, roofY, backZ, w, parapetH, 0.3, 'brickB', true, true);
+  addBox(cx - 4.0, roofY, frontZ, 5.0, parapetH, 0.3, 'brickB', true, true);
+  addBox(cx + 4.0, roofY, frontZ, 5.0, parapetH, 0.3, 'brickB', true, true);
+  addBox(cx, roofY, frontZ, 3.0, 0.55, 0.3, 'brickB', true, true);
+
+  addRooftopAC(cx + 2.5, roofY, cz - 1.5);
+  addBox(cx + 4.5, roofY, cz + 3.0, 0.12, 4.2, 0.12, 'metal', true, true);
+  addBox(cx + 4.5, roofY + 4.2, cz + 3.0, 1.2, 0.12, 0.12, 'metal', false, true);
+
+  occupy(cx - w / 2 - 0.5, cx + w / 2 + 0.5, cz - d / 2 - 0.5, cz + d / 2 + 0.5, 0.5);
+}
+
+export function accessiblePub(cx, cz) {
+  const w = 18, d = 14, floorH = 2.88, totalH = floorH * 2;
+  const brick = 'brickB';
+
+  addBox(cx, 0, cz, w, 0.1, d, 'woodDark', false, true);
+
+  const zFront = cz - d / 2 + 0.15;
+  const zBack = cz + d / 2 - 0.15;
+  const xLeft = cx - w / 2 + 0.15;
+  const xRight = cx + w / 2 - 0.15;
+
+  addBox(xLeft, 0, cz, 0.3, totalH, d, brick, true, true);
+  addBox(xRight, 0, cz, 0.3, totalH, d, brick, true, true);
+  addBox(cx, 0, zBack, w, totalH, 0.3, brick, true, true);
+
+  const fsw = (w - 3.0) / 2;
+  addBox(cx - (w / 2 - fsw / 2), 0, zFront, fsw, totalH, 0.3, brick, true, true);
+  addBox(cx + (w / 2 - fsw / 2), 0, zFront, fsw, totalH, 0.3, brick, true, true);
+  addBox(cx, 2.5, zFront, 3.0, totalH - 2.5, 0.3, brick, true, true);
+
+  addBox(cx - 3.5, 0, cz - 1.0, 0.8, 1.1, 6.0, 'woodDark', true, true);
+  addBox(cx - 5.0, 0, cz + 1.6, 3.0, 1.1, 0.8, 'woodDark', true, true);
+  for (let s = -2; s <= 2; s += 1.3) {
+    addBox(cx - 2.4, 0, cz - 1.0 + s, 0.4, 0.75, 0.4, 'leather', true, true);
+  }
+  addBox(cx - 6.5, 1.0, cz - 1.0, 0.3, 2.2, 5.0, 'wood', true, true);
+  addBox(cx - 6.3, 1.3, cz - 1.0, 0.2, 0.4, 4.6, 'yellow', false, true);
+  addBox(cx - 6.3, 2.0, cz - 1.0, 0.2, 0.4, 4.6, 'green', false, true);
+
+  for (let r = -1; r <= 1; r += 2) {
+    const tx = cx + 3.5, tz = cz + r * 2.8;
+    addBox(tx, 0, tz, 1.4, 0.85, 1.4, 'woodDark', true, true);
+    addBox(tx - 1.0, 0, tz, 0.45, 0.5, 0.45, 'leather', true, true);
+    addBox(tx + 1.0, 0, tz, 0.45, 0.5, 0.45, 'leather', true, true);
+    addBox(tx, 0, tz - 1.0, 0.45, 0.5, 0.45, 'leather', true, true);
+    addBox(tx, 0, tz + 1.0, 0.45, 0.5, 0.45, 'leather', true, true);
+  }
+
+  const stairX = cx + 6.5;
+  addStairs(stairX, 0, cz - 2.5, 1.8, floorH, 12, 's', 'wood');
+
+  addBox(cx - 1.5, floorH - 0.12, cz, w - 4.5, 0.16, d - 0.6, 'wood', true, true);
+  addBox(stairX, floorH - 0.12, cz + 2.0, 2.2, 0.16, 2.4, 'wood', true, true);
+
+  addBox(cx, floorH, zFront - 1.2, w * 0.7, 0.15, 2.4, 'wood', true, true);
+  addBox(cx, floorH + 0.15, zFront - 2.4, w * 0.7, 1.05, 0.1, 'metal', true, true);
+  addBox(cx - (w * 0.35), floorH + 0.15, zFront - 1.2, 0.1, 1.05, 2.4, 'metal', true, true);
+  addBox(cx + (w * 0.35), floorH + 0.15, zFront - 1.2, 0.1, 1.05, 2.4, 'metal', true, true);
+
+  addBox(cx, totalH, cz, w + 0.4, 0.3, d + 0.4, 'concrete2', false, true);
+
+  occupy(cx - w / 2 - 0.5, cx + w / 2 + 0.5, cz - d / 2 - 0.5, cz + d / 2 + 0.5, 0.5);
+}
+
+export function accessibleWarehouse(cx, cz) {
+  const w = 24, d = 16, h = 6.8;
+  addBox(cx, 0, cz, w, 0.12, d, 'concrete', false, true);
+
+  const zF = cz - d / 2 + 0.15, zB = cz + d / 2 - 0.15;
+  const xL = cx - w / 2 + 0.15, xR = cx + w / 2 - 0.15;
+
+  addBox(xL, 0, cz, 0.3, h, d, 'metalDark', true, true);
+  addBox(xR, 0, cz, 0.3, h, d, 'metalDark', true, true);
+
+  const doorW = 6.0;
+  const sw = (w - doorW) / 2;
+  addBox(cx - (w / 2 - sw / 2), 0, zF, sw, h, 0.3, 'metalDark', true, true);
+  addBox(cx + (w / 2 - sw / 2), 0, zF, sw, h, 0.3, 'metalDark', true, true);
+  addBox(cx, 4.2, zF, doorW, h - 4.2, 0.3, 'metalDark', true, true);
+
+  addBox(cx - (w / 2 - sw / 2), 0, zB, sw, h, 0.3, 'metalDark', true, true);
+  addBox(cx + (w / 2 - sw / 2), 0, zB, sw, h, 0.3, 'metalDark', true, true);
+  addBox(cx, 4.2, zB, doorW, h - 4.2, 0.3, 'metalDark', true, true);
+
+  addBox(cx, h, cz, w + 0.4, 0.3, d + 0.4, 'concrete2', false, true);
+  addBox(cx, h + 0.05, cz, w * 0.7, 0.1, 2.5, 'glass', false, true);
+
+  addCrateStack(cx - 3.5, 0, cz - 2.0);
+  addCrateStack(cx + 4.5, 0, cz + 2.0);
+  addBarrels(cx - 5.5, 0, cz + 3.0);
+  addBarrels(cx + 2.0, 0, cz - 4.0);
+
+  const catwalkY = 3.36;
+  addStairs(xL + 1.2, 0, cz - 3.0, 1.6, catwalkY, 14, 's', 'metal');
+
+  addBox(xL + 1.6, catwalkY - 0.12, cz + 1.5, 2.6, 0.15, d - 4.0, 'metal', true, true);
+  addBox(cx - 3.0, catwalkY - 0.12, zB - 1.6, w * 0.6, 0.15, 2.6, 'metal', true, true);
+
+  addBox(xL + 2.9, catwalkY + 0.15, cz + 1.5, 0.08, 1.05, d - 4.0, 'metal', true, true);
+  addBox(cx - 3.0, catwalkY + 0.15, zB - 2.9, w * 0.6, 1.05, 0.08, 'metal', true, true);
+
+  occupy(cx - w / 2 - 0.5, cx + w / 2 + 0.5, cz - d / 2 - 0.5, cz + d / 2 + 0.5, 0.5);
+}
+
 function terraceRow(cx, cz, len, floors, facing) {
   const unitW = 6;
   const units = Math.max(3, Math.floor(len / unitW));
@@ -568,7 +1039,6 @@ function terraceRow(cx, cz, len, floors, facing) {
   const floorH = 3.2;
   const totalH = floors * floorH;
   const isX = facing === 'n' || facing === 's';
-  const signZ = facing === 's' ? 1 : facing === 'n' ? -1 : 0;
   const w = isX ? totalW : depth;
   const d = isX ? depth : totalW;
   const brick = wpick(['brickA', 'brickB', 'brickC']);
@@ -621,35 +1091,8 @@ function terraceRow(cx, cz, len, floors, facing) {
         isX ? bayW + 0.2 : proj + 0.1, 0.15, isX ? proj + 0.1 : bayW + 0.2, 'concrete2', false, true
       );
     }
-
-    if (u % 2 === 0) {
-      const cmx = isX ? ucx : cx + 2;
-      const cmz = isX ? cz + 2 : ucz;
-      addBox(cmx, totalH, cmz, 0.9, 3.5, 0.9, 'brickA', false, true);
-      for (let p = 0; p < 2; p++) {
-        addBox(cmx + (p - 0.5) * 0.4, totalH + 3.5, cmz + 0.1, 0.25, 0.5, 0.25, 'red', false, true);
-      }
-    }
   }
-
   occupy(x0 - 0.3, x1 + 0.3, z0 - 0.3, z1 + 0.3, 0.5);
-}
-
-function londonPub(cx, cz) {
-  const w = 16, d = 12, floors = 3, floorH = 3.2, totalH = floors * floorH;
-  addBox(cx, 0, cz, w, totalH, d, 'brickB', true, true);
-  addBox(cx, totalH, cz, w + 0.3, 0.3, d + 0.3, 'concrete2', false, true);
-  addBox(cx, totalH - 0.6, cz - d / 2 - 0.15, w * 0.7, 1.2, 0.12, 'green', false, true);
-  addBox(cx, 0.5, cz - d / 2 - 0.05, w * 0.8, 1.8, 0.1, 'glass', false, true);
-  for (let f = 1; f < floors; f++) {
-    for (let i = -2; i <= 2; i++) {
-      addBox(cx + i * 3, f * floorH + 0.8, cz - d / 2 - 0.05, 1.6, 1.8, 0.1, 'glass', false, true);
-    }
-  }
-  addBox(cx, 3.4, cz - d / 2 - 1.2, w * 0.85, 0.1, 2.4, 'red', false, true);
-  addBox(cx - w / 3, totalH, cz + d / 3, 1, 3, 1, 'brickA', false, true);
-  addBox(cx + w / 3, totalH, cz + d / 3, 1, 3, 1, 'brickA', false, true);
-  occupy(cx - w / 2 - 0.3, cx + w / 2 + 0.3, cz - d / 2 - 0.3, cz + d / 2 + 0.3, 0.5);
 }
 
 function phoneBox(x, z) {
@@ -705,27 +1148,71 @@ function tree(x, z, scene) {
   }
 }
 
-function doubleDecker(x, z, yaw) {
-  const w = 2.5, l = 11, h = 4.2;
-  addBox(x, 0, z, w, h, l, 'red', true, true);
-  for (const y of [1.5, 3.2]) {
-    addBox(x + w / 2 + 0.01, y, z, l - 1, 0.9, 0.06, 'glass', false, true);
-    addBox(x - w / 2 - 0.01, y, z, l - 1, 0.9, 0.06, 'glass', false, true);
+function detailedDoubleDecker(x, z, yaw) {
+  const w = 2.5, l = 11, h = 4.3;
+  // Lower body chassis
+  addBox(x, 0.3, z, w, 1.8, l, 'red', true, true);
+  // Wheels
+  for (const wx of [-w / 2 - 0.05, w / 2 + 0.05]) {
+    for (const wz of [-l / 2 + 1.8, l / 2 - 2.2]) {
+      addBox(x + wx, 0, z + wz, 0.25, 0.9, 0.9, 'black', true, true);
+    }
   }
-  addBox(x, 1.5, z - l / 2 - 0.01, w - 0.2, 1.0, 0.06, 'glass', false, true);
-  addBox(x, 3.2, z - l / 2 - 0.01, w - 0.2, 0.9, 0.06, 'glass', false, true);
+  // Windows lower
+  addBox(x + w / 2 + 0.01, 1.3, z, 0.05, 0.8, l - 2.2, 'glass', false, true);
+  addBox(x - w / 2 - 0.01, 1.3, z, 0.05, 0.8, l - 2.2, 'glass', false, true);
+  // Upper deck body
+  addBox(x, 2.2, z, w, 1.9, l, 'red', true, true);
+  // Windows upper
+  addBox(x + w / 2 + 0.01, 2.8, z, 0.05, 0.85, l - 1.2, 'glass', false, true);
+  addBox(x - w / 2 - 0.01, 2.8, z, 0.05, 0.85, l - 1.2, 'glass', false, true);
+  addBox(x, 2.8, z - l / 2 - 0.01, w - 0.4, 0.85, 0.05, 'glass', false, true);
+  // Destination roll sign
+  addBox(x, 3.85, z - l / 2 - 0.02, 1.4, 0.35, 0.05, 'yellow', false, true);
 }
 
-function blackCab(x, z) {
-  const w = 1.9, l = 4.5, h = 1.9;
-  addBox(x, 0, z, w, h * 0.75, l, 'black', true, true);
-  addBox(x, h * 0.75, z - 0.3, w - 0.1, 0.7, l - 1.2, 'glass', false, true);
-  addBox(x, h * 1.15, z - 0.3, w - 0.1, 0.1, l - 1.6, 'black', false, true);
-  addBox(x - w / 2 - 0.01, 1.1, z, l - 1.2, 0.6, 0.06, 'glass', false, true);
-  addBox(x + w / 2 + 0.01, 1.1, z, l - 1.2, 0.6, 0.06, 'glass', false, true);
+function detailedBlackCab(x, z) {
+  const w = 1.9, l = 4.6, h = 1.85;
+  // Wheels
+  for (const wx of [-w / 2 - 0.02, w / 2 + 0.02]) {
+    for (const wz of [-l / 2 + 1.1, l / 2 - 1.1]) {
+      addBox(x + wx, 0, z + wz, 0.22, 0.65, 0.65, 'black', true, true);
+    }
+  }
+  // Main chassis & hood
+  addBox(x, 0.25, z + 0.3, w, 0.75, l - 0.6, 'black', true, true);
+  addBox(x, 0.35, z - 1.5, w * 0.85, 0.55, 1.4, 'black', true, true);
+  // Chrome grille & headlights
+  addBox(x, 0.45, z - 2.22, 0.8, 0.45, 0.05, 'metal', false, true);
+  addBox(x - 0.65, 0.55, z - 2.22, 0.25, 0.25, 0.05, 'yellow', false, true);
+  addBox(x + 0.65, 0.55, z - 2.22, 0.25, 0.25, 0.05, 'yellow', false, true);
+  // Cabin & glass
+  addBox(x, 1.0, z + 0.2, w - 0.08, 0.75, 2.6, 'glass', false, true);
+  addBox(x, 1.75, z + 0.2, w - 0.05, 0.1, 2.7, 'black', false, true);
+  // Taxi roof sign
+  addBox(x, 1.85, z - 0.6, 0.5, 0.18, 0.2, 'yellow', false, true);
 }
 
 export function generateCity(scene) {
+  // 1. KEY ACCESSIBLE BUILDINGS WITH CLIMBABLE STAIRS, FURNITURE & ROOFTOPS:
+  // North Accessible Townhouse (Command Post)
+  accessibleTownhouse(0, -42, 3, 's');
+  // South Accessible Townhouse
+  accessibleTownhouse(0, 42, 3, 'n');
+  // East Accessible Townhouse
+  accessibleTownhouse(46, 0, 3, 'w');
+  // West Accessible Pub (The Crown & Anchor) with bar, 2nd floor lounge and street balcony!
+  accessiblePub(-48, 0);
+
+  // Tactical Accessible Warehouse on the East flank with climbable catwalk
+  accessibleWarehouse(65, 55);
+  // Secondary Warehouse on the West flank
+  accessibleWarehouse(-65, -55);
+
+  // Additional accessible townhouses in tactical corners
+  accessibleTownhouse(-52, 52, 3, 's');
+  accessibleTownhouse(52, -52, 3, 'n');
+
   // Perimeter terrace rows
   const rowLen = 40, rowH = 3;
   const RING = 180;
@@ -742,19 +1229,20 @@ export function generateCity(scene) {
     }
   }
 
-  // Mid-ring pubs and blocks
+  // Mid-ring accessible blocks and terraces
   for (let i = 0; i < 16; i++) {
     const a = (i / 16) * TAU + wr(-0.1, 0.1);
     const r = 110 + wr(-15, 15);
     const x = Math.cos(a) * r, z = Math.sin(a) * r;
     if (!isFree(x, z, 10)) continue;
     const rr = rand();
-    if (rr < 0.4) londonPub(x, z);
-    else if (rr < 0.7) {
+    if (rr < 0.45) {
+      accessibleTownhouse(x, z, 3, wpick(['n', 's', 'e', 'w']));
+    } else if (rr < 0.75) {
       const facing = wpick(['n', 's', 'e', 'w']);
       terraceRow(x, z, wr(20, 36), 2 + ((rand() * 2) | 0), facing);
     } else {
-      const w = 10, d = 10, floors = 4, fh = 3.0;
+      const w = 12, d = 12, floors = 4, fh = 3.0;
       addBox(x, 0, z, w, floors * fh, d, 'brickA', true, true);
       addBox(x, floors * fh, z, w + 0.3, 0.3, d + 0.3, 'concrete2', false, true);
       for (let f = 0; f < floors; f++) for (let s = 0; s < 4; s++) {
@@ -775,19 +1263,25 @@ export function generateCity(scene) {
     bench(x, z);
   }
 
+  // London Bus Stops with glass shelters and timetables
+  addBusStop(18, -12, 's');
+  addBusStop(-18, 12, 'n');
+  addBusStop(-12, -18, 'e');
+  addBusStop(12, 18, 'w');
+
   // Sidewalks along main cross roads
   const roadW = 9, sidewalkW = 2.5;
   for (let x = -MAP + 20; x < MAP - 20; x += 20) {
     if (isFree(x + 10, -roadW / 2 - sidewalkW / 2, 2))
-      addBox(x + 10, 0, -roadW / 2 - sidewalkW / 2, 20, 0.15, sidewalkW, 'concrete2', false, true);
+      addBox(x + 10, 0, -roadW / 2 - sidewalkW / 2, 20, 0.15, sidewalkW, 'paving', false, true);
     if (isFree(x + 10, roadW / 2 + sidewalkW / 2, 2))
-      addBox(x + 10, 0, roadW / 2 + sidewalkW / 2, 20, 0.15, sidewalkW, 'concrete2', false, true);
+      addBox(x + 10, 0, roadW / 2 + sidewalkW / 2, 20, 0.15, sidewalkW, 'paving', false, true);
   }
   for (let z = -MAP + 20; z < MAP - 20; z += 20) {
     if (isFree(-roadW / 2 - sidewalkW / 2, z + 10, 2))
-      addBox(-roadW / 2 - sidewalkW / 2, 0, z + 10, sidewalkW, 0.15, 20, 'concrete2', false, true);
+      addBox(-roadW / 2 - sidewalkW / 2, 0, z + 10, sidewalkW, 0.15, 20, 'paving', false, true);
     if (isFree(roadW / 2 + sidewalkW / 2, z + 10, 2))
-      addBox(roadW / 2 + sidewalkW / 2, 0, z + 10, sidewalkW, 0.15, 20, 'concrete2', false, true);
+      addBox(roadW / 2 + sidewalkW / 2, 0, z + 10, sidewalkW, 0.15, 20, 'paving', false, true);
   }
 
   // Street lamps
@@ -838,20 +1332,19 @@ export function generateCity(scene) {
     bollard(x, z);
   }
 
-  // Parked vehicles
-  for (let i = 0; i < 12; i++) {
-    const a = rand() * TAU, r = rand() * MAP * 0.7;
+  // High detail Parked vehicles
+  for (let i = 0; i < 14; i++) {
+    const a = rand() * TAU, r = 25 + rand() * (MAP * 0.65);
     const x = Math.cos(a) * r, z = Math.sin(a) * r;
     if (!isFree(x, z, 6)) continue;
     const yaw = rand() * Math.PI * 2;
-    if (rand() < 0.3) doubleDecker(x, z, yaw);
-    else if (rand() < 0.6) blackCab(x, z);
+    if (rand() < 0.4) detailedDoubleDecker(x, z, yaw);
+    else if (rand() < 0.8) detailedBlackCab(x, z);
     else {
-      const w = 2.0, l = 4.2, h = 1.6;
-      addBox(x, 0, z, w, h * 0.7, l, wpick(['blue', 'black', 'red', 'green']), true, true);
-      addBox(x, h * 0.7, z - 0.3, w - 0.1, 0.7, l - 1.2, 'glass', false, true);
+      addCrateStack(x, 0, z);
+      addBarrels(x + 2, 0, z);
     }
-    occupy(x - 3, x + 3, z - 3, z + 3, 0.5);
+    occupy(x - 3.5, x + 3.5, z - 3.5, z + 3.5, 0.5);
   }
 
   // Perimeter wall
@@ -863,53 +1356,65 @@ export function generateCity(scene) {
 }
 
 /* ================================================================
-   CHARACTER RIG (bone hierarchy + capsule limbs)
+   CHARACTER RIG (Tactical Operator with ballistic gear & comms)
 ================================================================ */
 export function buildCharacterRig(palette, name) {
   const root = new THREE.Group();
   const bones = {};
   const isNoDeX = name === 'NoDeX';
 
-  const M = buildMaterials();
   const skinMat = new THREE.MeshStandardMaterial({
     color: new THREE.Color(palette.skinTone || '#c89870').getHex(),
-    roughness: 0.65, metalness: 0.02, envMapIntensity: 0.4,
+    roughness: 0.65, metalness: 0.02, envMapIntensity: 0.5,
   });
   const clothMat = new THREE.MeshStandardMaterial({
-    map: palette.texture, roughness: 0.92, metalness: 0.0, envMapIntensity: 0.35,
+    map: palette.texture, roughness: 0.88, metalness: 0.05, envMapIntensity: 0.4,
   });
   const clothDark = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(palette.dark || '#101010').getHex(),
-    roughness: 0.95, metalness: 0.0, envMapIntensity: 0.3,
+    color: new THREE.Color(palette.dark || '#16191f').getHex(),
+    roughness: 0.90, metalness: 0.08, envMapIntensity: 0.4,
   });
-  const bootMat = new THREE.MeshStandardMaterial({ color: 0x0e1014, roughness: 0.55, metalness: 0.15, envMapIntensity: 0.8 });
-  const metalMat = new THREE.MeshStandardMaterial({ color: 0x2a3038, roughness: 0.35, metalness: 0.85, envMapIntensity: 1.4 });
-  const accentMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(palette.accent || '#ff6a2b').getHex(), roughness: 0.5, metalness: 0.1, envMapIntensity: 0.8 });
-  const visorMat = new THREE.MeshStandardMaterial({ color: 0x0a1a20, roughness: 0.1, metalness: 0.9, envMapIntensity: 2.0, emissive: 0x1a4a66, emissiveIntensity: 0.6 });
+  const bootMat = new THREE.MeshStandardMaterial({
+    color: 0x111317, roughness: 0.50, metalness: 0.20, envMapIntensity: 0.9
+  });
+  const metalMat = new THREE.MeshStandardMaterial({
+    color: 0x30363d, roughness: 0.32, metalness: 0.85, envMapIntensity: 1.4
+  });
+  const accentMat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(palette.accent || '#ff6a2b').getHex(),
+    roughness: 0.45, metalness: 0.15, envMapIntensity: 0.9
+  });
+  const visorMat = new THREE.MeshStandardMaterial({
+    color: 0x050c12, roughness: 0.08, metalness: 0.95, envMapIntensity: 2.5,
+    emissive: 0x143c54, emissiveIntensity: 0.4
+  });
+  const gloveMat = new THREE.MeshStandardMaterial({
+    color: 0x22262c, roughness: 0.65, metalness: 0.15, envMapIntensity: 0.6
+  });
 
-  function bone(parent, name, x, y, z) {
+  function bone(parent, bname, x, y, z) {
     const b = new THREE.Group();
     b.position.set(x, y, z);
     parent.add(b);
-    bones[name] = b;
+    bones[bname] = b;
     return b;
   }
   function capsule(parent, len, r, mat) {
-    const geo = new THREE.CapsuleGeometry(r, Math.max(0.01, len - 2 * r), 4, 8);
+    const geo = new THREE.CapsuleGeometry(r, Math.max(0.01, len - 2 * r), 6, 10);
     const m = new THREE.Mesh(geo, mat);
     m.position.y = -len / 2;
     m.castShadow = true; m.receiveShadow = true;
     parent.add(m);
     return m;
   }
-  function box(parent, w, h, d, mat, x, y, z) {
+  function box(parent, w, h, d, mat, x = 0, y = 0, z = 0) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
     m.position.set(x, y, z);
     m.castShadow = true; m.receiveShadow = true;
     parent.add(m);
     return m;
   }
-  function sphere(parent, r, mat, x, y, z) {
+  function sphere(parent, r, mat, x = 0, y = 0, z = 0) {
     const m = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), mat);
     m.position.set(x, y, z);
     m.castShadow = true; m.receiveShadow = true;
@@ -925,102 +1430,162 @@ export function buildCharacterRig(palette, name) {
   const neck = bone(chest, 'neck', 0, 0.20, 0);
   const head = bone(neck, 'head', 0, 0.08, 0);
 
-  const shoulderL = bone(chest, 'shoulderL', -0.20, 0.16, 0);
+  const shoulderL = bone(chest, 'shoulderL', -0.21, 0.16, 0);
   const upperArmL = bone(shoulderL, 'upperArmL', 0, -0.06, 0);
   const lowerArmL = bone(upperArmL, 'lowerArmL', 0, -0.28, 0);
   const handL = bone(lowerArmL, 'handL', 0, -0.24, 0);
 
-  const shoulderR = bone(chest, 'shoulderR', 0.20, 0.16, 0);
+  const shoulderR = bone(chest, 'shoulderR', 0.21, 0.16, 0);
   const upperArmR = bone(shoulderR, 'upperArmR', 0, -0.06, 0);
   const lowerArmR = bone(upperArmR, 'lowerArmR', 0, -0.28, 0);
   const handR = bone(lowerArmR, 'handR', 0, -0.24, 0);
 
-  const upperLegL = bone(pelvis, 'upperLegL', -0.09, -0.10, 0);
+  const upperLegL = bone(pelvis, 'upperLegL', -0.10, -0.08, 0);
   const lowerLegL = bone(upperLegL, 'lowerLegL', 0, -0.44, 0);
   const footL = bone(lowerLegL, 'footL', 0, -0.42, 0);
 
-  const upperLegR = bone(pelvis, 'upperLegR', 0.09, -0.10, 0);
+  const upperLegR = bone(pelvis, 'upperLegR', 0.10, -0.08, 0);
   const lowerLegR = bone(upperLegR, 'lowerLegR', 0, -0.44, 0);
   const footR = bone(lowerLegR, 'footR', 0, -0.42, 0);
 
-  // Meshes
-  box(pelvis, 0.34, 0.22, 0.24, clothMat, 0, -0.02, 0);
-  box(spine1, 0.34, 0.20, 0.24, clothMat, 0, 0.04, 0);
-  box(spine2, 0.36, 0.22, 0.26, clothMat, 0, 0.04, 0);
-  if (palette.vest) {
-    box(chest, 0.42, 0.34, 0.30, clothDark, 0, 0.02, 0);
-    box(chest, 0.10, 0.10, 0.06, accentMat, -0.13, -0.05, -0.16);
-    box(chest, 0.10, 0.10, 0.06, accentMat, 0.13, -0.05, -0.16);
-    if (isNoDeX) box(chest, 0.14, 0.05, 0.10, accentMat, 0.16, 0.14, -0.10);
-  }
-  if (palette.back) {
-    box(chest, 0.28, 0.36, 0.16, clothDark, 0, 0.04, 0.19);
-    box(chest, 0.24, 0.06, 0.02, accentMat, 0, 0.18, 0.27);
-  }
+  // --- LOWER BODY & DUTY BELT ---
+  box(pelvis, 0.36, 0.22, 0.26, clothMat, 0, -0.02, 0);
+  // Tactical duty belt
+  box(pelvis, 0.38, 0.08, 0.28, clothDark, 0, 0.08, 0);
+  box(pelvis, 0.07, 0.06, 0.04, metalMat, 0, 0.08, -0.145); // belt buckle
+  // Utility pouch on right hip
+  box(pelvis, 0.08, 0.12, 0.10, clothDark, 0.19, 0.04, 0.02);
+  // Sidearm holster on left thigh
+  box(pelvis, 0.07, 0.16, 0.09, clothDark, -0.19, -0.08, 0.02);
 
-  box(neck, 0.10, 0.08, 0.10, skinMat, 0, 0.03, 0);
+  // --- TORSO & SPINE ---
+  box(spine1, 0.35, 0.20, 0.25, clothMat, 0, 0.04, 0);
+  box(spine2, 0.37, 0.22, 0.27, clothMat, 0, 0.04, 0);
+
+  // --- TACTICAL CHEST RIG / MOLLE PLATE CARRIER ---
+  // Main armored plate carrier body
+  box(chest, 0.44, 0.36, 0.32, clothDark, 0, 0.02, 0);
+  // Shoulder straps
+  box(chest, 0.10, 0.38, 0.08, clothDark, -0.15, 0.04, 0);
+  box(chest, 0.10, 0.38, 0.08, clothDark, 0.15, 0.04, 0);
+  // 3x Front 5.56 Rifle Magazine Pouches
+  box(chest, 0.09, 0.16, 0.06, clothDark, -0.11, -0.06, -0.185);
+  box(chest, 0.09, 0.16, 0.06, clothDark, 0, -0.06, -0.185);
+  box(chest, 0.09, 0.16, 0.06, clothDark, 0.11, -0.06, -0.185);
+  // Magazine baseplates
+  box(chest, 0.08, 0.03, 0.05, metalMat, -0.11, 0.03, -0.185);
+  box(chest, 0.08, 0.03, 0.05, metalMat, 0, 0.03, -0.185);
+  box(chest, 0.08, 0.03, 0.05, metalMat, 0.11, 0.03, -0.185);
+  // Chest velcro patch / callsign
+  box(chest, 0.14, 0.06, 0.02, accentMat, 0, 0.11, -0.165);
+  if (isNoDeX) {
+    box(chest, 0.08, 0.04, 0.02, metalMat, -0.12, 0.11, -0.165);
+  }
+  // Tactical comms radio on left chest/shoulder
+  box(chest, 0.08, 0.14, 0.07, metalMat, -0.16, 0.10, -0.15);
+  box(chest, 0.015, 0.22, 0.015, metalMat, -0.16, 0.24, -0.15); // radio antenna
+  // Hydration pack / rear tactical backpack
+  box(chest, 0.30, 0.34, 0.15, clothDark, 0, 0.02, 0.21);
+  box(chest, 0.22, 0.06, 0.03, accentMat, 0, 0.15, 0.29);
+
+  // --- NECK & HEAD ---
+  box(neck, 0.11, 0.10, 0.11, clothDark, 0, 0.03, 0); // Balaclava neck
   sphere(head, 0.13, skinMat, 0, 0.06, 0);
+  // Balaclava lower face mask
+  box(head, 0.16, 0.12, 0.16, clothDark, 0, 0.02, -0.04);
 
-  if (palette.helmet) {
-    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.145, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2), clothDark);
-    dome.position.y = 0.06; dome.castShadow = true; head.add(dome);
-    box(head, 0.30, 0.05, 0.30, clothDark, 0, -0.04, 0);
-    box(head, 0.24, 0.09, 0.02, visorMat, 0, 0.05, -0.13);
-    box(head, 0.06, 0.05, 0.06, metalMat, 0, 0.10, -0.13);
-  } else if (palette.cap) {
-    box(head, 0.26, 0.08, 0.26, clothDark, 0, 0.14, 0);
-    box(head, 0.24, 0.02, 0.10, clothDark, 0, 0.12, -0.16);
-  } else if (palette.beret) {
-    box(head, 0.24, 0.06, 0.24, accentMat, 0, 0.14, 0);
-    box(head, 0.04, 0.04, 0.04, metalMat, 0.10, 0.17, 0);
-  } else {
-    box(head, 0.26, 0.03, 0.10, clothDark, 0, 0.13, -0.05);
-  }
-  box(head, 0.22, 0.03, 0.02, new THREE.MeshStandardMaterial({ color: 0x080808, roughness: 0.4 }), 0, 0.06, -0.13);
+  // FAST Ballistic Combat Helmet
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.152, 14, 12, 0, Math.PI * 2, 0, Math.PI / 1.7), clothDark);
+  dome.position.y = 0.06; dome.castShadow = true; head.add(dome);
+  // Helmet rim and side ARC rails
+  box(head, 0.31, 0.05, 0.30, clothDark, 0, 0.02, 0);
+  box(head, 0.04, 0.04, 0.16, metalMat, -0.15, 0.07, 0); // Left ARC rail
+  box(head, 0.04, 0.04, 0.16, metalMat, 0.15, 0.07, 0);  // Right ARC rail
+  // Wilcox NVG mount bracket on front of helmet
+  box(head, 0.06, 0.07, 0.05, metalMat, 0, 0.10, -0.145);
+  // Rear battery pack / counterweight
+  box(head, 0.12, 0.06, 0.05, clothDark, 0, 0.06, 0.145);
 
-  capsule(upperArmL, 0.26, 0.055, clothMat); sphere(upperArmL, 0.065, clothMat, 0, 0, 0);
-  capsule(lowerArmL, 0.26, 0.05, clothMat); sphere(lowerArmL, 0.06, clothMat, 0, 0, 0);
-  box(handL, 0.08, 0.14, 0.06, skinMat, 0, -0.13, 0);
+  // Comms Headset (dual ear cups and boom mic)
+  box(head, 0.05, 0.09, 0.08, metalMat, -0.15, 0.04, -0.01); // left ear cup
+  box(head, 0.05, 0.09, 0.08, metalMat, 0.15, 0.04, -0.01);  // right ear cup
+  box(head, 0.03, 0.02, 0.14, metalMat, -0.14, 0.02, -0.10); // flexible mic arm
+  box(head, 0.03, 0.03, 0.03, clothDark, -0.10, 0.02, -0.15); // mic foam tip
 
-  capsule(upperArmR, 0.26, 0.055, clothMat); sphere(upperArmR, 0.065, clothMat, 0, 0, 0);
-  capsule(lowerArmR, 0.26, 0.05, clothMat); sphere(lowerArmR, 0.06, clothMat, 0, 0, 0);
-  box(handR, 0.08, 0.14, 0.06, skinMat, 0, -0.13, 0);
+  // Ballistic Eye Protection Goggles
+  box(head, 0.25, 0.08, 0.04, visorMat, 0, 0.07, -0.135);
+  box(head, 0.29, 0.04, 0.28, clothDark, 0, 0.07, 0); // goggle retention strap
 
-  capsule(upperLegL, 0.42, 0.075, clothMat); sphere(upperLegL, 0.085, clothMat, 0, 0, 0);
-  capsule(lowerLegL, 0.40, 0.065, clothMat); sphere(lowerLegL, 0.075, clothMat, 0, 0, 0);
-  box(footL, 0.14, 0.10, 0.26, bootMat, 0, -0.04, -0.06);
+  // --- ARMS & TACTICAL GLOVES ---
+  // Left arm
+  capsule(upperArmL, 0.26, 0.06, clothMat);
+  sphere(upperArmL, 0.07, clothMat, 0, 0, 0); // shoulder pad
+  box(upperArmL, 0.08, 0.06, 0.02, accentMat, -0.065, -0.08, 0); // patch
+  capsule(lowerArmL, 0.26, 0.052, clothMat);
+  box(lowerArmL, 0.10, 0.09, 0.09, clothDark, 0, -0.02, 0); // elbow pad
+  box(handL, 0.085, 0.14, 0.065, gloveMat, 0, -0.13, 0); // tactical glove
+  box(handL, 0.08, 0.03, 0.06, metalMat, 0, -0.11, -0.035); // carbon knuckle guard
 
-  capsule(upperLegR, 0.42, 0.075, clothMat); sphere(upperLegR, 0.085, clothMat, 0, 0, 0);
-  capsule(lowerLegR, 0.40, 0.065, clothMat); sphere(lowerLegR, 0.075, clothMat, 0, 0, 0);
-  box(footR, 0.14, 0.10, 0.26, bootMat, 0, -0.04, -0.06);
+  // Right arm
+  capsule(upperArmR, 0.26, 0.06, clothMat);
+  sphere(upperArmR, 0.07, clothMat, 0, 0, 0);
+  box(upperArmR, 0.08, 0.06, 0.02, accentMat, 0.065, -0.08, 0);
+  capsule(lowerArmR, 0.26, 0.052, clothMat);
+  box(lowerArmR, 0.10, 0.09, 0.09, clothDark, 0, -0.02, 0);
+  box(handR, 0.085, 0.14, 0.065, gloveMat, 0, -0.13, 0);
+  box(handR, 0.08, 0.03, 0.06, metalMat, 0, -0.11, -0.035);
 
-  // Name label
+  // --- LEGS & COMBAT BOOTS ---
+  // Left leg
+  capsule(upperLegL, 0.42, 0.078, clothMat);
+  sphere(upperLegL, 0.085, clothMat, 0, 0, 0);
+  box(upperLegL, 0.06, 0.16, 0.14, clothDark, -0.08, -0.22, 0); // cargo thigh pocket
+  capsule(lowerLegL, 0.40, 0.068, clothMat);
+  box(lowerLegL, 0.13, 0.13, 0.12, clothDark, 0, 0.02, -0.04); // tactical hard knee pad
+  box(footL, 0.14, 0.13, 0.27, bootMat, 0, -0.03, -0.05); // combat boot
+  box(footL, 0.15, 0.035, 0.28, metalMat, 0, -0.09, -0.05); // lugged rubber sole
+
+  // Right leg
+  capsule(upperLegR, 0.42, 0.078, clothMat);
+  sphere(upperLegR, 0.085, clothMat, 0, 0, 0);
+  box(upperLegR, 0.06, 0.16, 0.14, clothDark, 0.08, -0.22, 0);
+  capsule(lowerLegR, 0.40, 0.068, clothMat);
+  box(lowerLegR, 0.13, 0.13, 0.12, clothDark, 0, 0.02, -0.04);
+  box(footR, 0.14, 0.13, 0.27, bootMat, 0, -0.03, -0.05);
+  box(footR, 0.15, 0.035, 0.28, metalMat, 0, -0.09, -0.05);
+
+  // Floating tactical operator callsign HUD
   const lc = document.createElement('canvas'); lc.width = 256; lc.height = 64;
   const lg = lc.getContext('2d');
-  lg.font = '600 30px "Chakra Petch",sans-serif';
+  lg.font = '700 28px "Chakra Petch",sans-serif';
   lg.textAlign = 'center'; lg.textBaseline = 'middle';
-  lg.lineWidth = 6; lg.strokeStyle = 'rgba(0,0,0,.8)';
-  lg.strokeText(name, 128, 32); lg.fillStyle = '#fff'; lg.fillText(name, 128, 32);
+  lg.lineWidth = 6; lg.strokeStyle = 'rgba(0,0,0,0.85)';
+  lg.strokeText(name, 128, 32);
+  lg.fillStyle = '#f8fafc'; lg.fillText(name, 128, 32);
   const ltex = new THREE.CanvasTexture(lc);
   ltex.colorSpace = THREE.SRGBColorSpace;
   const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: ltex, transparent: true, fog: false, depthTest: false }));
-  label.scale.set(2.4, 0.6, 1); label.position.y = 2.05;
+  label.scale.set(2.2, 0.55, 1); label.position.y = 2.12;
   root.add(label);
 
   return { root, bones, label };
 }
 
 /* ================================================================
-   WEAPON MODELS (multi-part, animatable)
+   WEAPON MODELS (High-Fidelity with Holographic Optic & Attachments)
 ================================================================ */
 export function buildWeapon(kind) {
   const group = new THREE.Group();
   const M = buildMaterials();
-  const dk = new THREE.MeshStandardMaterial({ color: 0x1a1e24, roughness: 0.45, metalness: 0.4, envMapIntensity: 1.0 });
-  const md = new THREE.MeshStandardMaterial({ color: 0x2e343c, roughness: 0.4, metalness: 0.5, envMapIntensity: 1.1 });
-  const lt = new THREE.MeshStandardMaterial({ color: 0x5a6068, roughness: 0.35, metalness: 0.75, envMapIntensity: 1.3 });
+  const dk = new THREE.MeshStandardMaterial({ color: 0x14181e, roughness: 0.38, metalness: 0.7, envMapIntensity: 1.2 });
+  const md = new THREE.MeshStandardMaterial({ color: 0x242a32, roughness: 0.35, metalness: 0.8, envMapIntensity: 1.3 });
+  const lt = new THREE.MeshStandardMaterial({ color: 0x485058, roughness: 0.30, metalness: 0.88, envMapIntensity: 1.5 });
+  const sightGlass = new THREE.MeshStandardMaterial({
+    color: 0x00e5ff, roughness: 0.1, metalness: 0.9, transparent: true, opacity: 0.75,
+    emissive: 0x00e5ff, emissiveIntensity: 0.6
+  });
   const wood = M.wood;
-  const accent = new THREE.MeshStandardMaterial({ color: 0xff6a2b, roughness: 0.4, metalness: 0.1, envMapIntensity: 1.0 });
+  const accent = new THREE.MeshStandardMaterial({ color: 0xff5500, roughness: 0.4, metalness: 0.2 });
 
   function bx(parent, w, h, d, mat, x, y, z) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
@@ -1028,7 +1593,7 @@ export function buildWeapon(kind) {
     m.castShadow = true; parent.add(m); return m;
   }
   function cyl(parent, r, len, mat, x, y, z, axis) {
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 12), mat);
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 14), mat);
     if (axis === 'x') m.rotation.z = Math.PI / 2;
     else if (axis === 'z') m.rotation.x = Math.PI / 2;
     m.position.set(x, y, z);
@@ -1040,83 +1605,119 @@ export function buildWeapon(kind) {
   const bolt = new THREE.Group();
   group.add(body, mag, bolt);
 
+  // Tactical Holographic Optic helper
+  function addHoloSight(parent, yOff, zOff) {
+    bx(parent, 0.05, 0.06, 0.12, dk, 0, yOff + 0.03, zOff);
+    bx(parent, 0.045, 0.05, 0.08, md, 0, yOff + 0.06, zOff);
+    bx(parent, 0.035, 0.035, 0.01, sightGlass, 0, yOff + 0.06, zOff - 0.02);
+  }
+
+  // Picatinny rail
+  function addPicatinny(parent, len, yOff, zOff) {
+    bx(parent, 0.035, 0.015, len, lt, 0, yOff, zOff);
+  }
+
   if (kind === 'pistol') {
-    bx(body, 0.05, 0.05, 0.20, dk, 0, 0.02, -0.12);
-    bx(body, 0.045, 0.05, 0.16, md, 0, -0.03, -0.10);
-    cyl(body, 0.013, 0.18, lt, 0, 0.02, -0.28, 'z');
-    bx(body, 0.05, 0.14, 0.06, dk, 0, -0.12, -0.02);
-    bx(body, 0.03, 0.03, 0.06, dk, 0, 0.05, -0.22);
-    bx(body, 0.03, 0.02, 0.04, dk, 0, 0.05, -0.32);
-    bx(mag, 0.04, 0.10, 0.045, md, 0, -0.10, -0.02);
+    // Slide and lower frame
+    bx(body, 0.048, 0.05, 0.22, dk, 0, 0.02, -0.12);
+    bx(body, 0.044, 0.05, 0.17, md, 0, -0.03, -0.10);
+    cyl(body, 0.013, 0.20, lt, 0, 0.02, -0.28, 'z');
+    bx(body, 0.048, 0.15, 0.065, dk, 0, -0.12, -0.02); // grip
+    bx(body, 0.02, 0.05, 0.08, lt, 0, -0.07, -0.07); // trigger guard
+    bx(body, 0.028, 0.022, 0.05, dk, 0, 0.05, -0.22); // rear sight
+    bx(body, 0.028, 0.020, 0.03, accent, 0, 0.05, -0.32); // front sight dot
+    bx(mag, 0.040, 0.12, 0.05, md, 0, -0.12, -0.02);
     bx(bolt, 0.045, 0.025, 0.06, lt, 0, 0.03, -0.16);
   } else if (kind === 'smg') {
-    bx(body, 0.06, 0.08, 0.32, md, 0, 0.02, -0.18);
-    cyl(body, 0.015, 0.28, lt, 0, 0.03, -0.48, 'z');
-    bx(body, 0.05, 0.10, 0.20, dk, 0, -0.06, 0.02);
-    bx(body, 0.06, 0.18, 0.06, dk, 0, -0.12, -0.10);
-    bx(body, 0.05, 0.14, 0.05, dk, 0, -0.10, -0.28);
-    bx(body, 0.03, 0.03, 0.04, dk, 0, 0.08, -0.28);
-    bx(body, 0.03, 0.03, 0.04, dk, 0, 0.08, -0.42);
+    // Compact tactical PDW / MP5 style
+    bx(body, 0.06, 0.08, 0.36, md, 0, 0.02, -0.18);
+    cyl(body, 0.016, 0.30, lt, 0, 0.03, -0.50, 'z');
+    cyl(body, 0.022, 0.06, dk, 0, 0.03, -0.66, 'z'); // suppressor / muzzle
+    bx(body, 0.05, 0.10, 0.22, dk, 0, -0.06, 0.02); // collapsible stock
+    bx(body, 0.055, 0.18, 0.06, dk, 0, -0.12, -0.10); // pistol grip
+    bx(body, 0.05, 0.14, 0.05, dk, 0, -0.10, -0.32); // angled tactical foregrip!
+    addPicatinny(body, 0.26, 0.065, -0.24);
+    addHoloSight(body, 0.07, -0.22);
     bx(bolt, 0.04, 0.03, 0.05, lt, 0, 0.05, -0.30);
-    bx(mag, 0.045, 0.14, 0.05, md, 0, -0.14, -0.06);
+    // Curved high-capacity magazine
+    bx(mag, 0.045, 0.20, 0.055, md, 0, -0.16, -0.08);
   } else if (kind === 'rifle') {
-    bx(body, 0.06, 0.09, 0.44, md, 0, 0.02, -0.20);
-    cyl(body, 0.014, 0.34, lt, 0, 0.03, -0.60, 'z');
-    bx(body, 0.05, 0.08, 0.22, dk, 0, -0.01, 0.10);
-    bx(body, 0.06, 0.16, 0.06, dk, 0, -0.12, -0.12);
-    bx(body, 0.06, 0.05, 0.24, dk, 0, -0.03, -0.32);
-    bx(body, 0.03, 0.03, 0.05, dk, 0, 0.08, -0.32);
-    bx(body, 0.03, 0.03, 0.05, dk, 0, 0.08, -0.48);
+    // M4A1 / HK416 Tactical Assault Rifle
+    bx(body, 0.062, 0.09, 0.46, md, 0, 0.02, -0.20);
+    cyl(body, 0.015, 0.38, lt, 0, 0.03, -0.62, 'z');
+    cyl(body, 0.022, 0.08, dk, 0, 0.03, -0.82, 'z'); // tactical muzzle brake
+    bx(body, 0.052, 0.08, 0.24, dk, 0, -0.01, 0.12); // crane stock
+    bx(body, 0.058, 0.16, 0.06, dk, 0, -0.12, -0.12); // ergonomic pistol grip
+    bx(body, 0.058, 0.06, 0.28, dk, 0, -0.02, -0.34); // quad-rail handguard
+    bx(body, 0.05, 0.12, 0.05, dk, 0, -0.10, -0.38); // vertical forward grip!
+    addPicatinny(body, 0.38, 0.07, -0.26);
+    addHoloSight(body, 0.075, -0.24); // EOTech Holographic Optic
     bx(bolt, 0.045, 0.03, 0.06, lt, 0, 0.06, -0.36);
-    bx(mag, 0.05, 0.18, 0.06, md, 0, -0.16, -0.14);
-    bx(body, 0.02, 0.02, 0.10, accent, 0, 0.075, -0.36);
+    bx(mag, 0.05, 0.22, 0.065, md, 0, -0.18, -0.14); // STANAG 30rd mag
+    bx(body, 0.02, 0.02, 0.08, accent, 0, 0.085, -0.42); // PEQ-15 tactical laser unit
   } else if (kind === 'bullpup') {
-    bx(body, 0.06, 0.10, 0.36, md, 0, 0.02, -0.16);
-    cyl(body, 0.013, 0.30, lt, 0, 0.03, -0.50, 'z');
-    bx(body, 0.08, 0.10, 0.18, md, 0, -0.01, 0.10);
-    bx(body, 0.06, 0.14, 0.06, dk, 0, -0.10, 0.02);
-    bx(body, 0.04, 0.03, 0.05, dk, 0, 0.08, -0.28);
-    bx(body, 0.04, 0.03, 0.05, dk, 0, 0.08, -0.44);
+    // Bullpup (AUG/L85 style)
+    bx(body, 0.065, 0.11, 0.38, md, 0, 0.02, -0.16);
+    cyl(body, 0.014, 0.34, lt, 0, 0.03, -0.52, 'z');
+    cyl(body, 0.020, 0.06, dk, 0, 0.03, -0.70, 'z');
+    bx(body, 0.08, 0.11, 0.20, md, 0, -0.01, 0.10);
+    bx(body, 0.06, 0.15, 0.06, dk, 0, -0.10, 0.02);
+    bx(body, 0.05, 0.14, 0.05, dk, 0, -0.10, -0.30); // integrated folding foregrip
+    addPicatinny(body, 0.32, 0.08, -0.20);
+    addHoloSight(body, 0.085, -0.18);
     bx(bolt, 0.045, 0.03, 0.06, lt, 0, 0.06, -0.32);
-    bx(mag, 0.05, 0.16, 0.055, md, 0, -0.14, -0.06);
+    bx(mag, 0.05, 0.19, 0.06, md, 0, -0.15, -0.06); // rear bullpup magazine
   } else if (kind === 'dmr') {
-    bx(body, 0.06, 0.09, 0.52, md, 0, 0.02, -0.24);
-    cyl(body, 0.014, 0.44, lt, 0, 0.03, -0.72, 'z');
-    bx(body, 0.06, 0.10, 0.28, wood, 0, -0.01, 0.12);
+    // DMR Marksman Rifle with telescopic optic
+    bx(body, 0.062, 0.09, 0.54, md, 0, 0.02, -0.24);
+    cyl(body, 0.016, 0.48, lt, 0, 0.03, -0.74, 'z');
+    cyl(body, 0.024, 0.08, dk, 0, 0.03, -0.99, 'z');
+    bx(body, 0.06, 0.10, 0.30, wood, 0, -0.01, 0.14);
     bx(body, 0.06, 0.16, 0.06, dk, 0, -0.12, -0.16);
-    bx(body, 0.06, 0.06, 0.30, dk, 0, -0.02, -0.40);
-    bx(body, 0.10, 0.06, 0.24, dk, 0, 0.09, -0.30);
-    cyl(body, 0.05, 0.20, lt, 0, 0.09, -0.42, 'z');
+    bx(body, 0.06, 0.06, 0.32, dk, 0, -0.02, -0.42);
+    // Telescopic sniper scope
+    cyl(body, 0.026, 0.26, dk, 0, 0.10, -0.30, 'z');
+    cyl(body, 0.032, 0.06, dk, 0, 0.10, -0.44, 'z'); // objective lens bell
+    bx(body, 0.04, 0.04, 0.01, sightGlass, 0, 0.10, -0.47);
     bx(bolt, 0.045, 0.03, 0.06, lt, 0, 0.06, -0.42);
-    bx(mag, 0.05, 0.16, 0.06, md, 0, -0.16, -0.18);
+    bx(mag, 0.05, 0.18, 0.065, md, 0, -0.16, -0.18);
   } else if (kind === 'lmg') {
-    bx(body, 0.08, 0.11, 0.56, md, 0, 0.02, -0.26);
-    cyl(body, 0.018, 0.46, lt, 0, 0.03, -0.72, 'z');
-    bx(body, 0.05, 0.09, 0.20, dk, 0, -0.02, 0.10);
-    bx(body, 0.06, 0.16, 0.06, dk, 0, -0.13, -0.14);
-    bx(body, 0.06, 0.06, 0.30, dk, 0, -0.03, -0.42);
-    bx(body, 0.14, 0.20, 0.20, dk, 0, -0.14, -0.10);
+    // Heavy squad automatic weapon with drum magazine
+    bx(body, 0.085, 0.12, 0.58, md, 0, 0.02, -0.26);
+    cyl(body, 0.020, 0.50, lt, 0, 0.03, -0.74, 'z');
+    cyl(body, 0.028, 0.10, dk, 0, 0.03, -1.00, 'z');
+    bx(body, 0.06, 0.10, 0.22, dk, 0, -0.02, 0.12);
+    bx(body, 0.065, 0.16, 0.06, dk, 0, -0.13, -0.14);
+    bx(body, 0.07, 0.07, 0.34, dk, 0, -0.03, -0.44);
+    addHoloSight(body, 0.09, -0.28);
+    // 100rd Ammo drum box
+    bx(mag, 0.16, 0.18, 0.18, dk, 0, -0.15, -0.16);
     bx(bolt, 0.045, 0.03, 0.06, lt, 0, 0.06, -0.44);
-    bx(mag, 0.045, 0.05, 0.14, md, 0, -0.06, -0.10);
   } else if (kind === 'shotgun') {
-    bx(body, 0.07, 0.08, 0.44, md, 0, 0.02, -0.22);
-    cyl(body, 0.020, 0.52, lt, 0, 0.04, -0.66, 'z');
-    cyl(body, 0.020, 0.52, dk, 0, -0.01, -0.66, 'z');
-    bx(body, 0.06, 0.06, 0.20, wood, 0, -0.04, -0.44);
-    bx(body, 0.06, 0.10, 0.24, wood, 0, -0.02, 0.06);
+    // Tactical Combat Shotgun
+    bx(body, 0.072, 0.09, 0.46, md, 0, 0.02, -0.22);
+    cyl(body, 0.022, 0.56, lt, 0, 0.04, -0.68, 'z'); // heavy barrel
+    cyl(body, 0.018, 0.52, dk, 0, -0.01, -0.66, 'z'); // magazine tube
+    bx(body, 0.065, 0.07, 0.22, dk, 0, -0.04, -0.46); // ribbed pump slide
+    bx(body, 0.06, 0.11, 0.26, wood, 0, -0.02, 0.08); // tactical stock
     bx(bolt, 0.045, 0.03, 0.06, lt, 0, 0.05, -0.44);
     bx(mag, 0.04, 0.04, 0.04, md, 0, -0.06, -0.02);
-  } else { // sniper
-    bx(body, 0.06, 0.09, 0.50, md, 0, 0.02, -0.24);
-    cyl(body, 0.016, 0.72, lt, 0, 0.03, -0.86, 'z');
-    bx(body, 0.06, 0.10, 0.24, dk, 0, -0.01, 0.10);
-    bx(body, 0.06, 0.16, 0.06, dk, 0, -0.12, -0.16);
-    bx(body, 0.06, 0.06, 0.30, dk, 0, -0.02, -0.40);
-    bx(body, 0.09, 0.08, 0.30, dk, 0, 0.11, -0.32);
-    cyl(body, 0.045, 0.10, lt, 0, 0.11, -0.50, 'z');
-    bx(body, 0.06, 0.06, 0.06, lt, 0, 0.11, -0.54);
-    bx(bolt, 0.04, 0.04, 0.08, lt, 0.06, 0.05, -0.30);
-    bx(mag, 0.05, 0.12, 0.055, md, 0, -0.14, -0.18);
+  } else {
+    // High-Caliber Bolt Action Sniper
+    bx(body, 0.065, 0.09, 0.54, md, 0, 0.02, -0.24);
+    cyl(body, 0.018, 0.78, lt, 0, 0.03, -0.88, 'z');
+    cyl(body, 0.030, 0.12, dk, 0, 0.03, -1.28, 'z'); // large fluted muzzle brake
+    bx(body, 0.065, 0.11, 0.26, dk, 0, -0.01, 0.12);
+    bx(body, 0.065, 0.16, 0.06, dk, 0, -0.12, -0.16);
+    bx(body, 0.065, 0.07, 0.32, dk, 0, -0.02, -0.42);
+    // Bipod folded under barrel
+    bx(body, 0.04, 0.04, 0.18, lt, 0, -0.07, -0.62);
+    // High-magnification precision optic
+    cyl(body, 0.030, 0.34, dk, 0, 0.12, -0.32, 'z');
+    cyl(body, 0.040, 0.08, dk, 0, 0.12, -0.50, 'z');
+    bx(body, 0.05, 0.05, 0.01, sightGlass, 0, 0.12, -0.54);
+    bx(bolt, 0.04, 0.04, 0.10, lt, 0.07, 0.05, -0.30); // side bolt handle
+    bx(mag, 0.05, 0.14, 0.065, md, 0, -0.14, -0.18);
   }
 
   group.traverse(o => {
@@ -1127,26 +1728,34 @@ export function buildWeapon(kind) {
 }
 
 /* ================================================================
-   EFFECTS (tracers, puffs, decals)
+   EFFECTS (Tracers, Puffs, Decals, and Physical Brass Casings)
 ================================================================ */
 export class Effects {
   constructor(scene) {
     this.scene = scene;
     this.items = [];
-    this.tracerGeo = new THREE.CylinderGeometry(0.03, 0.03, 1, 5);
+    this.casings = [];
+
+    this.tracerGeo = new THREE.CylinderGeometry(0.032, 0.032, 1, 6);
     this.tracerGeo.translate(0, -0.5, 0);
     this.tracerMat = new THREE.MeshBasicMaterial({
-      color: 0xffdc90, transparent: true, opacity: 0.85,
+      color: 0xffe599, transparent: true, opacity: 0.9,
       blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
     });
-    this.decalGeo = new THREE.CircleGeometry(0.06, 8);
+    this.decalGeo = new THREE.CircleGeometry(0.07, 10);
     this.decalMat = new THREE.MeshBasicMaterial({
-      color: 0x080808, transparent: true, opacity: 0.85, depthWrite: false,
+      color: 0x080808, transparent: true, opacity: 0.9, depthWrite: false,
       polygonOffset: true, polygonOffsetFactor: -4,
     });
-    this.muzzleLight = new THREE.PointLight(0xffb060, 0, 12, 2);
+    this.muzzleLight = new THREE.PointLight(0xffb555, 0, 15, 2);
     this.muzzleLight.position.set(0.2, -0.1, -1);
     this.muzzleT = 0;
+
+    // Brass casing reusable mesh geometry & material
+    this.casingGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.045, 8);
+    this.casingMat = new THREE.MeshStandardMaterial({
+      color: 0xd4af37, roughness: 0.25, metalness: 0.95, envMapIntensity: 1.8
+    });
   }
 
   attachMuzzleLight(camera) {
@@ -1155,7 +1764,7 @@ export class Effects {
 
   flashMuzzle(pos) {
     this.muzzleLight.position.copy(pos);
-    this.muzzleLight.intensity = 22;
+    this.muzzleLight.intensity = 26;
     this.muzzleT = 0.045;
   }
 
@@ -1163,25 +1772,44 @@ export class Effects {
     const dir = new THREE.Vector3().subVectors(to, from);
     const len = dir.length();
     if (len < 0.5) return;
-    const use = Math.min(len, 140);
+    const use = Math.min(len, 160);
     const mesh = new THREE.Mesh(this.tracerGeo, this.tracerMat);
     mesh.position.copy(from);
     mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), dir.normalize());
     mesh.scale.set(width || 1, use, width || 1);
     this.scene.add(mesh);
-    this.items.push({ mesh, life: 0.05, max: 0.05, type: 'tracer' });
+    this.items.push({ mesh, life: 0.06, max: 0.06, type: 'tracer' });
+  }
+
+  ejectCasing(pos, rightDir, upDir) {
+    const mesh = new THREE.Mesh(this.casingGeo, this.casingMat);
+    mesh.position.copy(pos);
+    mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+    this.scene.add(mesh);
+
+    const vx = rightDir.x * (2.4 + Math.random() * 1.5) + upDir.x * (1.2 + Math.random() * 0.8) + (Math.random() - 0.5) * 0.5;
+    const vy = rightDir.y * (2.4 + Math.random() * 1.5) + upDir.y * (1.2 + Math.random() * 0.8) + (1.5 + Math.random() * 1.0);
+    const vz = rightDir.z * (2.4 + Math.random() * 1.5) + upDir.z * (1.2 + Math.random() * 0.8) + (Math.random() - 0.5) * 0.5;
+
+    this.casings.push({
+      mesh,
+      vel: new THREE.Vector3(vx, vy, vz),
+      rotVel: new THREE.Vector3((Math.random() - 0.5) * 20, (Math.random() - 0.5) * 20, (Math.random() - 0.5) * 20),
+      life: 3.5,
+      bounces: 0
+    });
   }
 
   puff(x, y, z, kind, n) {
-    const colors = { dust: 0xdcd6c2, blood: 0xc0392b, spark: 0xffd070 };
+    const colors = { dust: 0xdcd6c2, blood: 0x9b111e, spark: 0xffe066 };
     const mat = new THREE.MeshBasicMaterial({ color: colors[kind] || 0xffffff });
-    for (let i = 0; i < (n || 3); i++) {
-      const s = rnd(0.08, 0.2);
+    for (let i = 0; i < (n || 4); i++) {
+      const s = rnd(0.08, 0.22);
       const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), mat);
       m.position.set(x + rnd(-0.12, 0.12), y + rnd(-0.12, 0.12), z + rnd(-0.12, 0.12));
       m.scale.setScalar(s);
       this.scene.add(m);
-      this.items.push({ mesh: m, life: 0.28, max: 0.28, type: 'puff', s, vy: rnd(0.4, 1.6) });
+      this.items.push({ mesh: m, life: 0.32, max: 0.32, type: 'puff', s, vy: rnd(0.4, 2.0) });
     }
   }
 
@@ -1190,10 +1818,10 @@ export class Effects {
     m.position.copy(pos);
     m.lookAt(pos.clone().add(normal));
     m.position.addScaledVector(normal, 0.01);
-    const scale = rnd(0.7, 1.3);
+    const scale = rnd(0.7, 1.4);
     m.scale.setScalar(scale);
     this.scene.add(m);
-    this.items.push({ mesh: m, life: 6, max: 6, type: 'decal' });
+    this.items.push({ mesh: m, life: 8, max: 8, type: 'decal' });
   }
 
   update(dt) {
@@ -1205,14 +1833,46 @@ export class Effects {
         if (e.type === 'decal') { e.mesh.material.dispose(); }
         this.items.splice(i, 1);
       } else if (e.type === 'tracer') {
-        e.mesh.material.opacity = (e.life / e.max) * 0.85;
+        e.mesh.material.opacity = (e.life / e.max) * 0.9;
       } else if (e.type === 'puff') {
         e.mesh.scale.setScalar(Math.max(0.001, e.s * (e.life / e.max)));
         e.mesh.position.y += dt * e.vy;
       } else if (e.type === 'decal') {
-        e.mesh.material.opacity = Math.min(0.85, e.life / 2);
+        e.mesh.material.opacity = Math.min(0.9, e.life / 2);
       }
     }
+
+    // Update physical casings
+    for (let i = this.casings.length - 1; i >= 0; i--) {
+      const c = this.casings[i];
+      c.life -= dt;
+      if (c.life <= 0) {
+        this.scene.remove(c.mesh);
+        this.casings.splice(i, 1);
+        continue;
+      }
+      c.vel.y -= 16.0 * dt; // gravity
+      c.mesh.position.addScaledVector(c.vel, dt);
+      c.mesh.rotation.x += c.rotVel.x * dt;
+      c.mesh.rotation.y += c.rotVel.y * dt;
+      c.mesh.rotation.z += c.rotVel.z * dt;
+
+      // Bounce off ground (y = 0.02)
+      if (c.mesh.position.y < 0.02) {
+        c.mesh.position.y = 0.02;
+        if (c.bounces < 2) {
+          c.vel.y = -c.vel.y * 0.45;
+          c.vel.x *= 0.6;
+          c.vel.z *= 0.6;
+          c.rotVel.multiplyScalar(0.5);
+          c.bounces++;
+        } else {
+          c.vel.set(0, 0, 0);
+          c.rotVel.set(0, 0, 0);
+        }
+      }
+    }
+
     if (this.muzzleT > 0) {
       this.muzzleT -= dt;
       this.muzzleLight.intensity *= Math.max(0, this.muzzleT / 0.045);

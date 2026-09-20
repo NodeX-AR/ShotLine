@@ -79,7 +79,28 @@ function sfxShot(kind, vol) {
 const sfxHit = h => sfxTone(h ? 1900 : 1250, 0.06, 0.16, 'square');
 const sfxKill = () => { sfxTone(880, 0.09, 0.18, 'triangle'); setTimeout(() => sfxTone(1320, 0.14, 0.18, 'triangle'), 80); };
 const sfxHurt = () => sfxNoise(0.3, 600, 120, 0.18);
-const sfxReload = () => { sfxTone(300, 0.05, 0.12, 'square'); setTimeout(() => sfxTone(210, 0.07, 0.12, 'square'), 700); };
+function sfxReload(duration = 2.2) {
+  // Stage 1: Mag release latch click & unseat
+  sfxTone(580, 0.035, 0.16, 'square');
+  sfxNoise(0.12, 2200, 800, 0.07, 'bandpass');
+  // Stage 2: Empty magazine slide out
+  setTimeout(() => {
+    sfxTone(260, 0.06, 0.14, 'triangle');
+    sfxNoise(0.10, 1400, 300, 0.09, 'lowpass');
+  }, duration * 260);
+  // Stage 3: Fresh magazine inserted & slapped home into magwell
+  setTimeout(() => {
+    sfxTone(180, 0.09, 0.30, 'square');
+    sfxTone(360, 0.06, 0.22, 'triangle');
+    sfxNoise(0.28, 2800, 450, 0.11, 'lowpass');
+  }, duration * 640);
+  // Stage 4: Crisp mechanical bolt catch release / charging handle rack
+  setTimeout(() => {
+    sfxTone(780, 0.03, 0.20, 'square');
+    sfxTone(460, 0.05, 0.22, 'triangle');
+    sfxNoise(0.20, 3400, 900, 0.08, 'bandpass');
+  }, duration * 820);
+}
 const sfxPickup = () => sfxTone(520, 0.1, 0.15, 'sine', 780);
 
 /* ================================================================
@@ -387,7 +408,7 @@ const medkits = [];
 function makeFighter(name, isPlayer, color) {
   return {
     name, isPlayer, color,
-    x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, yaw: 0,
+    x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, yaw: 0, pitch: 0,
     hp: 100, alive: false, kills: 0, deaths: 0,
     onGround: true, invuln: 0, respawnAt: 0,
     lastFire: -99, deathT: 0, speed: 0,
@@ -400,6 +421,8 @@ function makeFighter(name, isPlayer, color) {
     remote: false, isBot: !isPlayer && name !== 'You',
     idleChatT: 2 + Math.random() * 20,
     emote: null, emoteT: 0, emoteSym: null,
+    reloading: false, reloadT: 0, reloadDur: 2.2,
+    deathKind: 'body', deathDecalSpawned: false,
   };
 }
 
@@ -519,8 +542,8 @@ function makeActor(f) {
   // Attach weapon to right hand
   const w = buildWeapon(WEAPONS[0].key);
   f.bones.handR.add(w.group);
-  w.group.rotation.x = -Math.PI / 2;
-  w.group.position.set(0, -0.05, -0.05);
+  w.group.rotation.set(-Math.PI / 2, 0, 0);
+  w.group.position.set(0, -0.01, -0.12);
   f.gun = w;
 
   rig.root.visible = false;
@@ -821,12 +844,32 @@ function spawn(f) {
   f.yaw = rnd(0, TAU);
   f.target = null;
   f.deathT = 0;
+  f.deathDecalSpawned = false;
+  f.reloadT = 0;
   f.onGround = true;
   f.px = f.x; f.pz = f.z;
   f.stuckT = 0;
   f.reactT = 0;
   f.nextShot = T + 0.5;
-  if (f.mesh) { f.mesh.visible = true; f.mesh.rotation.x = 0; }
+  if (f.mesh) {
+    f.mesh.visible = true;
+    f.mesh.rotation.set(0, f.yaw, 0);
+  }
+  if (f.bones) {
+    f.bones.pelvis.position.y = 0.9;
+    f.bones.spine1.rotation.set(0, 0, 0);
+    f.bones.spine2.rotation.set(0, 0, 0);
+    f.bones.chest.rotation.set(0, 0, 0);
+    f.bones.head.rotation.set(0, 0, 0);
+    f.bones.upperLegL.rotation.set(0, 0, 0);
+    f.bones.upperLegR.rotation.set(0, 0, 0);
+    f.bones.lowerLegL.rotation.set(0, 0, 0);
+    f.bones.lowerLegR.rotation.set(0, 0, 0);
+  }
+  if (f.gun) {
+    f.gun.group.position.set(0, -0.01, -0.12);
+    f.gun.group.rotation.set(-Math.PI / 2, 0, 0);
+  }
   if (f.isPlayer) { yaw = f.yaw; pitch = 0; deadT = 0; camera.rotation.z = 0; P.lastHitAt = T; }
   if (f.isBot) {
     if (Math.random() < 0.3) botSay(f.name, BotChat.gen('spawn'));
@@ -864,6 +907,8 @@ function kill(v, a, head) {
   v.hp = 0;
   v.deaths++;
   v.deathT = 0.001;
+  v.deathKind = head ? 'head' : 'body';
+  v.deathDecalSpawned = false;
   if (a && a !== v) a.kills++;
   if (matchActive || state !== 'menu') {
     pushFeed({ k: a ? a.name : '?', v: v.name, head: !!head, t: T, me: (a && a.isPlayer) || v.isPlayer });
@@ -931,7 +976,7 @@ function startReload() {
   if (P.reload > 0 || P.ammo[P.cur] >= w.mag) return;
   P.reload = w.reload;
   P.reloadTotal = w.reload;
-  sfxReload();
+  sfxReload(w.reload);
 }
 
 function currentSpread() {
@@ -1003,6 +1048,16 @@ function playerShoot() {
       spread: r4(spread),
     }));
   }
+
+  // Eject physical brass casing from ejection port
+  const casingPos = new THREE.Vector3(
+    lerp(0.19, 0.05, P.adsT),
+    lerp(-0.13, -0.06, P.adsT),
+    -0.44
+  ).applyMatrix4(camera.matrixWorld);
+  const rightDir = new THREE.Vector3(1, 0.40, 0.12).applyQuaternion(camera.quaternion);
+  const upDir = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+  effects.ejectCasing(casingPos, rightDir, upDir);
 
   P.recoilY += w.recoilKick * 0.0075 * (1 - P.adsT * 0.30);
   P.recoilX += (Math.random() - 0.5) * w.recoilKick * 0.0032 * (1 - P.adsT * 0.20);
@@ -1088,19 +1143,47 @@ function updatePlayer(dt) {
   if (keys.KeyR) startReload();
 
   // Viewmodel animation
-  P.kick = Math.max(0, P.kick - dt * 9);
+  P.kick = Math.max(0, P.kick - dt * 8.5);
   P.flash = Math.max(0, P.flash - dt);
   P.swap = Math.max(0, P.swap - dt * 4);
   P.swayX *= Math.max(0, 1 - dt * 10);
   P.swayY *= Math.max(0, 1 - dt * 10);
 
   const rl01 = P.reload > 0 ? 1 - P.reload / P.reloadTotal : 0;
-  let reloadLower = 0, reloadMagDrop = 0;
+  let reloadLower = 0, reloadTilt = 0, reloadMagY = 0, reloadBoltZ = 0;
   if (P.reload > 0) {
-    if (rl01 < 0.20) reloadLower = rl01 / 0.20;
-    else if (rl01 < 0.70) reloadLower = 1;
-    else reloadLower = 1 - (rl01 - 0.70) / 0.30;
-    if (rl01 > 0.25 && rl01 < 0.55) reloadMagDrop = Math.sin((rl01 - 0.25) / 0.30 * Math.PI);
+    // 5-Stage Tactical Reload Cycle:
+    // 1. (0.00 - 0.22) Tilt into workspace, empty mag unlatches & drops
+    // 2. (0.22 - 0.52) Retain workspace angle while left hand grabs fresh mag
+    // 3. (0.52 - 0.70) Fresh mag is inserted and slapped home into magwell
+    // 4. (0.70 - 0.86) Bolt catch release / charging handle rack
+    // 5. (0.86 - 1.00) Smooth return to high-ready aim
+    if (rl01 < 0.22) {
+      const p = rl01 / 0.22;
+      reloadLower = p;
+      reloadTilt = p;
+      reloadMagY = -p * 0.35;
+    } else if (rl01 < 0.52) {
+      reloadLower = 1;
+      reloadTilt = 1;
+      reloadMagY = -1.0;
+    } else if (rl01 < 0.70) {
+      const p = (rl01 - 0.52) / 0.18;
+      reloadLower = 1;
+      reloadTilt = 1;
+      reloadMagY = -(1 - p) * 0.30;
+    } else if (rl01 < 0.86) {
+      const p = (rl01 - 0.70) / 0.16;
+      reloadLower = 1 - p * 0.45;
+      reloadTilt = 1 - p * 0.45;
+      reloadMagY = 0;
+      reloadBoltZ = Math.sin(p * Math.PI) * -0.07;
+    } else {
+      const p = (rl01 - 0.86) / 0.14;
+      reloadLower = (1 - p) * 0.55;
+      reloadTilt = (1 - p) * 0.55;
+      reloadMagY = 0;
+    }
   }
 
   const sprintAim = Math.max(0, (sprinting ? 1 : 0) - P.adsT);
@@ -1120,29 +1203,27 @@ function updatePlayer(dt) {
   baseY += P.sprintSway * 0.10;
   baseZ += P.sprintSway * 0.15;
   const sprintRot = P.sprintSway * 0.35;
-  const kickK = P.kick * 0.05 * (w.recoil * 40 + 1);
-  const kickZ = P.kick * 0.05 * w.recoil * 10;
+  const kickK = P.kick * 0.065 * (w.recoil * 35 + 1);
+  const kickZ = P.kick * 0.075 * w.recoil * 12;
+  const kickRoll = (Math.sin(T * 42) * 0.02) * P.kick;
 
   gunRoot.position.set(
-    baseX + P.swayX + idleX + (p.onGround ? Math.cos(P.bob) * 0.006 * (1 - a) : 0),
-    baseY + P.swayY + idleY - reloadLower * 0.22 - P.swap * 0.30 - reloadMagDrop * 0.06 + (p.onGround ? Math.abs(Math.sin(P.bob)) * 0.008 * (1 - a) : 0),
-    baseZ + kickZ - reloadLower * 0.05 - reloadMagDrop * 0.04
+    baseX + P.swayX + idleX - reloadTilt * 0.035 + (p.onGround ? Math.cos(P.bob) * 0.006 * (1 - a) : 0),
+    baseY + P.swayY + idleY - reloadLower * 0.18 - P.swap * 0.30 + (p.onGround ? Math.abs(Math.sin(P.bob)) * 0.008 * (1 - a) : 0),
+    baseZ + kickZ - reloadLower * 0.06
   );
   gunRoot.rotation.set(
-    kickK - reloadLower * 0.55 + reloadMagDrop * 0.10,
-    reloadLower * 0.15 + sprintRot * 0.8,
-    -reloadLower * 0.30 + sprintRot
+    kickK - reloadTilt * 0.38,
+    reloadTilt * 0.28 + sprintRot * 0.8,
+    -reloadTilt * 0.52 + sprintRot + kickRoll
   );
 
   // Animate weapon sub-parts
   const gun = playerGuns[P.cur];
   if (gun) {
-    // bolt / slide cycles back on fire
-    const boltCycle = Math.max(0, P.flash / 0.05);
-    gun.bolt.position.z = boltCycle * -0.06;
-    // magazine drops during reload
-    gun.mag.position.y = -reloadMagDrop * 0.2;
-    gun.mag.rotation.x = reloadMagDrop * 0.4;
+    const fireBolt = Math.max(0, P.flash / 0.05) * -0.06;
+    gun.bolt.position.z = fireBolt + reloadBoltZ;
+    gun.mag.position.y = reloadMagY;
   }
 
   flash.visible = P.flash > 0;
@@ -1160,9 +1241,20 @@ function updateDeadCamera(dt) {
   deadT += dt;
   effects.muzzleLight.intensity = 0;
   const p = player;
-  const t = Math.min(1, deadT * 2.0);
-  camera.position.set(p.x, p.y + lerp(EYE, 0.4, t), p.z);
-  camera.rotation.set(clamp(pitch, -1.5, 1.5), yaw, t * 0.55);
+  // Visceral collapse: fall with gravity curve, floor rebound, roll onto side
+  const fallT = Math.min(1, deadT * 2.2);
+  const easeFall = fallT * fallT;
+  const bounce = deadT > 0.45 && deadT < 0.75 ? Math.sin((deadT - 0.45) / 0.30 * Math.PI) * 0.06 : 0;
+  const camY = lerp(EYE, 0.22, easeFall) + bounce;
+  const stumble = Math.min(0.65, deadT * 1.1);
+  const roll = lerp(0, 0.75, Math.min(1, deadT * 1.8));
+
+  camera.position.set(
+    p.x - Math.sin(yaw) * stumble,
+    p.y + camY,
+    p.z - Math.cos(yaw) * stumble
+  );
+  camera.rotation.set(clamp(pitch - fallT * 0.35, -1.3, 1.3), yaw, roll);
   camera.updateMatrixWorld(true);
 }
 
@@ -1224,6 +1316,16 @@ function botFire(b, t) {
       new THREE.Vector3(ox + dx * h.t, oy + dy * h.t, oz + dz * h.t),
       1
     );
+    // Eject brass casing from bot's rifle ejection port
+    const casingPos = new THREE.Vector3(
+      b.x + Math.cos(b.yaw) * 0.28,
+      b.y + 1.28,
+      b.z - Math.sin(b.yaw) * 0.28
+    );
+    const rightDir = new THREE.Vector3(Math.cos(b.yaw), 0.35, -Math.sin(b.yaw));
+    const upDir = new THREE.Vector3(0, 1, 0);
+    effects.ejectCasing(casingPos, rightDir, upDir);
+
     sfxShot('rifle', 0.28 * clamp(1 - cd / 110, 0, 1));
     if (h.world) effects.puff(ox + dx * h.t, oy + dy * h.t, oz + dz * h.t, 'dust', 1);
   }
@@ -1251,6 +1353,7 @@ function updateBot(b, dt) {
     const dist = Math.hypot(dx, dz) || 1;
     const ux = dx / dist, uz = dz / dist;
     const want = Math.atan2(-dx, -dz);
+    b.pitch = clamp(Math.atan2((t.y + 1.1) - (b.y + 1.45), dist), -0.75, 0.75);
     if (b.strafeT <= 0) { b.strafeT = rnd(0.7, 1.8); b.strafe = Math.random() < 0.5 ? -1 : 1; }
     const fw = dist > 26 ? 1 : (dist < 8 ? -0.8 : 0.15);
     mx = ux * fw - uz * b.strafe * 0.9;
@@ -1259,10 +1362,19 @@ function updateBot(b, dt) {
     b.yaw += angDiff(b.yaw, want) * Math.min(1, dt * 6 * b.skill);
     if (Math.abs(angDiff(b.yaw, want)) < 0.1 && b.reactT <= 0 && T >= b.nextShot && !losBlocked(b.x, b.y + 1.45, b.z, t.x, t.y + 1.1, t.z)) {
       botFire(b, t);
-      if (--b.burst <= 0) { b.burst = 3 + ((Math.random() * 4) | 0); b.nextShot = T + rnd(0.5, 1.1); }
-      else b.nextShot = T + 0.14;
+      if (--b.burst <= 0) {
+        b.burst = 3 + ((Math.random() * 4) | 0);
+        if (Math.random() < 0.45) {
+          b.reloadT = 2.0;
+          b.reloadDur = 2.0;
+          b.nextShot = T + 2.0;
+        } else {
+          b.nextShot = T + rnd(0.5, 1.1);
+        }
+      } else b.nextShot = T + 0.14;
     }
   } else {
+    b.pitch = 0;
     const dx = b.tx - b.x, dz = b.tz - b.z;
     const dist = Math.hypot(dx, dz);
     if (dist < 3) newWander(b);
@@ -1326,24 +1438,77 @@ function syncMeshes(dt) {
         B.footR.rotation.x *= 0.8;
       }
 
-      // Torso bob and lean
-      const walkBob = moving ? Math.abs(Math.sin(b.walk)) * 0.03 : 0;
-      const breathe = Math.sin(b.animT * 1.5) * 0.012;
+      // Torso bob, breathing, and tactical posture
+      const walkBob = moving ? Math.abs(Math.sin(b.walk)) * 0.032 : 0;
+      const breathe = Math.sin(b.animT * 1.6) * 0.012;
       B.pelvis.position.y = 0.9 + walkBob + breathe;
-      B.spine2.rotation.x = moving ? -normSpeed * 0.15 : 0;
 
-      // Arm swing (opposite of legs)
-      const armSwing = moving ? Math.sin(b.walk) * 0.5 * normSpeed : Math.sin(b.animT * 2) * 0.04;
-      // Right arm holds gun — reduce swing
-      B.upperArmR.rotation.x = armSwing * 0.2 - 1.3;   // forward for grip
-      B.upperArmL.rotation.x = -armSwing * 0.4 - 1.4;  // forward for handguard
-      B.upperArmR.rotation.z = -0.3;
-      B.upperArmL.rotation.z = 0.6;
-      B.lowerArmR.rotation.x = -0.3;
-      B.lowerArmL.rotation.x = -0.4;
+      // Combat forward lean & bladed stance (right shoulder drawn back)
+      B.spine1.rotation.x = moving ? 0.14 : 0.08;
+      B.spine2.rotation.y = -0.18;
 
-      // Head look at aim
-      B.head.rotation.y = 0;
+      // Dynamic aim pitch: upper torso and chest tilt to aim up or down
+      const aimPitch = clamp(b.pitch || 0, -0.75, 0.75);
+      B.chest.rotation.x = aimPitch;
+
+      // Head compensates so sightline remains forward on target with tactical cheek weld
+      B.head.rotation.y = 0.18;
+      B.head.rotation.x = 0.05;
+
+      // Firing kick impulse on character
+      const timeSinceFire = T - b.lastFire;
+      const kick = timeSinceFire < 0.12 ? (1 - timeSinceFire / 0.12) : 0;
+
+      // Reload animation progression
+      let reloadProg = 0;
+      if (b.reloadT > 0) {
+        b.reloadT -= dt;
+        reloadProg = 1 - Math.max(0, b.reloadT) / b.reloadDur;
+        if (b.reloadT <= 0) b.reloadT = 0;
+      }
+
+      // Right arm: firmly cradles and controls weapon pistol grip
+      B.upperArmR.rotation.x = -1.18 - kick * 0.14;
+      B.upperArmR.rotation.y = -0.22 - kick * 0.05;
+      B.upperArmR.rotation.z = -0.26;
+      B.lowerArmR.rotation.x = -0.68 - kick * 0.08;
+      B.lowerArmR.rotation.y = 0.12;
+      B.handR.rotation.x = -0.12;
+      B.handR.rotation.y = 0.04;
+      B.handR.rotation.z = 0.08;
+
+      // Left arm: realistic 2-handed tactical grip on rifle handguard or reload cycle
+      if (reloadProg > 0.12 && reloadProg < 0.85) {
+        // Reloading sequence: left hand drops to chest rig pouch and loads fresh mag
+        if (reloadProg < 0.45) {
+          const p = (reloadProg - 0.12) / 0.33;
+          B.upperArmL.rotation.x = lerp(-1.32, -0.35, p);
+          B.upperArmL.rotation.y = lerp(0.46, 0.18, p);
+          B.lowerArmL.rotation.x = lerp(-0.54, -1.35, p);
+        } else if (reloadProg < 0.70) {
+          const p = (reloadProg - 0.45) / 0.25;
+          B.upperArmL.rotation.x = lerp(-0.35, -1.18, p);
+          B.upperArmL.rotation.y = lerp(0.18, 0.44, p);
+          B.lowerArmL.rotation.x = lerp(-1.35, -0.72, p);
+        } else {
+          B.upperArmL.rotation.x = -1.25;
+          B.upperArmL.rotation.y = 0.46;
+          B.lowerArmL.rotation.x = -0.58;
+        }
+        B.upperArmR.rotation.x -= 0.18;
+        B.upperArmR.rotation.z += 0.20;
+      } else {
+        // Standard tactical 2-handed C-clamp / foregrip support
+        const armSwing = moving ? Math.sin(b.walk) * 0.08 * normSpeed : 0;
+        B.upperArmL.rotation.x = -1.32 + armSwing - kick * 0.10;
+        B.upperArmL.rotation.y = 0.46;
+        B.upperArmL.rotation.z = 0.48;
+        B.lowerArmL.rotation.x = -0.54;
+        B.lowerArmL.rotation.y = -0.32;
+        B.lowerArmL.rotation.z = 0.22;
+        B.handL.rotation.x = -0.28;
+        B.handL.rotation.z = -0.18;
+      }
 
       // Emote animation overrides
       if (b.emote && b.emoteT > 0) {
@@ -1380,15 +1545,74 @@ function syncMeshes(dt) {
       const d = Math.hypot(b.x - camera.position.x, b.z - camera.position.z);
       b.label.visible = d < 60 && !b.remote;
     } else {
+      // Realistic procedural ragdoll death collapse
       b.deathT += dt;
-      const t = Math.min(1, b.deathT * 2.5);
-      m.rotation.x = -t * 1.45;
-      B.upperLegL.rotation.x = t * 0.7;
-      B.upperLegR.rotation.x = -t * 0.5;
-      B.upperArmL.rotation.x = t * 0.6;
-      B.upperArmR.rotation.x = -t * 0.6;
+      const dt_ = b.deathT;
+      m.position.set(b.x, b.y, b.z);
+
+      const collapseT = Math.min(1, dt_ / 0.65);
+      const easeCollapse = collapseT * collapseT;
+      B.pelvis.position.y = lerp(0.9, 0.18, easeCollapse);
+
+      if (b.deathKind === 'head') {
+        // Headshot: Violent backward whip, spine extension, backward collapse
+        const snapT = Math.min(1, dt_ / 0.4);
+        B.head.rotation.x = -snapT * 0.85;
+        B.head.rotation.y = snapT * 0.45;
+        B.spine1.rotation.x = -snapT * 0.45;
+        B.spine2.rotation.x = -snapT * 0.35;
+
+        const rollT = Math.min(1, dt_ / 0.85);
+        m.rotation.x = lerp(0, 1.48, rollT);
+        m.rotation.z = lerp(0, 0.45, rollT);
+
+        B.upperLegL.rotation.x = lerp(0, 0.6, rollT);
+        B.lowerLegL.rotation.x = lerp(0, 0.3, rollT);
+        B.upperLegR.rotation.x = lerp(0, -0.5, rollT);
+        B.lowerLegR.rotation.y = lerp(0, 0.4, rollT);
+      } else {
+        // Bodyshot: Forward stumble, knee buckle, forward sprawl onto ground
+        const crumpleT = Math.min(1, dt_ / 0.5);
+        B.head.rotation.x = crumpleT * 0.5;
+        B.spine1.rotation.x = crumpleT * 0.6;
+        B.spine1.rotation.z = crumpleT * 0.35;
+
+        B.upperLegL.rotation.x = lerp(0, 1.35, crumpleT);
+        B.lowerLegL.rotation.x = lerp(0, -1.75, crumpleT);
+        B.upperLegR.rotation.x = lerp(0, -0.65, crumpleT);
+        B.lowerLegR.rotation.x = lerp(0, 0.95, crumpleT);
+
+        const sprawlT = Math.min(1, Math.max(0, (dt_ - 0.30) / 0.55));
+        m.rotation.x = lerp(0, -1.42, sprawlT);
+        m.rotation.z = lerp(0, 0.38, sprawlT);
+      }
+
+      // Limbs go limp into ragdoll sprawl
+      const limpT = Math.min(1, dt_ / 0.6);
+      B.upperArmL.rotation.set(0.4 * limpT, 0.2 * limpT, 1.15 * limpT);
+      B.lowerArmL.rotation.set(0.3 * limpT, 0, 0);
+      B.upperArmR.rotation.set(-0.35 * limpT, -0.2 * limpT, -1.10 * limpT);
+      B.lowerArmR.rotation.set(0.4 * limpT, 0, 0);
+
+      // Weapon drops loose from hand
+      if (b.gun) {
+        const dropT = Math.min(1, dt_ / 0.45);
+        b.gun.group.position.y = lerp(-0.01, -0.75, dropT);
+        b.gun.group.position.z = lerp(-0.12, 0.35, dropT);
+        b.gun.group.rotation.x = lerp(-Math.PI / 2, 0.25, dropT);
+        b.gun.group.rotation.z = lerp(0, 1.45, dropT);
+      }
+
+      // Blood puddle decal & dust puff upon impact with floor
+      if (!b.deathDecalSpawned && dt_ >= 0.45) {
+        b.deathDecalSpawned = true;
+        effects.puff(b.x, b.y + 0.1, b.z, 'dust', 3);
+        effects.decal(new THREE.Vector3(b.x, b.y + 0.02, b.z), new THREE.Vector3(0, 1, 0));
+        effects.puff(b.x, b.y + 0.15, b.z, 'blood', 2);
+      }
+
       b.label.visible = false;
-      if (b.deathT > 3.5) m.visible = false;
+      if (b.deathT > 3.8) m.visible = false;
     }
   }
 }
