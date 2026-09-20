@@ -10,8 +10,8 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 /* ================================================================
    Constants (single source of truth)
 ================================================================ */
-export const MAP = 480;
-export const NUM_BOTS = 11;
+export const MAP = 135;
+export const NUM_BOTS = 16;
 export const MP_MAX = 20;
 export const EYE = 1.62;
 export const R = 0.4;
@@ -67,8 +67,11 @@ export const EMOTES = {
   celebrate: { dur: 2.2, sym: '🎉', color: '#a0ff9a' },
 };
 
-export const BOT_NAMES = ['Vex','Rook','Kite','Nova','Jinx','Onyx','Pyre','Sable','Talon','Wisp','Zeal'];
-export const BOT_COLORS = [0xc0392b,0x2e86c1,0x27ae60,0x8e44ad,0xd68910,0x16a085,0xc2185b,0x5d6d7e,0xa04000,0x1f618d,0x7d3c98];
+export const BOT_NAMES = ['Vex','Rook','Kite','Nova','Jinx','Onyx','Pyre','Sable','Talon','Wisp','Zeal','Ghost','Bravo','Viper','Echo','Spectre'];
+export const BOT_COLORS = [
+  0xc0392b,0x2e86c1,0x27ae60,0x8e44ad,0xd68910,0x16a085,0xc2185b,0x5d6d7e,
+  0xa04000,0x1f618d,0x7d3c98,0x2c3e50,0x165b33,0xb8860b,0x708090,0x4a235a
+];
 
 /* ================================================================
    TEXTURES & PROCEDURAL NORMAL MAPS
@@ -748,6 +751,51 @@ function ambulanceLiveryTex() {
   return c;
 }
 
+function unionJackTex() {
+  const S = 256, c = canvas2D(S), g = c.getContext('2d');
+  g.fillStyle = '#1c222c';
+  g.fillRect(0, 0, S, S);
+  // White diagonals
+  g.strokeStyle = '#c8ced8';
+  g.lineWidth = 38;
+  g.beginPath();
+  g.moveTo(0, 0); g.lineTo(S, S);
+  g.moveTo(S, 0); g.lineTo(0, S);
+  g.stroke();
+  // Red diagonals (subdued tactical crimson)
+  g.strokeStyle = '#852828';
+  g.lineWidth = 15;
+  g.beginPath();
+  g.moveTo(0, 0); g.lineTo(S, S);
+  g.moveTo(S, 0); g.lineTo(0, S);
+  g.stroke();
+  // White straight cross
+  g.fillStyle = '#c8ced8';
+  g.fillRect(S / 2 - 28, 0, 56, S);
+  g.fillRect(0, S / 2 - 28, S, 56);
+  // Red straight cross
+  g.fillStyle = '#852828';
+  g.fillRect(S / 2 - 16, 0, 32, S);
+  g.fillRect(0, S / 2 - 16, S, 32);
+  // Subdued edge border
+  g.strokeStyle = '#222832';
+  g.lineWidth = 8;
+  g.strokeRect(4, 4, S - 8, S - 8);
+  return c;
+}
+
+function marketAwningTex(color1 = '#9b1b1b', color2 = '#eae6d6') {
+  const S = 256, c = canvas2D(S), g = c.getContext('2d');
+  const stripeW = 32;
+  for (let x = 0; x < S; x += stripeW * 2) {
+    g.fillStyle = color1;
+    g.fillRect(x, 0, stripeW, S);
+    g.fillStyle = color2;
+    g.fillRect(x + stripeW, 0, stripeW, S);
+  }
+  return c;
+}
+
 let TEX = null;
 export function buildTextures() {
   if (TEX) return TEX;
@@ -797,6 +845,9 @@ export function buildTextures() {
     manhole:     texFromCanvas(manholeTex(), 1, true),
     newsagent:   texFromCanvas(newsagentTex(), 1, true),
     ambulance:   texFromCanvas(ambulanceLiveryTex(), 1, true),
+    unionJack:   texFromCanvas(unionJackTex(), 1, true),
+    awningRed:   texFromCanvas(marketAwningTex('#9b1b1b', '#eae6d6'), 1, true),
+    awningGreen: texFromCanvas(marketAwningTex('#164e2e', '#eae6d6'), 1, true),
   };
 
   TEX.concreteRough = texFromCanvas(roughnessFrom(cConcrete, 70), 1, false);
@@ -876,9 +927,18 @@ export function buildMaterials() {
     manhole:      pbr(0xffffff, { map:T.manhole, r:0.45, m:0.75 }),
     newsagent:    pbr(0xffffff, { map:T.newsagent, r:0.55 }),
     ambulance:    pbr(0xffffff, { map:T.ambulance, r:0.30, m:0.1 }),
+    unionJack:    pbr(0xffffff, { map:T.unionJack, r:0.65 }),
+    awningRed:    pbr(0xffffff, { map:T.awningRed, r:0.85 }),
+    awningGreen:  pbr(0xffffff, { map:T.awningGreen, r:0.85 }),
+    stonePortland:pbr(0xeae2d4, { r:0.88, map:T.concrete2, nm:T.concreteNorm, env:0.75 }),
+    terracotta:   pbr(0xb05030, { r:0.85, env:0.5 }),
+    scaffoldingYellow: pbr(0xffcc00, { r:0.4, m:0.1 }),
     thamesWater:  pbr(0x1a3330, { r:0.15, m:0.3, env:1.8 }),
     gold:         pbr(0xd4af37, { r:0.22, m:0.88, env:1.6 }),
     belisha:      pbr(0xff8800, { em:0xff7700, emi:2.5, r:0.15 }),
+    nvgLens:      pbr(0x00ff88, { r:0.12, m:0.8, em:0x00ff88, emi:2.2 }),
+    chemlightCyan: pbr(0x00e5ff, { r:0.1, em:0x00e5ff, emi:2.6 }),
+    chemlightAmber: pbr(0xff9900, { r:0.1, em:0xff9900, emi:2.6 }),
     glass: new THREE.MeshStandardMaterial({
       color: 0x8ab8d0, transparent: true, opacity: 0.32,
       roughness: 0.04, metalness: 0.1, envMapIntensity: 2.0, side: THREE.DoubleSide,
@@ -1342,6 +1402,31 @@ export function accessibleTownhouse(cx, cz, floors = 3, facing = 's') {
   addBox(cx + (w / 2 - frontSideW / 2), 0, frontZ, frontSideW, totalH, 0.3, brick, true, true);
   addBox(cx, 2.5, frontZ, doorWidth, totalH - 2.5, 0.3, brick, true, true);
 
+  // --- ARCHITECTURAL UPGRADES: PORTLAND STONE QUOINS ON ALL CORNERS ---
+  for (let qy = 0; qy < totalH; qy += 0.72) {
+    const qw = (Math.floor(qy / 0.72) % 2 === 0) ? 0.42 : 0.28;
+    addBox(leftX - 0.04, qy, frontZ + 0.04 * sign, qw, 0.34, 0.38, 'stonePortland', false, true);
+    addBox(rightX + 0.04, qy, frontZ + 0.04 * sign, qw, 0.34, 0.38, 'stonePortland', false, true);
+    addBox(leftX - 0.04, qy, backZ - 0.04 * sign, qw, 0.34, 0.38, 'stonePortland', false, true);
+    addBox(rightX + 0.04, qy, backZ - 0.04 * sign, qw, 0.34, 0.38, 'stonePortland', false, true);
+  }
+
+  // --- GEORGIAN ENTRANCE PORTICO (Classical stone columns & pediment) ---
+  const porticoZ = frontZ + 0.65 * sign;
+  addBox(cx - 1.55, 0, porticoZ, 0.28, 2.5, 0.28, 'stonePortland', true, true); // Left column
+  addBox(cx + 1.55, 0, porticoZ, 0.28, 2.5, 0.28, 'stonePortland', true, true); // Right column
+  addBox(cx, 2.5, porticoZ, 3.6, 0.25, 0.9, 'stonePortland', false, true);      // Entablature
+  addBox(cx, 2.75, porticoZ, 2.8, 0.35, 0.8, 'stonePortland', false, true);     // Triangular pediment
+  // Six-panel Georgian gloss black front door with brass knocker
+  addBox(cx, 0, frontZ - 0.02 * sign, 1.4, 2.35, 0.08, 'paintedBlack', false, true);
+  addBox(cx + 0.35, 1.15, frontZ + 0.05 * sign, 0.06, 0.06, 0.06, 'gold', false, true); // Brass knocker
+  addBox(cx, 0.85, frontZ + 0.05 * sign, 0.28, 0.05, 0.04, 'gold', false, true);         // Brass letterbox
+
+  // --- FRONT LIGHTWELL WROUGHT-IRON BASEMENT RAILINGS ---
+  addBox(cx - 3.8, 0.1, frontZ + 1.2 * sign, 4.2, 0.95, 0.08, 'metalDark', true, true);
+  addBox(cx + 3.8, 0.1, frontZ + 1.2 * sign, 4.2, 0.95, 0.08, 'metalDark', true, true);
+
+  // Interior ground floor layout
   addBox(cx - 1.2, 0, cz, 0.2, floorH, d * 0.6, 'woodDark', true, true);
   addDesk(cx - 3.8, 0, cz - 1.5, 's');
   addBookshelf(cx - 5.5, 0, cz + 1.2, 'e');
@@ -1357,8 +1442,17 @@ export function accessibleTownhouse(cx, cz, floors = 3, facing = 's') {
   addBookshelf(cx - 5.5, floorH, cz - 2.0, 'e');
   addDesk(cx - 3.5, floorH, cz + 2.5, 'n');
 
-  addBox(cx - 3.5, floorH + 0.9, frontZ, 1.8, 1.5, 0.1, 'glass', false, true);
-  addBox(cx + 3.5, floorH + 0.9, frontZ, 1.8, 1.5, 0.1, 'glass', false, true);
+  // Upper Windows with 3D Stone Architraves & Projecting Sills
+  for (let fl = 1; fl < floors; fl++) {
+    const wy = fl * floorH + 0.9;
+    for (const wx of [cx - 3.8, cx + 3.8]) {
+      addBox(wx, wy, frontZ, 1.8, 1.5, 0.1, 'glass', false, true);
+      addBox(wx, wy - 0.85, frontZ + 0.15 * sign, 2.1, 0.15, 0.28, 'stonePortland', false, true); // Sill
+      addBox(wx, wy + 0.85, frontZ + 0.15 * sign, 2.1, 0.25, 0.22, 'stonePortland', false, true); // Lintel
+      addBox(wx - 1.0, wy, frontZ + 0.08 * sign, 0.12, 1.6, 0.16, 'stonePortland', false, true);  // Frame L
+      addBox(wx + 1.0, wy, frontZ + 0.08 * sign, 0.12, 1.6, 0.16, 'stonePortland', false, true);  // Frame R
+    }
+  }
 
   const stair2X = cx - (w / 2 - 1.2);
   addStairs(stair2X, floorH, cz - 2.0, 1.8, floorH, 12, 's', 'concrete2');
@@ -1366,6 +1460,9 @@ export function accessibleTownhouse(cx, cz, floors = 3, facing = 's') {
   const roofY = floorH * 2;
   addBox(cx + 1.2, roofY - 0.12, cz, w - 3.2, 0.18, d - 0.6, 'concrete2', true, true);
   addBox(stair2X, roofY - 0.12, cz + 2.6, 2.2, 0.18, 2.2, 'concrete2', true, true);
+
+  // Classical stone dentil cornice beneath parapet
+  addBox(cx, roofY - 0.1, frontZ + 0.12 * sign, w + 0.4, 0.22, 0.35, 'stonePortland', false, true);
 
   const parapetH = 1.1;
   addBox(leftX, roofY, cz, 0.3, parapetH, d, 'brickB', true, true);
@@ -1375,11 +1472,220 @@ export function accessibleTownhouse(cx, cz, floors = 3, facing = 's') {
   addBox(cx + 4.0, roofY, frontZ, 5.0, parapetH, 0.3, 'brickB', true, true);
   addBox(cx, roofY, frontZ, 3.0, 0.55, 0.3, 'brickB', true, true);
 
+  // --- VICTORIAN BRICK CHIMNEY STACKS & TERRACOTTA POTS ---
+  const stackH = 2.2;
+  addBox(leftX + 1.2, roofY, cz - 2.2, 1.2, stackH, 1.8, brick, true, true);
+  addBox(leftX + 1.2, roofY + stackH, cz - 2.2, 1.35, 0.15, 1.95, 'stonePortland', false, true);
+  for (let ci = -0.5; ci <= 0.5; ci += 0.5) {
+    addBox(leftX + 1.2, roofY + stackH + 0.15, cz - 2.2 + ci, 0.32, 0.75, 0.32, 'terracotta', false, true);
+  }
+
+  addBox(rightX - 1.2, roofY, cz + 2.2, 1.2, stackH, 1.8, brick, true, true);
+  addBox(rightX - 1.2, roofY + stackH, cz + 2.2, 1.35, 0.15, 1.95, 'stonePortland', false, true);
+  for (let ci = -0.5; ci <= 0.5; ci += 0.5) {
+    addBox(rightX - 1.2, roofY + stackH + 0.15, cz + 2.2 + ci, 0.32, 0.75, 0.32, 'terracotta', false, true);
+  }
+
   addRooftopAC(cx + 2.5, roofY, cz - 1.5);
   addBox(cx + 4.5, roofY, cz + 3.0, 0.12, 4.2, 0.12, 'metal', true, true);
   addBox(cx + 4.5, roofY + 4.2, cz + 3.0, 1.2, 0.12, 0.12, 'metal', false, true);
 
   occupy(cx - w / 2 - 0.5, cx + w / 2 + 0.5, cz - d / 2 - 0.5, cz + d / 2 + 0.5, 0.5);
+}
+
+// --- NEW LANDMARK 1: NEOCLASSICAL WHITEHALL GOVERNMENT MINISTRY BUILDING ---
+export function whitehallMinistry(cx, cz, w = 26, d = 16, floors = 3) {
+  const floorH = 3.2;
+  const totalH = floors * floorH;
+  addBox(cx, 0, cz, w, 0.15, d, 'stonePortland', false, true);
+
+  const zF = cz - d / 2 + 0.15, zB = cz + d / 2 - 0.15;
+  const xL = cx - w / 2 + 0.15, xR = cx + w / 2 - 0.15;
+
+  // Exterior Portland stone structure
+  addBox(xL, 0, cz, 0.35, totalH, d, 'stonePortland', true, true);
+  addBox(xR, 0, cz, 0.35, totalH, d, 'stonePortland', true, true);
+  addBox(cx, 0, zB, w, totalH, 0.35, 'stonePortland', true, true);
+
+  // Grand rusticated arched central entrance
+  const doorW = 4.0;
+  const sideW = (w - doorW) / 2;
+  addBox(cx - (w / 2 - sideW / 2), 0, zF, sideW, totalH, 0.35, 'stonePortland', true, true);
+  addBox(cx + (w / 2 - sideW / 2), 0, zF, sideW, totalH, 0.35, 'stonePortland', true, true);
+  addBox(cx, 3.2, zF, doorW, totalH - 3.2, 0.35, 'stonePortland', true, true);
+
+  // Massive Neoclassical Corinthian pilasters flanking the front
+  for (let px = cx - w / 2 + 2.5; px <= cx + w / 2 - 2.5; px += 4.2) {
+    if (Math.abs(px - cx) < 2.5) continue;
+    addBox(px, floorH, zF - 0.25, 0.65, totalH - floorH, 0.45, 'stonePortland', true, true);
+    addBox(px, totalH - 0.4, zF - 0.28, 0.85, 0.4, 0.5, 'stonePortland', false, true); // Capital
+  }
+
+  // Double oak panel doors with bronze lion-head knockers
+  addBox(cx, 0, zF + 0.1, doorW * 0.8, 2.9, 0.12, 'woodDark', false, true);
+  addBox(cx - 0.4, 1.4, zF - 0.05, 0.08, 0.08, 0.08, 'gold', false, true);
+  addBox(cx + 0.4, 1.4, zF - 0.05, 0.08, 0.08, 0.08, 'gold', false, true);
+
+  // Floor intermediate stone cornices
+  addBox(cx, floorH, zF - 0.2, w + 0.6, 0.3, 0.4, 'stonePortland', false, true);
+  addBox(cx, floorH * 2, zF - 0.2, w + 0.6, 0.3, 0.4, 'stonePortland', false, true);
+
+  // Upper floor sash windows with pediments
+  for (let fl = 1; fl < floors; fl++) {
+    const wy = fl * floorH + 1.1;
+    for (let wx = cx - w / 2 + 3.0; wx <= cx + w / 2 - 3.0; wx += 4.0) {
+      addBox(wx, wy, zF, 1.9, 1.6, 0.1, 'glass', false, true);
+      addBox(wx, wy - 0.9, zF - 0.18, 2.2, 0.15, 0.3, 'stonePortland', false, true);
+      addBox(wx, wy + 0.9, zF - 0.18, 2.2, 0.35, 0.3, 'stonePortland', false, true); // Pediment
+    }
+  }
+
+  // Interior ground floor reception
+  addBox(cx, 0, cz + 2.0, 5.0, 1.1, 1.2, 'woodDark', true, true); // Reception desk
+  addBox(cx, floorH, cz, w - 4.0, 0.2, d - 1.0, 'wood', true, true);
+  addStairs(cx + w / 2 - 2.5, 0, cz, 2.2, floorH, 14, 's', 'stonePortland');
+  addStairs(cx - w / 2 + 2.5, floorH, cz, 2.2, floorH, 14, 'n', 'stonePortland');
+
+  // Roof & Classical Balustrade
+  addBox(cx, totalH, cz, w + 0.8, 0.35, d + 0.8, 'stonePortland', false, true);
+  addBox(cx, totalH + 0.35, zF, w + 0.6, 0.95, 0.25, 'stonePortland', true, true);
+  addBox(cx, totalH + 0.35, zB, w + 0.6, 0.95, 0.25, 'stonePortland', true, true);
+  addBox(xL, totalH + 0.35, cz, 0.25, 0.95, d + 0.6, 'stonePortland', true, true);
+  addBox(xR, totalH + 0.35, cz, 0.25, 0.95, d + 0.6, 'stonePortland', true, true);
+
+  // Central Attic Gable with British Royal Crest
+  addBox(cx, totalH + 0.35, zF - 0.1, 8.0, 1.8, 0.3, 'stonePortland', false, true);
+  addBox(cx, totalH + 1.2, zF - 0.25, 2.0, 1.0, 0.08, 'gold', false, true); // Gilded crest relief
+
+  occupy(cx - w / 2 - 0.5, cx + w / 2 + 0.5, cz - d / 2 - 0.5, cz + d / 2 + 0.5, 0.5);
+}
+
+// --- NEW LANDMARK 2: LONDON MARKET STALLS (Covent Garden barrows with striped awnings) ---
+export function londonMarketStall(cx, cz, angle = 0, isRed = true) {
+  const cos = Math.cos(angle), sin = Math.sin(angle);
+  const rot = (dx, dz) => [cx + dx * cos - dz * sin, cz + dx * sin + dz * cos];
+
+  // Wooden barrow body & legs
+  const [bX, bZ] = rot(0, 0);
+  addBox(bX, 0.65, bZ, 2.4, 0.45, 1.4, 'woodDark', true, true);
+  // Spoked wheels on sides
+  const [wL_X, wL_Z] = rot(-1.1, 0);
+  const [wR_X, wR_Z] = rot(1.1, 0);
+  addBox(wL_X, 0.45, wL_Z, 0.1, 0.9, 0.9, 'metalDark', true, true);
+  addBox(wR_X, 0.45, wR_Z, 0.1, 0.9, 0.9, 'metalDark', true, true);
+
+  // Wooden produce crates
+  const [c1X, c1Z] = rot(-0.6, -0.2);
+  const [c2X, c2Z] = rot(0.2, -0.2);
+  const [c3X, c3Z] = rot(-0.2, 0.3);
+  addBox(c1X, 0.95, c1Z, 0.7, 0.25, 0.55, 'wood', true, true);
+  addBox(c2X, 0.95, c2Z, 0.7, 0.25, 0.55, 'wood', true, true);
+  addBox(c3X, 0.95, c3Z, 0.7, 0.25, 0.55, 'wood', true, true);
+  // Produce (oranges, apples)
+  addBox(c1X, 1.1, c1Z, 0.6, 0.12, 0.45, 'yellow', false, true);
+  addBox(c2X, 1.1, c2Z, 0.6, 0.12, 0.45, 'green', false, true);
+  addBox(c3X, 1.1, c3Z, 0.6, 0.12, 0.45, 'belisha', false, true);
+
+  // Timber awning support poles
+  const [p1X, p1Z] = rot(-1.15, -0.65);
+  const [p2X, p2Z] = rot(1.15, -0.65);
+  const [p3X, p3Z] = rot(-1.15, 0.65);
+  const [p4X, p4Z] = rot(1.15, 0.65);
+  addBox(p1X, 0, p1Z, 0.08, 2.3, 0.08, 'wood', true, true);
+  addBox(p2X, 0, p2Z, 0.08, 2.3, 0.08, 'wood', true, true);
+  addBox(p3X, 0, p3Z, 0.08, 2.5, 0.08, 'wood', true, true);
+  addBox(p4X, 0, p4Z, 0.08, 2.5, 0.08, 'wood', true, true);
+
+  // Striped canvas canopy roof
+  const [canX, canZ] = rot(0, 0);
+  addBox(canX, 2.45, canZ, 2.7, 0.12, 1.7, isRed ? 'awningRed' : 'awningGreen', false, true);
+  // Scalloped front valance
+  const [vX, vZ] = rot(0, -0.85);
+  addBox(vX, 2.25, vZ, 2.7, 0.35, 0.06, isRed ? 'awningRed' : 'awningGreen', false, true);
+}
+
+// --- NEW LANDMARK 3: MULTI-TIER CONSTRUCTION SCAFFOLDING & CLIMBABLE LADDER ---
+export function constructionScaffolding(cx, cz, len = 14, h = 8.5, facing = 's') {
+  const isX = facing === 'n' || facing === 's';
+  const w = isX ? len : 1.8;
+  const d = isX ? 1.8 : len;
+  const bays = Math.floor(len / 2.8);
+
+  // Vertical steel poles & yellow safety foam wraps on ground
+  for (let b = 0; b <= bays; b++) {
+    const off = -len / 2 + b * 2.8;
+    const px1 = isX ? cx + off : cx - d / 2 + 0.15;
+    const pz1 = isX ? cz - d / 2 + 0.15 : cz + off;
+    const px2 = isX ? cx + off : cx + d / 2 - 0.15;
+    const pz2 = isX ? cz + d / 2 - 0.15 : cz + off;
+
+    addBox(px1, 0, pz1, 0.08, h, 0.08, 'metal', true, true);
+    addBox(px2, 0, pz2, 0.08, h, 0.08, 'metal', true, true);
+    // Yellow impact foam wraps on ground level
+    addBox(px1, 0.1, pz1, 0.18, 1.4, 0.18, 'scaffoldingYellow', false, true);
+    addBox(px2, 0.1, pz2, 0.18, 1.4, 0.18, 'scaffoldingYellow', false, true);
+  }
+
+  // Timber walkboard platforms & safety toe-boards on 2 levels
+  const levels = [2.8, 5.6];
+  for (const ly of levels) {
+    addBox(cx, ly, cz, isX ? len : 1.6, 0.08, isX ? 1.6 : len, 'wood', true, true);
+    // Safety guardrails
+    addBox(cx, ly + 0.95, isX ? cz + (facing === 's' ? 0.85 : -0.85) : cz, isX ? len : 0.06, 0.06, isX ? 0.06 : len, 'metal', true, true);
+    // Safety toe-boards
+    addBox(cx, ly + 0.1, isX ? cz + (facing === 's' ? 0.85 : -0.85) : cz, isX ? len : 0.04, 0.22, isX ? 0.04 : len, 'woodDark', false, true);
+  }
+
+  // Steel access stairs connecting ground to catwalk level!
+  const stairX = isX ? cx - len / 2 + 1.4 : cx;
+  const stairZ = isX ? cz : cz - len / 2 + 1.4;
+  addStairs(stairX, 0, stairZ, 1.4, 2.8, 12, facing, 'metal');
+}
+
+// --- NEW LANDMARK 4: MET POLICE / ROADWORKS CHECKPOINT ---
+export function metPoliceCheckpoint(cx, cz, angle = 0) {
+  const cos = Math.cos(angle), sin = Math.sin(angle);
+  const rot = (dx, dz) => [cx + dx * cos - dz * sin, cz + dx * sin + dz * cos];
+
+  // Stacked sandbag firing revetments (authentic tactical cover!)
+  for (let s = -1.8; s <= 1.8; s += 0.9) {
+    const [sbX, sbZ] = rot(s, 0);
+    addBox(sbX, 0, sbZ, 0.85, 0.32, 0.5, 'fabricTactical', true, true);
+    addBox(sbX, 0.32, sbZ, 0.85, 0.32, 0.5, 'fabricTactical', true, true);
+    addBox(sbX, 0.64, sbZ, 0.85, 0.32, 0.5, 'fabricTactical', true, true);
+  }
+
+  // Red & white reflective barrier plank
+  const [barX, barZ] = rot(0, -1.2);
+  addBox(barX, 0.5, barZ, 3.8, 0.25, 0.08, 'cautionYellow', true, true);
+  const [bL_X, bL_Z] = rot(-1.7, -1.2);
+  const [bR_X, bR_Z] = rot(1.7, -1.2);
+  addBox(bL_X, 0, bL_Z, 0.1, 1.0, 0.4, 'metalDark', true, true);
+  addBox(bR_X, 0, bR_Z, 0.1, 1.0, 0.4, 'metalDark', true, true);
+
+  // Fluorescent hazard cones
+  const [c1X, c1Z] = rot(-2.4, -0.6);
+  const [c2X, c2Z] = rot(2.4, -0.6);
+  addBox(c1X, 0, c1Z, 0.35, 0.65, 0.35, 'belisha', true, true);
+  addBox(c1X, 0.35, c1Z, 0.36, 0.14, 0.36, 'concrete2', false, true); // Reflective white collar
+  addBox(c2X, 0, c2Z, 0.35, 0.65, 0.35, 'belisha', true, true);
+  addBox(c2X, 0.35, c2Z, 0.36, 0.14, 0.36, 'concrete2', false, true);
+}
+
+// --- NEW LANDMARK 5: CAST-IRON LONDON HEXAGONAL LITTER BIN & FINGERPOST ---
+export function londonStreetBinAndFingerpost(cx, cz) {
+  // Hexagonal cast-iron litter bin with gold crest
+  addBox(cx, 0, cz, 0.65, 0.95, 0.65, 'metalDark', true, true);
+  addBox(cx, 0.95, cz, 0.72, 0.15, 0.72, 'metalDark', false, true);
+  addBox(cx, 0.5, cz - 0.34, 0.18, 0.18, 0.02, 'gold', false, true); // Gold crest
+
+  // Victorian directional fingerpost sign
+  const postX = cx + 1.6;
+  addBox(postX, 0, cz, 0.14, 3.4, 0.14, 'metalDark', true, true);
+  addBox(postX, 3.4, cz, 0.22, 0.35, 0.22, 'gold', false, true); // Crown finial
+  // Directional arms
+  addBox(postX - 0.45, 3.1, cz, 0.9, 0.18, 0.04, 'metalDark', false, true); // West arm
+  addBox(postX + 0.45, 2.8, cz, 0.9, 0.18, 0.04, 'metalDark', false, true); // East arm
 }
 
 export function accessiblePub(cx, cz) {
@@ -1501,36 +1807,62 @@ function terraceRow(cx, cz, len, floors, facing) {
   const x0 = cx - w / 2, x1 = cx + w / 2, z0 = cz - d / 2, z1 = cz + d / 2;
 
   addBox(cx, 0, cz, w, totalH, d, brick, true, true);
-  addBox(cx, totalH, cz, w + 0.3, 0.3, d + 0.3, 'concrete2', false, true);
+  addBox(cx, totalH, cz, w + 0.4, 0.3, d + 0.4, 'stonePortland', false, true);
+
+  // Decorative stone dentil cornice beneath the parapet
+  addBox(cx, totalH - 0.15, cz, w + 0.3, 0.22, d + 0.3, 'stonePortland', false, true);
+
+  // Corner stone quoins on row ends
+  for (let qy = 0; qy < totalH; qy += 0.8) {
+    const qw = (Math.floor(qy / 0.8) % 2 === 0) ? 0.42 : 0.28;
+    addBox(x0 - 0.04, qy, z0 - 0.04, qw, 0.38, qw, 'stonePortland', false, true);
+    addBox(x1 + 0.04, qy, z0 - 0.04, qw, 0.38, qw, 'stonePortland', false, true);
+    addBox(x0 - 0.04, qy, z1 + 0.04, qw, 0.38, qw, 'stonePortland', false, true);
+    addBox(x1 + 0.04, qy, z1 + 0.04, qw, 0.38, qw, 'stonePortland', false, true);
+  }
+
+  const doorColors = ['paintedRed', 'paintedBlue', 'paintedGreen', 'paintedBlack'];
 
   for (let u = 0; u < units; u++) {
     const off = (u - (units - 1) / 2) * unitW;
     const ucx = isX ? cx + off : cx;
     const ucz = isX ? cz : cz + off;
-    const doorW = 1.1, doorH = 2.4;
+    const doorW = 1.15, doorH = 2.45;
+    const doorMat = doorColors[u % doorColors.length];
 
+    // Authentic London painted front door
     addBox(
       facing === 'e' ? x1 - 0.05 : facing === 'w' ? x0 + 0.05 : ucx,
       0,
       facing === 's' ? z1 - 0.05 : facing === 'n' ? z0 + 0.05 : ucz,
-      isX ? doorW : 0.15, doorH, isX ? 0.15 : doorW, 'blue', false, true
+      isX ? doorW : 0.15, doorH, isX ? 0.15 : doorW, doorMat, false, true
     );
+    // Brass door furniture
+    addBox(
+      facing === 'e' ? x1 + 0.08 : facing === 'w' ? x0 - 0.08 : ucx + (isX ? 0.3 : 0),
+      1.15,
+      facing === 's' ? z1 + 0.08 : facing === 'n' ? z0 - 0.08 : ucz + (isX ? 0 : 0.3),
+      0.05, 0.05, 0.05, 'gold', false, true
+    );
+    // Fanlight glass above front door
     addBox(
       facing === 'e' ? x1 - 0.06 : facing === 'w' ? x0 + 0.06 : ucx,
       doorH + 0.05,
       facing === 's' ? z1 - 0.06 : facing === 'n' ? z0 + 0.06 : ucz,
       isX ? doorW : 0.15, 0.5, isX ? 0.15 : doorW, 'glass', false, true
     );
+    // Front stone step
     addBox(
       facing === 'e' ? x1 + 0.35 : facing === 'w' ? x0 - 0.35 : ucx, 0,
       facing === 's' ? z1 + 0.35 : facing === 'n' ? z0 - 0.35 : ucz,
-      isX ? doorW + 0.3 : 0.7, 0.15, isX ? 0.7 : doorW + 0.3, 'concrete2', false, true
+      isX ? doorW + 0.4 : 0.7, 0.15, isX ? 0.7 : doorW + 0.4, 'stonePortland', false, true
     );
 
+    // Cantilevered Victorian bay windows on upper floors
     for (let f = 1; f < floors; f++) {
       const y = f * floorH + 0.8;
-      const proj = 0.9;
-      const bayW = 2.8, bayH = 2.0;
+      const proj = 0.95;
+      const bayW = 2.9, bayH = 2.1;
       addBox(
         facing === 'e' ? x1 + proj / 2 : facing === 'w' ? x0 - proj / 2 : ucx, y,
         facing === 's' ? z1 + proj / 2 : facing === 'n' ? z0 - proj / 2 : ucz,
@@ -1541,12 +1873,27 @@ function terraceRow(cx, cz, len, floors, facing) {
         facing === 's' ? z1 + proj - 0.05 : facing === 'n' ? z0 - proj + 0.05 : ucz,
         isX ? bayW - 0.5 : 0.08, bayH - 0.5, isX ? 0.08 : bayW - 0.5, 'glass', false, true
       );
+      // Stone sill & cornice
+      addBox(
+        facing === 'e' ? x1 + proj / 2 : facing === 'w' ? x0 - proj / 2 : ucx, y - 0.12,
+        facing === 's' ? z1 + proj / 2 : facing === 'n' ? z0 - proj / 2 : ucz,
+        isX ? bayW + 0.2 : proj + 0.1, 0.15, isX ? proj + 0.1 : bayW + 0.2, 'stonePortland', false, true
+      );
       addBox(
         facing === 'e' ? x1 + proj / 2 : facing === 'w' ? x0 - proj / 2 : ucx, y + bayH,
         facing === 's' ? z1 + proj / 2 : facing === 'n' ? z0 - proj / 2 : ucz,
-        isX ? bayW + 0.2 : proj + 0.1, 0.15, isX ? proj + 0.1 : bayW + 0.2, 'concrete2', false, true
+        isX ? bayW + 0.2 : proj + 0.1, 0.18, isX ? proj + 0.1 : bayW + 0.2, 'stonePortland', false, true
       );
     }
+
+    // Victorian Rooftop Chimney Stack per unit
+    const chimX = isX ? ucx : cx;
+    const chimZ = isX ? cz : ucz;
+    addBox(chimX, totalH, chimZ, 1.1, 1.8, 1.1, brick, true, true);
+    addBox(chimX, totalH + 1.8, chimZ, 1.25, 0.15, 1.25, 'stonePortland', false, true);
+    // Twin terracotta chimney pots
+    addBox(chimX - (isX ? 0.22 : 0), totalH + 1.95, chimZ - (isX ? 0 : 0.22), 0.28, 0.65, 0.28, 'terracotta', false, true);
+    addBox(chimX + (isX ? 0.22 : 0), totalH + 1.95, chimZ + (isX ? 0 : 0.22), 0.28, 0.65, 0.28, 'terracotta', false, true);
   }
   occupy(x0 - 0.3, x1 + 0.3, z0 - 0.3, z1 + 0.3, 0.5);
 }
@@ -2364,9 +2711,43 @@ export function generateCity(scene) {
     tree(x, z, scene);
   }
 
-  // Perimeter London terrace rows
-  const rowLen = 40, rowH = 3;
-  const RING = 180;
+  // New Grand Whitehall Ministries (Portland stone government buildings)
+  whitehallMinistry(68, -32, 26, 16, 3);
+  whitehallMinistry(-68, 32, 26, 16, 3);
+
+  // London Covent Garden / Borough Market Produce Barrows
+  londonMarketStall(-18, -18, 0, true);
+  londonMarketStall(-22, -18, 0, false);
+  londonMarketStall(18, 18, Math.PI, true);
+  londonMarketStall(22, 18, Math.PI, false);
+  londonMarketStall(38, -10, Math.PI / 2, true);
+
+  // Construction Scaffolding & Climbable Walkways
+  constructionScaffolding(-38, 43, 14, 8.5, 'n');
+  constructionScaffolding(38, 43, 14, 8.5, 'n');
+  constructionScaffolding(68, 69, 14, 8.5, 'n');
+
+  // Met Police / Roadworks Tactical Checkpoints
+  metPoliceCheckpoint(0, 18, 0);
+  metPoliceCheckpoint(-34, -4, Math.PI / 2);
+  metPoliceCheckpoint(34, -4, -Math.PI / 2);
+
+  // Cast-Iron London Hexagonal Bins & Victorian Fingerpost Signs
+  londonStreetBinAndFingerpost(-14, -8);
+  londonStreetBinAndFingerpost(14, 8);
+  londonStreetBinAndFingerpost(-28, -24);
+  londonStreetBinAndFingerpost(28, 24);
+
+  // Additional Parked London Vehicles
+  enterableDoubleDecker(24, -45, true);
+  enterableBlackCab(-22, -45, true);
+  enterableBlackCab(24, 22, false);
+  enterablePoliceCar(-20, 48, true);
+  royalMailDeliveryVan(14, -14, false);
+
+  // Perimeter London terrace rows (Dense ring matching MAP = 135)
+  const rowLen = 30, rowH = 3;
+  const RING = 118;
   for (let side = 0; side < 4; side++) {
     for (let i = -3; i <= 3; i++) {
       const t = i * (rowLen + 4);
@@ -2381,9 +2762,9 @@ export function generateCity(scene) {
   }
 
   // Mid-ring London townhouses & squares
-  for (let i = 0; i < 16; i++) {
-    const a = (i / 16) * TAU + wr(-0.1, 0.1);
-    const r = 115 + wr(-15, 15);
+  for (let i = 0; i < 14; i++) {
+    const a = (i / 14) * TAU + wr(-0.1, 0.1);
+    const r = 82 + wr(-10, 10);
     const x = Math.cos(a) * r, z = Math.sin(a) * r;
     if (!isFree(x, z, 10)) continue;
     accessibleTownhouse(x, z, 3, wpick(['n', 's', 'e', 'w']));
@@ -2398,12 +2779,13 @@ export function generateCity(scene) {
 }
 
 /* ================================================================
-   CHARACTER RIG (Tactical Operator with ballistic gear & comms)
+   CHARACTER RIG (High-Fidelity Tier 1 Operator with Ballistic Gear)
 ================================================================ */
 export function buildCharacterRig(palette, name) {
   const root = new THREE.Group();
   const bones = {};
   const isNoDeX = name === 'NoDeX';
+  const M = buildMaterials();
 
   const skinMat = new THREE.MeshStandardMaterial({
     color: new THREE.Color(palette.skinTone || '#c89870').getHex(),
@@ -2463,6 +2845,14 @@ export function buildCharacterRig(palette, name) {
     parent.add(m);
     return m;
   }
+  function cyl(parent, r, len, mat, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0) {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 12), mat);
+    m.position.set(x, y, z);
+    m.rotation.set(rx, ry, rz);
+    m.castShadow = true; m.receiveShadow = true;
+    parent.add(m);
+    return m;
+  }
 
   // Bone hierarchy
   const pelvis = bone(root, 'pelvis', 0, 0.9, 0);
@@ -2497,8 +2887,13 @@ export function buildCharacterRig(palette, name) {
   box(pelvis, 0.07, 0.06, 0.04, metalMat, 0, 0.08, -0.145); // belt buckle
   // Utility pouch on right hip
   box(pelvis, 0.08, 0.12, 0.10, clothDark, 0.19, 0.04, 0.02);
-  // Sidearm holster on left thigh
+  // IFAK trauma medical kit pouch on back right hip with red cross
+  box(pelvis, 0.14, 0.12, 0.08, clothDark, 0.12, 0.06, 0.14);
+  box(pelvis, 0.08, 0.02, 0.01, M.red, 0.12, 0.06, 0.185);
+  box(pelvis, 0.02, 0.08, 0.01, M.red, 0.12, 0.06, 0.185);
+  // Sidearm holster on left thigh with molded combat pistol
   box(pelvis, 0.07, 0.16, 0.09, clothDark, -0.19, -0.08, 0.02);
+  box(pelvis, 0.04, 0.10, 0.06, metalMat, -0.19, -0.02, 0.02); // Pistol grip protruding
 
   // --- TORSO & SPINE ---
   box(spine1, 0.35, 0.20, 0.25, clothMat, 0, 0.04, 0);
@@ -2518,8 +2913,13 @@ export function buildCharacterRig(palette, name) {
   box(chest, 0.08, 0.03, 0.05, metalMat, -0.11, 0.03, -0.185);
   box(chest, 0.08, 0.03, 0.05, metalMat, 0, 0.03, -0.185);
   box(chest, 0.08, 0.03, 0.05, metalMat, 0.11, 0.03, -0.185);
-  // Chest velcro patch / callsign
-  box(chest, 0.14, 0.06, 0.02, accentMat, 0, 0.11, -0.165);
+
+  // Glow Chem-Lights on MOLLE Webbing (Cyan & Amber)
+  cyl(chest, 0.012, 0.14, M.chemlightCyan, -0.17, -0.04, -0.175, 0, 0, 0.2);
+  cyl(chest, 0.012, 0.14, M.chemlightAmber, -0.19, -0.04, -0.175, 0, 0, -0.2);
+
+  // Chest velcro patch / Union Jack IR callsign
+  box(chest, 0.14, 0.08, 0.02, M.unionJack, 0, 0.11, -0.165);
   if (isNoDeX) {
     box(chest, 0.08, 0.04, 0.02, metalMat, -0.12, 0.11, -0.165);
   }
@@ -2545,6 +2945,16 @@ export function buildCharacterRig(palette, name) {
   box(head, 0.04, 0.04, 0.16, metalMat, 0.15, 0.07, 0);  // Right ARC rail
   // Wilcox NVG mount bracket on front of helmet
   box(head, 0.06, 0.07, 0.05, metalMat, 0, 0.10, -0.145);
+
+  // AN/PVS-31 DUAL-TUBE NIGHT VISION GOGGLES (Tactical flip-down binoculars with glowing emerald lenses!)
+  box(head, 0.08, 0.04, 0.06, metalMat, 0, 0.10, -0.18); // NVG pivot bridge
+  // Dual optical tubes
+  cyl(head, 0.024, 0.09, metalMat, -0.042, 0.08, -0.22, Math.PI / 2, 0, 0);
+  cyl(head, 0.024, 0.09, metalMat, 0.042, 0.08, -0.22, Math.PI / 2, 0, 0);
+  // Glowing emerald aperture lenses
+  cyl(head, 0.020, 0.01, M.nvgLens, -0.042, 0.08, -0.266, Math.PI / 2, 0, 0);
+  cyl(head, 0.020, 0.01, M.nvgLens, 0.042, 0.08, -0.266, Math.PI / 2, 0, 0);
+
   // Rear battery pack / counterweight
   box(head, 0.12, 0.06, 0.05, clothDark, 0, 0.06, 0.145);
 
@@ -2562,16 +2972,19 @@ export function buildCharacterRig(palette, name) {
   // Left arm
   capsule(upperArmL, 0.26, 0.06, clothMat);
   sphere(upperArmL, 0.07, clothMat, 0, 0, 0); // shoulder pad
-  box(upperArmL, 0.08, 0.06, 0.02, accentMat, -0.065, -0.08, 0); // patch
+  box(upperArmL, 0.08, 0.05, 0.02, M.unionJack, -0.065, -0.08, 0); // Union Jack patch
   capsule(lowerArmL, 0.26, 0.052, clothMat);
   box(lowerArmL, 0.10, 0.09, 0.09, clothDark, 0, -0.02, 0); // elbow pad
+  // Tactical digital wrist watch on left wrist
+  box(lowerArmL, 0.058, 0.025, 0.055, clothDark, 0, -0.18, 0.05);
+  box(lowerArmL, 0.032, 0.005, 0.035, M.nvgLens, 0, -0.18, 0.078); // Illuminated watch face
   box(handL, 0.085, 0.14, 0.065, gloveMat, 0, -0.13, 0); // tactical glove
   box(handL, 0.08, 0.03, 0.06, metalMat, 0, -0.11, -0.035); // carbon knuckle guard
 
   // Right arm
   capsule(upperArmR, 0.26, 0.06, clothMat);
   sphere(upperArmR, 0.07, clothMat, 0, 0, 0);
-  box(upperArmR, 0.08, 0.06, 0.02, accentMat, 0.065, -0.08, 0);
+  box(upperArmR, 0.08, 0.05, 0.02, M.unionJack, 0.065, -0.08, 0);
   capsule(lowerArmR, 0.26, 0.052, clothMat);
   box(lowerArmR, 0.10, 0.09, 0.09, clothDark, 0, -0.02, 0);
   box(handR, 0.085, 0.14, 0.065, gloveMat, 0, -0.13, 0);
@@ -2611,6 +3024,56 @@ export function buildCharacterRig(palette, name) {
   root.add(label);
 
   return { root, bones, label };
+}
+
+/* ================================================================
+   FIRST-PERSON OPERATOR ARMS & GLOVES (Immersive weapon grip)
+================================================================ */
+export function buildFirstPersonArms() {
+  const root = new THREE.Group();
+  root.name = 'fpArmsRoot';
+  const M = buildMaterials();
+  const clothMat = M.fabricTactical;
+  const clothDark = M.metalDark;
+  const gloveMat = new THREE.MeshStandardMaterial({ color: 0x1c2026, roughness: 0.65, metalness: 0.15 });
+  const carbonMat = new THREE.MeshStandardMaterial({ color: 0x2d333b, roughness: 0.25, metalness: 0.85 });
+
+  function bx(parent, w, h, d, mat, x, y, z, rx = 0, ry = 0, rz = 0) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    m.position.set(x, y, z);
+    m.rotation.set(rx, ry, rz);
+    m.castShadow = true; parent.add(m); return m;
+  }
+  function cyl(parent, rt, rb, len, mat, x, y, z, rx = 0, ry = 0, rz = 0) {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, len, 12), mat);
+    m.position.set(x, y, z);
+    m.rotation.set(rx, ry, rz);
+    m.castShadow = true; parent.add(m); return m;
+  }
+
+  // --- LEFT ARM (Holding foregrip / rifle handguard) ---
+  const armL = new THREE.Group();
+  cyl(armL, 0.052, 0.065, 0.38, clothMat, -0.16, -0.22, -0.10, 0.72, -0.35, -0.42);
+  cyl(armL, 0.054, 0.054, 0.04, clothDark, -0.11, -0.14, -0.18, 0.72, -0.35, -0.42);
+  // Tactical watch on wrist with glowing green bezel
+  bx(armL, 0.058, 0.025, 0.055, clothDark, -0.11, -0.13, -0.19, 0.72, -0.35, -0.42);
+  bx(armL, 0.030, 0.006, 0.035, M.nvgLens, -0.11, -0.12, -0.19, 0.72, -0.35, -0.42);
+  // Gloved hand wrapping around handguard
+  bx(armL, 0.075, 0.065, 0.09, gloveMat, -0.05, -0.09, -0.25, 0.35, -0.15, -0.30);
+  bx(armL, 0.065, 0.02, 0.04, carbonMat, -0.05, -0.07, -0.25, 0.35, -0.15, -0.30);
+  cyl(armL, 0.016, 0.016, 0.07, gloveMat, -0.02, -0.12, -0.26, 0, 0, Math.PI / 2);
+
+  // --- RIGHT ARM (Holding pistol grip & trigger) ---
+  const armR = new THREE.Group();
+  cyl(armR, 0.052, 0.068, 0.40, clothMat, 0.18, -0.26, 0.12, 0.85, 0.25, 0.32);
+  cyl(armR, 0.054, 0.054, 0.04, clothDark, 0.12, -0.17, 0.02, 0.85, 0.25, 0.32);
+  bx(armR, 0.07, 0.08, 0.08, gloveMat, 0.05, -0.11, -0.04, 0.22, 0.12, 0.15);
+  bx(armR, 0.06, 0.02, 0.04, carbonMat, 0.055, -0.09, -0.04, 0.22, 0.12, 0.15);
+  cyl(armR, 0.012, 0.012, 0.055, gloveMat, 0.03, -0.08, -0.09, Math.PI / 2, 0, -0.15);
+  cyl(armR, 0.018, 0.018, 0.065, gloveMat, 0.03, -0.14, -0.04, 0.2, 0, Math.PI / 2);
+
+  root.add(armL, armR);
+  return root;
 }
 
 /* ================================================================
