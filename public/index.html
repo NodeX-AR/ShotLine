@@ -289,7 +289,7 @@ const BotChat=(function(){
     pFall:{chill:['lmao fall damage','he jumped off','gravity wins','rip {p}'],toxic:['{p} jumped lol','free kill from the sky','skill issue'],friendly:['oh no {p}','ouch that was a long drop'],tryhard:['{p} took the fall','never drop from the tall ones'],quiet:['oof','']},
     streak:{chill:['{p} is on a run','ok {p} is cracked'],toxic:['someone stop {p}','{p} is smurfing'],friendly:['{p} is on fire!','go {p}'],tryhard:['focus {p}','{p} is the threat here'],quiet:['wow','']},
     respawn:{chill:['back','ok again','round 2'],toxic:['back and angry','ok now im serious'],friendly:['hi again','lets go'],tryhard:['rotating','new plan'],quiet:['']},
-    idle:['anyone know where the medkits are','the towers are a pain','stairs in the grey buildings are so long','dont jump off the tall roofs','someone is sniping from a tower','there is a medkit on a roof near me','heard shots north','ladders are slow but worth it','watch the edges','this border is tight'],
+    idle:['anyone know where the medkits are','the towers are a pain','stairs in the grey buildings are so long','dont jump off the tall roofs','someone is sniping from a tower','there is a medkit on a roof near me','heard shots north','ladders are slow but worth it','watch the edges','this border is tight','where is everyone','anything happening','im on a roof','anyone up top','i keep hearing footsteps','thought i saw someone','any snipers up','who is winning','roofs are the way','ground level is a death trap','ladders are op','anyone else lagging?','the border is closing in','watch mid','south side quiet','holding an angle','anyone need backup'],
     greet:['hey','hi all','o/','yo','sup','back for a few rounds','ready'],
     hi:['yo','hey {p}','sup','o/','hello','hey'],
     gg:['gg','wp','gg wp','ty','gg {p}'],
@@ -298,7 +298,27 @@ const BotChat=(function(){
     lag:['mine is fine','ping is ok for me','lag?','yeah a bit choppy'],
     thanks:['np','anytime','yw','np {p}'],
     generic:['lol','true','fr','same','haha','?','yeah','fair','ok'],
-    called:['yeah?','what','sup','?','yo','hm?']
+    called:['yeah?','what','sup','?','yo','hm?'],
+    spotted:{chill:['contact','saw someone over here','enemy west','movement'],
+      toxic:['target spotted','got eyes','found him','there he is'],
+      friendly:['contact!','i see one','eyes on enemy'],
+      tryhard:['contact, north','holding angle','enemy pushed up'],
+      quiet:['contact','']},
+    whiff:{chill:['missed lol','so close','my aim is off'],
+      toxic:['come on','my shots arent registering','luck'],
+      friendly:['almost!','so close','damn'],
+      tryhard:['adjusting','off by a hair','recalibrating'],
+      quiet:['']},
+    pressured:{chill:['getting pushed','i need help','rushed'],
+      toxic:['bro stop camping','push me then','1v1 me'],
+      friendly:['need backup','someone help','im pinned'],
+      tryhard:['contact pushing','falling back','need support'],
+      quiet:['']},
+    reload:{chill:['reloading','give me a sec','mag out'],
+      toxic:['one sec reloading','chill chill'],
+      friendly:['reloading!','wait wait'],
+      tryhard:['tac reload','repositioning'],
+      quiet:['']}
   };
   function fmt(t,v){return t.replace(/\{p\}/g,v&&v.p||'').replace(/\{k\}/g,v&&v.k||'').trim();}
   function typo(t){if(t.length<5)return t;const i=1+((Math.random()*(t.length-3))|0);const r=Math.random();
@@ -324,6 +344,10 @@ const BotChat=(function(){
   function chance(bot,mul){return Math.random()<(TALK[bot.persona]||0.4)*(mul||1);}
   function line(cat,bot,v){const pool=D[cat];const arr=Array.isArray(pool)?pool:(pool[bot.persona]||pool.chill);return fmt(pick(arr),v);}
   function anyBot(){const l=botPool.filter(b=>b.isBot&&b.alive);return l.length?pick(l):null;}
+  function anyBotNear(x,z,r){
+    const l=botPool.filter(b=>b.isBot&&b.alive&&Math.hypot(b.x-x,b.z-z)<r);
+    return l.length?pick(l):null;
+  }
   const pn=()=>player.name;
   function reply(text){
     const t=text.toLowerCase();
@@ -351,21 +375,30 @@ const BotChat=(function(){
         if(c.cause==='fall')say(b,line('dieFall',b,{p:pn()}));
         else if(c.killer&&c.killer.isPlayer)say(b,line(c.head?'dieHS':(c.dist>70?'dieFar':'dieP'),b,{p:pn()}));
         else if(c.killer&&Math.random()<0.4)say(b,line('dieBot',b,{k:c.killer.name}));
-      }else if(type==='kill'){const b=c.bot;if(b&&chance(b,0.8))say(b,line('killP',b,{p:pn()}));}
+        if(Math.random()<0.35){
+          const near=anyBotNear(c.bot.x,c.bot.z,40);
+          if(near&&near!==b&&chance(near,0.9))say(near,line('dieP',near,{p:pn()}));
+        }
+      }
+      else if(type==='kill'){const b=c.bot;if(b&&chance(b,0.8))say(b,line('killP',b,{p:pn()}));}
       else if(type==='pFall'){const b=anyBot();if(b&&Math.random()<0.8)say(b,line('pFall',b,{p:pn()}));}
       else if(type==='streak'){const b=anyBot();if(b)say(b,line('streak',b,{p:pn()}));}
       else if(type==='respawn'){const b=c.bot;if(b&&Math.random()<0.06)say(b,line('respawn',b));}
       else if(type==='chat')reply(c.text);
+      else if(type==='spotted'){const b=c.bot;if(b&&Math.random()<0.55)say(b,line('spotted',b));}
+      else if(type==='whiff'){const b=c.bot;if(b&&chance(b,0.6))say(b,line('whiff',b));}
+      else if(type==='pressured'){const b=c.bot;if(b&&chance(b,0.7))say(b,line('pressured',b));}
+      else if(type==='reload'){const b=c.bot;if(b&&chance(b,0.35))say(b,line('reload',b));}
     },
     tick(dt){
       if(!active)return;
       const sinceAny=(performance.now()-_lastChatAt)/1000;
-      if(sinceAny<22){ idleT=Math.max(idleT,15); return; }
+      if(sinceAny<6){ idleT=Math.max(idleT,6); return; }
       idleT-=dt;
       if(idleT<=0){
-        idleT=55+Math.random()*60;
+        idleT=25+Math.random()*35;
         const b=anyBot();
-        if(b&&chance(b,1.3))say(b,fmt(pick(D.idle)));
+        if(b&&chance(b,1.5))say(b,fmt(pick(D.idle)));
       }
     },
     notifyChat(){ _lastChatAt=performance.now(); }
@@ -652,13 +685,12 @@ function spawnOK(x,z){const cand=queryGrid(x,z,1.5);for(const b of cand){if(b.y0
 const fighters=[];
 const BOT_NAMES=['ShadowFox','NovaStrike','IronWolf','PixelReaper','Vortex','GhostRider','Blaze','Cipher','Havoc','Rogue7','Kraken','Zero','Falcon','Wraith','Scorpion','Onyx','Viper','Specter','Talon','Razor'];
 const BOT_COLORS=[0xc0392b,0x2e86c1,0x27ae60,0x8e44ad,0xd68910,0x16a085,0xc2185b,0x5d6d7e,0xa04000,0x1f618d,0x7d3c98,0x2471a3,0x1abc9c,0xb03a2e,0x7d6608,0x6c3483,0x117864,0xa93226,0x1f8a70,0xb7950b];
-/* sniper-heavy pool */
 const BOT_WEAPON_POOL=['sniper','sniper','sniper','dmr','dmr','rifle','rifle','rifle','bullpup','smg','lmg','shotgun','pistol','sniper','dmr','sniper','rifle'];
 
 function makeFighter(name,isPlayer,color){
   return {name,isPlayer,color,x:0,y:0,z:0,vx:0,vy:0,vz:0,yaw:0,hp:100,alive:false,kills:0,deaths:0,
-    onGround:true,invuln:0,respawnAt:0,lastFire:-99,deathT:0,speed:0,
-    skill:0.65+Math.random()*0.5,target:null,thinkT:Math.random()*0.3,reactT:0,nextShot:0,burst:3,
+    onGround:true,invuln:0,respawnAt:0,lastFire:-99,lastHit:-99,deathT:0,speed:0,
+    skill:0.75+Math.random()*0.35,target:null,thinkT:Math.random()*0.3,reactT:0,nextShot:0,burst:3,
     strafe:1,strafeT:0,side:Math.random()<0.5?1:-1,tx:0,tz:0,stuckT:0,px:0,pz:0,walk:0,sprint:false,
     mesh:null,body:null,legL:null,legR:null,armL:null,armR:null,gunGrip:null,label:null,
     animT:Math.random()*10,remote:false,isBot:!isPlayer&&name!=='You',
@@ -868,7 +900,6 @@ function buildTPGun(parent,isNoDeX,kind,fg){
     hand(0.02,-0.04,0.03);hand(fgX,fgY?fgY:0.02,fgZ);
     return;
   }
-  /* default rifle */
   p(0.05,0.14,0.08,0,-0.12,-0.02,blk);p(0.062,0.06,0.22,0,-0.02,-0.12,md);p(0.075,0.09,0.10,0,-0.08,-0.10,md);
   p(0.065,0.08,0.34,0,0.045,-0.20,dk);p(0.02,0.04,0.06,0.032,0.05,-0.16,0x050607);p(0.05,0.02,0.32,0,0.095,-0.22,lt);
   for(let i=0;i<10;i++)p(0.05,0.010,0.010,0,0.105,-0.06-i*0.030,dk);
@@ -1102,7 +1133,6 @@ function updateBorder(dt){
     }
   }
   borderState.lastCount=count;
-
   if(borderState.active && state==='playing' && player.alive){
     const d=Math.hypot(player.x-BORDER_CX,player.z-BORDER_CZ);
     const out=d>borderState.currentRadius-0.6;
@@ -1118,7 +1148,6 @@ function updateBorder(dt){
   } else {
     $('borderWarn').classList.remove('show');
   }
-
   if(borderState.active){
     for(const b of botPool){
       if(!b.alive)continue;
@@ -1237,16 +1266,35 @@ function botMemory(b){
 function botPref(b){
   const k=b.weaponKind||'rifle';
   const P={
-    pistol:  {range:70, prefer:14, acc:0.045, lead:0.6, headChance:0.40, aggression:0.65},
-    smg:     {range:80, prefer:10, acc:0.052, lead:0.70, headChance:0.40, aggression:0.85},
-    rifle:   {range:170,prefer:22, acc:0.036, lead:0.75, headChance:0.50, aggression:0.75},
-    bullpup: {range:170,prefer:20, acc:0.036, lead:0.75, headChance:0.50, aggression:0.80},
-    dmr:     {range:280,prefer:65, acc:0.024, lead:0.90, headChance:0.60, aggression:0.50},
-    lmg:     {range:150,prefer:25, acc:0.052, lead:0.60, headChance:0.35, aggression:0.80},
-    shotgun: {range:30, prefer:6,  acc:0.100, lead:0.30, headChance:0.30, aggression:1.00},
-    sniper:  {range:360,prefer:130,acc:0.016, lead:1.05, headChance:0.65, aggression:0.30},
+    pistol:  {range:90, prefer:16, acc:0.026, lead:0.85, headChance:0.60, aggression:0.90},
+    smg:     {range:100,prefer:12, acc:0.030, lead:0.90, headChance:0.55, aggression:1.00},
+    rifle:   {range:200,prefer:24, acc:0.020, lead:0.95, headChance:0.65, aggression:0.90},
+    bullpup: {range:200,prefer:22, acc:0.020, lead:0.95, headChance:0.65, aggression:0.95},
+    dmr:     {range:320,prefer:70, acc:0.014, lead:1.05, headChance:0.70, aggression:0.65},
+    lmg:     {range:180,prefer:28, acc:0.030, lead:0.80, headChance:0.55, aggression:0.95},
+    shotgun: {range:34, prefer:7,  acc:0.060, lead:0.50, headChance:0.45, aggression:1.10},
+    sniper:  {range:400,prefer:140,acc:0.010, lead:1.15, headChance:0.75, aggression:0.50},
   };
-  return P[k]||P.rifle;
+  const base=P[k]||P.rifle;
+  const STYLE={
+    chill:    {accMul:1.10, reactMul:1.00, aggrMul:0.85, headMul:1.10, peekMul:0.70, focusMul:1.0},
+    toxic:    {accMul:0.95, reactMul:0.80, aggrMul:1.20, headMul:1.00, peekMul:1.30, focusMul:1.1},
+    friendly: {accMul:1.00, reactMul:0.95, aggrMul:1.00, headMul:1.05, peekMul:1.00, focusMul:1.0},
+    tryhard:  {accMul:0.85, reactMul:0.70, aggrMul:1.10, headMul:1.20, peekMul:1.10, focusMul:1.5},
+    quiet:    {accMul:1.05, reactMul:0.90, aggrMul:0.90, headMul:1.10, peekMul:0.80, focusMul:1.2},
+  };
+  const s=STYLE[b.persona]||STYLE.chill;
+  return {
+    range:base.range,
+    prefer:base.prefer,
+    acc:base.acc*s.accMul,
+    lead:base.lead,
+    headChance:Math.min(0.9,base.headChance*s.headMul),
+    aggression:base.aggression*s.aggrMul,
+    _reactMul:s.reactMul,
+    _peekMul:s.peekMul,
+    _focusMul:s.focusMul,
+  };
 }
 function findNearestLadderUp(x,z){
   let best=null,bd=1e9;
@@ -1290,8 +1338,9 @@ function acquire(b){
     const d=Math.hypot(f.x-b.x,f.z-b.z);
     if(d>pref.range*1.1)continue;
     const visible=!losBlocked(b.x,b.y+1.55,b.z,f.x,f.y+1.1,f.z);
-    const hpBonus=(100-f.hp)*0.2;
-    const score=d-(visible?45:0)-hpBonus;
+    const hpBonus=(100-f.hp)*0.55;
+    const visibleBonus=visible?90:0;
+    const score=d-visibleBonus-hpBonus;
     if(score<bd){best=f;bd=score;}
   }
   if(best!==b.target){
@@ -1299,7 +1348,8 @@ function acquire(b){
     b.target=best;
     if(best){
       const vis=!losBlocked(b.x,b.y+1.55,b.z,best.x,best.y+1.1,best.z);
-      b.reactT=(vis?rnd(0.12,0.35):rnd(0.6,1.2))/b.skill;
+      b.reactT=(vis?rnd(0.06,0.20):rnd(0.35,0.75))/b.skill*(pref._reactMul||1);
+      if(vis&&Math.random()<0.45)BotChat.event('spotted',{bot:b});
     }
   }
 }
@@ -1312,10 +1362,12 @@ function botFire(b,t){
   const lead=pref.lead*0.4;
   const predX=t.x+t._pvx*lead*dist*0.02;
   const predZ=t.z+t._pvz*lead*dist*0.02;
-  const aimHead=Math.random()<pref.headChance*b.skill;
+  const tSpd=Math.hypot(t._pvx||0,t._pvz||0);
+  const movingTargetPenalty=tSpd>3?0.65:1.0;
+  const aimHead=Math.random()<pref.headChance*b.skill*movingTargetPenalty;
   const aimY=t.y+(aimHead?1.65:1.05);
   const bSpd=Math.hypot(b.vx,b.vz);
-  const moveP=1+bSpd*0.15;
+  const moveP=1+bSpd*0.08;
   const sd=(pref.acc/b.skill)*moveP;
   const ex=predX+rnd(-1,1)*sd*dist;
   const ey=aimY+rnd(-1,1)*sd*dist*0.35;
@@ -1335,6 +1387,9 @@ function botFire(b,t){
     const mul=dmgMul(w,h.t);
     const dmg=w.dmg*mul*(h.head?w.head:1);
     damage(h.f,dmg,b,h.head);
+    if(h.f.isPlayer&&Math.random()<0.08)BotChat.event('pressured',{bot:b});
+  } else if(h.world&&Math.random()<0.02){
+    BotChat.event('whiff',{bot:b});
   }
 }
 function updateBot(b,dt){
@@ -1343,6 +1398,19 @@ function updateBot(b,dt){
   const mem=botMemory(b);
   const pref=botPref(b);
   const wpn=WEAPONS.find(w=>w.key===b.weaponKind)||WEAPONS[2];
+
+  // Teamwork: join a nearby ally's fight
+  if((!b.target || !b.target.alive) && Math.random()<0.04){
+    for(const ally of botPool){
+      if(ally===b||!ally.alive||!ally.target||!ally.target.alive)continue;
+      if(Math.hypot(ally.x-b.x,ally.z-b.z)>60)continue;
+      const enemy=ally.target;
+      if(losBlocked(b.x,b.y+1.55,b.z,enemy.x,enemy.y+1.1,enemy.z))continue;
+      b.target=enemy;
+      b.reactT=rnd(0.1,0.3)/b.skill*(pref._reactMul||1);
+      break;
+    }
+  }
 
   if(b.climb){
     const L=b.climb;
@@ -1379,7 +1447,6 @@ function updateBot(b,dt){
     const visible=!losBlocked(b.x,b.y+1.45,b.z,t.x,t.y+1.1,t.z);
     if(visible){mem.lastSeenT=0;mem.lastSeenX=t.x;mem.lastSeenY=t.y;mem.lastSeenZ=t.z;}
 
-    /* --- Snipers & DMRs go for high ground --- */
     if(isLongRange && b.y<2 && mem.climbCd<=0){
       if(!mem.perch || mem.perchT<=0){
         mem.perch=pickSniperPerch(b,t);
@@ -1433,16 +1500,20 @@ function updateBot(b,dt){
       const desired=pref.prefer;
       const tooFar=dist>desired*1.35;
       const tooClose=dist<desired*0.7;
-      if(mem.orbitT<=0){mem.orbitT=rnd(1.6,3.4);mem.orbitDir=Math.random()<0.5?-1:1;}
-
+      const recentlyHit=(T-b.lastHit)<1.2;
+      const strafeMul=recentlyHit?2.2:1.0;
       const perched=isLongRange && b.y>3;
+
+      if(mem.orbitT<=0){
+        mem.orbitT=rnd(1.6,3.4)/strafeMul;
+        mem.orbitDir=Math.random()<0.5?-1:1;
+      }
+      if(b.hp<40 && Math.random()<0.005)mem.orbitDir*=-1;
 
       if(perched){
         mx=-uz*mem.orbitDir*0.25;
         mz=ux*mem.orbitDir*0.25;
-        if(tooFar && dist>desired*2.2){
-          mx=ux;mz=uz;sprint=true;
-        }
+        if(tooFar && dist>desired*2.2){mx=ux;mz=uz;sprint=true;}
       } else if(tooFar){
         mx=ux-uz*mem.orbitDir*0.35;
         mz=uz+ux*mem.orbitDir*0.35;
@@ -1461,19 +1532,21 @@ function updateBot(b,dt){
 
       if(visible && b.reactT<=0 && T>=b.nextShot && dist<wpn.range*0.95){
         botFire(b,t);
-        const burstSize=wpn.auto?(3+((Math.random()*4)|0)):1;
+        let burstSize, pause;
+        if(wpn.key==='sniper'){burstSize=1;pause=rnd(0.9,1.6);}
+        else if(wpn.key==='dmr'){burstSize=1;pause=rnd(0.35,0.65);}
+        else if(wpn.key==='shotgun'){burstSize=1;pause=rnd(0.45,0.85);}
+        else if(wpn.key==='pistol'){burstSize=2;pause=rnd(0.20,0.40);}
+        else if(wpn.key==='lmg'){burstSize=6+((Math.random()*5)|0);pause=rnd(0.45,0.85);}
+        else {burstSize=4+((Math.random()*3)|0);pause=rnd(0.22,0.45);}
         if(--b.burst<=0){
           b.burst=burstSize;
-          const pause=wpn.key==='sniper'?rnd(1.2,2.0):
-                     wpn.key==='dmr'?rnd(0.5,0.9):
-                     wpn.key==='shotgun'?rnd(0.5,1.0):
-                     rnd(0.25,0.55);
+          if(b.hp<35 && Math.random()<0.15)pause+=rnd(0.4,0.9);
           b.nextShot=T+pause;
         } else {
-          b.nextShot=T+wpn.rate+0.02+Math.random()*0.05;
+          b.nextShot=T+wpn.rate+0.015+Math.random()*0.03;
         }
       }
-
       if(mem.jumpCd<=0 && Math.random()<0.02){jump=true;mem.jumpCd=rnd(2,4);}
     }
   } else {
@@ -1497,7 +1570,6 @@ function updateBot(b,dt){
     }
   }
 
-  /* Snipers hop down if target drops far below */
   if(isLongRange && b.y>4 && t && t.alive && (b.y-t.y)>6 && Math.hypot(t.x-b.x,t.z-b.z)<15){
     b.vy=Math.max(b.vy,0);
     mx=(t.x-b.x);mz=(t.z-b.z);
@@ -1855,7 +1927,23 @@ function blockedAt(b,x,z){const cand=queryGrid(x,z,1);for(const bx of cand){if(b
 const OFFS=[0,0.6,-0.6,1.2,-1.2,2.0,-2.0,3.1];
 function steer(b,mx,mz){const l=Math.hypot(mx,mz);if(l<1e-4)return [0,0];mx/=l;mz/=l;for(const o0 of OFFS){const o=o0*b.side,c=Math.cos(o),s=Math.sin(o),dx=mx*c-mz*s,dz=mx*s+mz*c;if(!blockedAt(b,b.x+dx*1.3,b.z+dz*1.3)&&!blockedAt(b,b.x+dx*2.8,b.z+dz*2.8))return [dx,dz];}return [mx,mz];}
 
-function damage(v,amt,a,head,cause){if(!v.alive||state==='ended')return false;if(v.invuln>0&&cause!=='fall')return false;v.hp-=amt;if(v.isPlayer){P.dmgT=0.6;P.lastHitAt=T;sfxHurt();if(a&&a!==v)showDmgDir(a.x,a.z);}if(v.hp<=0){if(v.deathT<=0||v.deathT>3.4)kill(v,a,head,cause);v.hp=0;return true;}return false;}
+function damage(v,amt,a,head,cause){
+  if(!v.alive||state==='ended')return false;
+  if(v.invuln>0&&cause!=='fall')return false;
+  v.hp-=amt;
+  if(v.isPlayer){
+    P.dmgT=0.6;P.lastHitAt=T;sfxHurt();
+    if(a&&a!==v)showDmgDir(a.x,a.z);
+    if(a&&a.isBot&&Math.random()<0.15)BotChat.event('pressured',{bot:a});
+  } else if(v.isBot){
+    v.lastHit=T;
+  }
+  if(v.hp<=0){
+    if(v.deathT<=0||v.deathT>3.4)kill(v,a,head,cause);
+    v.hp=0;return true;
+  }
+  return false;
+}
 function deathSignFor(v,a){const fx=-Math.sin(v.yaw),fz=-Math.cos(v.yaw),dx=a.x-v.x,dz=a.z-v.z,d=Math.hypot(dx,dz)||1;return (fx*dx+fz*dz)/d>0?1:-1;}
 function logKill(kn,vn,head,fall){if(fall)sysLine(vn+' fell to their death','kill');else sysLine(vn+' was killed by '+(kn||'?')+(head?' (headshot)':''),'kill');}
 function kill(v,a,head,cause){
@@ -1876,6 +1964,17 @@ function kill(v,a,head,cause){
     if(v.isPlayer&&fall)BotChat.event('pFall',{});
     if(a&&a.isPlayer&&a!==v){P.streak=(P.streak||0)+1;if(P.streak===5||P.streak===10)BotChat.event('streak',{n:P.streak});}
     if(v.isPlayer)P.streak=0;
+  }
+  // Bots call out their kills and nearby bots react
+  if(mode==='single'&&a&&a.isBot&&!v.isPlayer&&Math.random()<0.55){
+    BotChat.event('kill',{bot:a,head});
+  }
+  if(mode==='single'&&a&&a.isBot&&Math.random()<0.45){
+    const near=botPool.filter(bb=>bb.isBot&&bb.alive&&bb!==a&&Math.hypot(bb.x-v.x,bb.z-v.z)<55);
+    if(near.length){
+      const wit=near[(Math.random()*near.length)|0];
+      if(Math.random()<0.6)BotChat.event('kill',{bot:wit,head:false});
+    }
   }
   if(v.isPlayer){
     onPlayerDeath(fall?null:a,head,fall?'fall':'');
