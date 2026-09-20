@@ -341,6 +341,233 @@ function screenTex() {
   return c;
 }
 
+function roundelTex() {
+  const S = 512, c = canvas2D(S), g = c.getContext('2d');
+  g.fillStyle = '#dcdad4';
+  g.fillRect(0, 0, S, S);
+  // Red circular ring
+  g.beginPath();
+  g.arc(256, 256, 185, 0, Math.PI * 2);
+  g.fillStyle = '#dc241f';
+  g.fill();
+  g.beginPath();
+  g.arc(256, 256, 115, 0, Math.PI * 2);
+  g.fillStyle = '#ffffff';
+  g.fill();
+  // Blue horizontal bar
+  g.fillStyle = '#0019a8';
+  g.fillRect(18, 202, 476, 108);
+  // White crisp text
+  g.fillStyle = '#ffffff';
+  g.font = '900 52px "Gill Sans", "Trebuchet MS", sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText('UNDERGROUND', 256, 256);
+  return c;
+}
+
+function bigBenClockTex() {
+  const S = 512, c = canvas2D(S), g = c.getContext('2d');
+  g.fillStyle = '#221e18';
+  g.fillRect(0, 0, S, S);
+  // Gold ornate outer rim
+  g.beginPath(); g.arc(256, 256, 246, 0, Math.PI * 2);
+  g.fillStyle = '#d4af37'; g.fill();
+  g.beginPath(); g.arc(256, 256, 230, 0, Math.PI * 2);
+  g.fillStyle = '#181410'; g.fill();
+  // Opal glass illuminated dial
+  g.beginPath(); g.arc(256, 256, 222, 0, Math.PI * 2);
+  g.fillStyle = '#fff9e8'; g.fill();
+  // Minute ticks
+  for (let i = 0; i < 60; i++) {
+    const ang = (i / 60) * Math.PI * 2;
+    const isHour = i % 5 === 0;
+    const r1 = isHour ? 192 : 206;
+    const r2 = 218;
+    g.strokeStyle = isHour ? '#221b14' : '#887460';
+    g.lineWidth = isHour ? 4.5 : 2;
+    g.beginPath();
+    g.moveTo(256 + Math.cos(ang) * r1, 256 + Math.sin(ang) * r1);
+    g.lineTo(256 + Math.cos(ang) * r2, 256 + Math.sin(ang) * r2);
+    g.stroke();
+  }
+  // Roman Numerals
+  const numerals = ['XII', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI'];
+  g.fillStyle = '#16120c';
+  g.font = '900 36px "Times New Roman", serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  for (let i = 0; i < 12; i++) {
+    const ang = (i / 12) * Math.PI * 2 - Math.PI / 2;
+    const rx = 256 + Math.cos(ang) * 165;
+    const ry = 256 + Math.sin(ang) * 165;
+    g.fillText(numerals[i], rx, ry);
+  }
+  // Central rosette
+  g.beginPath(); g.arc(256, 256, 44, 0, Math.PI * 2);
+  g.fillStyle = '#d4af37'; g.fill();
+  // Hands (pointing to 10:10)
+  g.strokeStyle = '#100e0b';
+  g.lineCap = 'round';
+  const hAng = (10 / 12 + 10 / 720) * Math.PI * 2 - Math.PI / 2;
+  g.lineWidth = 11;
+  g.beginPath(); g.moveTo(256, 256); g.lineTo(256 + Math.cos(hAng) * 98, 256 + Math.sin(hAng) * 98); g.stroke();
+  const mAng = (10 / 60) * Math.PI * 2 - Math.PI / 2;
+  g.lineWidth = 6.5;
+  g.beginPath(); g.moveTo(256, 256); g.lineTo(256 + Math.cos(mAng) * 152, 256 + Math.sin(mAng) * 152); g.stroke();
+  g.beginPath(); g.arc(256, 256, 16, 0, Math.PI * 2);
+  g.fillStyle = '#f5cb42'; g.fill();
+  return c;
+}
+
+function londonStreetSignTex(streetName, postCode) {
+  const S = 512, c = canvas2D(S), g = c.getContext('2d');
+  g.fillStyle = '#545048';
+  g.fillRect(0, 0, S, S);
+  const px = 24, py = 120, pw = 464, ph = 272;
+  g.fillStyle = '#111111';
+  g.fillRect(px - 4, py - 4, pw + 8, ph + 8);
+  g.fillStyle = '#fdfdfb';
+  g.fillRect(px, py, pw, ph);
+  g.strokeStyle = '#222222';
+  g.lineWidth = 3;
+  g.strokeRect(px + 4, py + 4, pw - 8, ph - 8);
+  g.fillStyle = '#111111';
+  g.font = 'bold 22px "Trebuchet MS", sans-serif';
+  g.textAlign = 'center';
+  g.fillText('CITY OF WESTMINSTER', 256, py + 52);
+  g.font = '900 56px "Trebuchet MS", Arial, sans-serif';
+  g.fillText(streetName, 256, py + 144);
+  g.fillStyle = '#d01e1e';
+  g.font = '900 44px "Trebuchet MS", Arial, sans-serif';
+  g.fillText(postCode, 256, py + 224);
+  return c;
+}
+
+function pubSignTex() {
+  const S = 512, c = canvas2D(S), g = c.getContext('2d');
+  g.fillStyle = '#0f2416';
+  g.fillRect(0, 0, S, S);
+  g.strokeStyle = '#d4af37';
+  g.lineWidth = 14;
+  g.strokeRect(18, 18, S - 36, S - 36);
+  g.lineWidth = 3;
+  g.strokeRect(32, 32, S - 64, S - 64);
+  g.fillStyle = '#d4af37';
+  // Golden Crown
+  g.beginPath();
+  g.moveTo(200, 160); g.lineTo(215, 115); g.lineTo(238, 138); g.lineTo(256, 105);
+  g.lineTo(274, 138); g.lineTo(297, 115); g.lineTo(312, 160); g.closePath();
+  g.fill();
+  // Golden Anchor
+  g.lineWidth = 8;
+  g.beginPath();
+  g.moveTo(256, 170); g.lineTo(256, 250);
+  g.moveTo(226, 192); g.lineTo(286, 192);
+  g.arc(256, 218, 38, 0, Math.PI, false);
+  g.stroke();
+  g.font = 'bold 36px "Georgia", serif';
+  g.textAlign = 'center';
+  g.fillText('THE CROWN & ANCHOR', 256, 325);
+  g.font = 'italic 24px "Georgia", serif';
+  g.fillText('EST. 1842', 256, 375);
+  g.font = 'bold 22px "Trebuchet MS", sans-serif';
+  g.fillText('FINE ALES & FOOD', 256, 425);
+  return c;
+}
+
+function busBlindTex() {
+  const S = 512, c = canvas2D(S), g = c.getContext('2d');
+  g.fillStyle = '#101214';
+  g.fillRect(0, 0, S, S);
+  g.fillStyle = '#f5b800';
+  g.font = '900 64px "Trebuchet MS", Arial, sans-serif';
+  g.textAlign = 'center';
+  g.fillText('15  TRAFALGAR SQ', 256, 190);
+  g.font = 'bold 42px "Trebuchet MS", Arial, sans-serif';
+  g.fillText('via PICCADILLY & STRAND', 256, 280);
+  g.font = 'bold 30px "Trebuchet MS", Arial, sans-serif';
+  g.fillStyle = '#ffffff';
+  g.fillText('LONDON TRANSPORT', 256, 365);
+  return c;
+}
+
+function policeLiveryTex() {
+  const S = 256, c = canvas2D(S), g = c.getContext('2d');
+  g.fillStyle = '#ffffff';
+  g.fillRect(0, 0, S, S);
+  const sz = 64;
+  for (let y = 0; y < S; y += sz) {
+    for (let x = 0; x < S; x += sz) {
+      g.fillStyle = ((x / sz + y / sz) % 2 === 0) ? '#0038a8' : '#e6ff00';
+      g.fillRect(x, y, sz, sz);
+    }
+  }
+  g.fillStyle = '#0a0a0a';
+  g.font = '900 28px "Trebuchet MS", sans-serif';
+  g.textAlign = 'center';
+  g.fillText('POLICE', 128, 140);
+  return c;
+}
+
+function posterTex() {
+  const S = 512, c = canvas2D(S), g = c.getContext('2d');
+  g.fillStyle = '#24374a';
+  g.fillRect(0, 0, S, S);
+  g.fillStyle = '#dfa234';
+  g.fillRect(32, 32, S - 64, S - 64);
+  g.fillStyle = '#182430';
+  g.fillRect(48, 48, S - 96, S - 96);
+  g.fillStyle = '#f2e2be';
+  g.fillRect(130, 200, 60, 180);
+  g.beginPath(); g.moveTo(130, 200); g.lineTo(160, 120); g.lineTo(190, 200); g.fill();
+  g.fillRect(230, 260, 120, 120);
+  g.fillStyle = '#ffffff';
+  g.font = '900 50px "Gill Sans", "Trebuchet MS", sans-serif';
+  g.textAlign = 'center';
+  g.fillText('FLY THE TUBE', 256, 110);
+  g.font = 'bold 28px "Gill Sans", "Trebuchet MS", sans-serif';
+  g.fillText('LONDON UNDERGROUND', 256, 430);
+  return c;
+}
+
+function tubeTileTex() {
+  const S = 512, c = canvas2D(S), g = c.getContext('2d');
+  g.fillStyle = '#202020';
+  g.fillRect(0, 0, S, S);
+  const tw = 128, th = 64;
+  for (let y = 0; y < S; y += th) {
+    const row = (y / th) | 0;
+    const off = row % 2 ? tw / 2 : 0;
+    for (let x = -tw; x < S + tw; x += tw) {
+      g.fillStyle = (row === 0 || row === 7) ? '#681324' : '#edf0f4';
+      g.fillRect(x + off + 2, y + 2, tw - 4, th - 4);
+      g.fillStyle = 'rgba(255,255,255,0.45)';
+      g.fillRect(x + off + 2, y + 2, tw - 4, 3);
+    }
+  }
+  return c;
+}
+
+function moquetteTex() {
+  const S = 256, c = canvas2D(S), g = c.getContext('2d');
+  g.fillStyle = '#192438';
+  g.fillRect(0, 0, S, S);
+  for (let y = 0; y < S; y += 32) {
+    for (let x = 0; x < S; x += 32) {
+      g.fillStyle = '#dd6b50';
+      g.fillRect(x + 4, y + 4, 10, 10);
+      g.fillStyle = '#f09652';
+      g.fillRect(x + 18, y + 18, 10, 10);
+      g.fillStyle = '#268f82';
+      g.fillRect(x + 4, y + 18, 10, 10);
+      g.fillStyle = '#e26245';
+      g.fillRect(x + 18, y + 4, 10, 10);
+    }
+  }
+  return c;
+}
+
 function roughnessFrom(albedoCanvas, variance) {
   const S = albedoCanvas.width;
   const c = canvas2D(S), g = c.getContext('2d'), rng = mulberry32(1234);
@@ -351,6 +578,173 @@ function roughnessFrom(albedoCanvas, variance) {
     g.fillStyle = `rgb(${v},${v},${v})`;
     g.fillRect(rng() * S, rng() * S, 3 + rng() * 6, 3 + rng() * 6);
   }
+  return c;
+}
+
+function lookLeftTex(dir = 'left') {
+  const S = 512, c = canvas2D(S), g = c.getContext('2d');
+  g.fillStyle = '#1c1e22';
+  g.fillRect(0, 0, S, S);
+  g.fillStyle = '#f5f7fa';
+  g.font = '900 64px "Arial Black", Impact, sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  if (dir === 'left') {
+    g.fillText('◄ LOOK LEFT', S / 2, S / 2);
+  } else {
+    g.fillText('LOOK RIGHT ►', S / 2, S / 2);
+  }
+  return c;
+}
+
+function neonSignsTex() {
+  const S = 512, c = canvas2D(S), g = c.getContext('2d');
+  g.fillStyle = '#080b10';
+  g.fillRect(0, 0, S, S);
+  
+  // Bovril
+  g.strokeStyle = '#ff3344';
+  g.lineWidth = 6;
+  g.strokeRect(16, 16, S - 32, 136);
+  g.fillStyle = '#ff2b3d';
+  g.font = '900 60px "Arial Black", Impact, sans-serif';
+  g.textAlign = 'center';
+  g.fillText('BOVRIL', S / 2, 80);
+  g.fillStyle = '#ffbb33';
+  g.font = 'bold 20px sans-serif';
+  g.fillText('PREVENTS THAT SINKING FEELING', S / 2, 124);
+
+  // Schweppes
+  g.strokeStyle = '#00e5ff';
+  g.strokeRect(16, 172, S - 32, 136);
+  g.fillStyle = '#00e5ff';
+  g.font = '900 52px sans-serif';
+  g.fillText('SCHWEPPES', S / 2, 235);
+  g.fillStyle = '#ffffff';
+  g.font = 'italic bold 20px sans-serif';
+  g.fillText('TONIC WATER • TABLE WATERS', S / 2, 280);
+
+  // Guinness
+  g.strokeStyle = '#ffbb22';
+  g.strokeRect(16, 330, S - 32, 164);
+  g.fillStyle = '#ffdd44';
+  g.font = '900 56px "Georgia", serif';
+  g.fillText('GUINNESS', S / 2, 400);
+  g.fillStyle = '#ffffff';
+  g.font = 'bold 22px sans-serif';
+  g.fillText('TIME FOR A GUINNESS', S / 2, 452);
+
+  return c;
+}
+
+function fishChipsTex() {
+  const S = 512, c = canvas2D(S), g = c.getContext('2d');
+  g.fillStyle = '#0d2238';
+  g.fillRect(0, 0, S, S);
+  g.strokeStyle = '#d4af37';
+  g.lineWidth = 10;
+  g.strokeRect(16, 16, S - 32, S - 32);
+  g.fillStyle = '#ffffff';
+  g.font = '900 44px "Arial Black", Impact, sans-serif';
+  g.textAlign = 'center';
+  g.fillText('THE GOLDEN CHIP', S / 2, 110);
+  g.fillStyle = '#ffd700';
+  g.font = 'bold 28px "Trebuchet MS", sans-serif';
+  g.fillText('TRADITIONAL FISH & CHIPS', S / 2, 175);
+  g.fillStyle = '#edf2f7';
+  g.font = 'bold 22px sans-serif';
+  g.fillText('FRESH COD • HADDOCK • PIE & MASH', S / 2, 240);
+  g.fillText('SALT & VINEGAR • MUSHY PEAS', S / 2, 296);
+  g.fillStyle = '#d4af37';
+  g.font = 'italic bold 20px serif';
+  g.fillText('Est. 1928 — London SE1', S / 2, 410);
+  return c;
+}
+
+function royalMailVanTex() {
+  const S = 512, c = canvas2D(S), g = c.getContext('2d');
+  g.fillStyle = '#ba141a';
+  g.fillRect(0, 0, S, S);
+  g.fillStyle = '#ffd700';
+  g.font = 'bold 64px "Times New Roman", serif';
+  g.textAlign = 'center';
+  g.fillText('E II R', S / 2, 180);
+  g.fillStyle = '#ffffff';
+  g.font = '900 48px "Trebuchet MS", sans-serif';
+  g.fillText('Royal Mail', S / 2, 290);
+  g.font = 'bold 22px sans-serif';
+  g.fillText('FIRST & SECOND CLASS PARCELS', S / 2, 350);
+  return c;
+}
+
+function manholeTex() {
+  const S = 256, c = canvas2D(S), g = c.getContext('2d');
+  g.fillStyle = '#1c1e22';
+  g.fillRect(0, 0, S, S);
+  g.strokeStyle = '#383d46';
+  g.lineWidth = 14;
+  g.beginPath(); g.arc(S / 2, S / 2, S / 2 - 14, 0, Math.PI * 2); g.stroke();
+  for (let i = 24; i < S - 24; i += 16) {
+    g.lineWidth = 2;
+    g.beginPath(); g.moveTo(i, 24); g.lineTo(i, S - 24); g.stroke();
+    g.beginPath(); g.moveTo(24, i); g.lineTo(S - 24, i); g.stroke();
+  }
+  g.fillStyle = '#8e96a2';
+  g.font = 'bold 18px sans-serif';
+  g.textAlign = 'center';
+  g.fillText('THAMES WATER', S / 2, S / 2 - 6);
+  g.font = 'bold 13px sans-serif';
+  g.fillText('DRAINAGE', S / 2, S / 2 + 18);
+  return c;
+}
+
+function newsagentTex() {
+  const S = 512, c = canvas2D(S), g = c.getContext('2d');
+  g.fillStyle = '#162e24';
+  g.fillRect(0, 0, S, S);
+  g.fillStyle = '#ffffff';
+  g.font = '900 44px "Arial Black", sans-serif';
+  g.textAlign = 'center';
+  g.fillText('LONDON NEWS', S / 2, 70);
+  g.fillStyle = '#ffecb3';
+  g.font = 'bold 22px sans-serif';
+  g.fillText('PAPERS • CONFECTIONERY • POSTCARDS', S / 2, 115);
+  g.fillStyle = '#f0f0ea';
+  g.fillRect(40, 160, 200, 140);
+  g.fillRect(270, 160, 200, 140);
+  g.fillStyle = '#111111';
+  g.font = '900 22px "Times New Roman", serif';
+  g.fillText('THE TIMES', 140, 210);
+  g.fillText('STANDARD', 370, 210);
+  g.font = '14px sans-serif';
+  g.fillText('CITY REPORT', 140, 250);
+  g.fillText('WESTMINSTER DISPATCH', 370, 250);
+  return c;
+}
+
+function ambulanceLiveryTex() {
+  const S = 512, c = canvas2D(S), g = c.getContext('2d');
+  g.fillStyle = '#ffffff';
+  g.fillRect(0, 0, S, S);
+  // High-visibility Battenburg pattern (Yellow + Green checkers)
+  const bw = 128, bh = 80;
+  for (let y = 140; y < 300; y += bh) {
+    const row = (y / bh) | 0;
+    for (let x = 0; x < S; x += bw) {
+      const col = (x / bw) | 0;
+      g.fillStyle = (row + col) % 2 === 0 ? '#d4e815' : '#0a7d32';
+      g.fillRect(x, y, bw, bh);
+    }
+  }
+  g.fillStyle = '#0a7d32';
+  g.font = '900 44px "Arial Black", sans-serif';
+  g.textAlign = 'center';
+  g.fillText('AMBULANCE', S / 2, 85);
+  g.fillStyle = '#005ea5';
+  g.font = '900 36px sans-serif';
+  g.fillText('NHS LONDON', S / 2, 380);
+  g.font = 'bold 24px sans-serif';
+  g.fillText('EMERGENCY SERVICE', S / 2, 425);
   return c;
 }
 
@@ -372,19 +766,37 @@ export function buildTextures() {
   const cScreen = screenTex();
 
   TEX = {
-    brickRed:   texFromCanvas(cBrickRed, 1, true),
-    brickBrown: texFromCanvas(cBrickBrown, 1, true),
-    brickCream: texFromCanvas(cBrickCream, 1, true),
-    concrete:   texFromCanvas(cConcrete, 1, true),
-    concrete2:  texFromCanvas(cConcrete2, 1, true),
-    paving:     texFromCanvas(cPaving, 1, true),
-    asphalt:    texFromCanvas(cAsphalt, 1, true),
-    rust:       texFromCanvas(cRust, 1, true),
-    rust2:      texFromCanvas(cRust2, 1, true),
-    wood:       texFromCanvas(cWood, 1, true),
-    woodDark:   texFromCanvas(cWoodDark, 1, true),
-    fabric:     texFromCanvas(cTacticalFabric, 1, true),
-    screen:     texFromCanvas(cScreen, 1, true),
+    brickRed:    texFromCanvas(cBrickRed, 1, true),
+    brickBrown:  texFromCanvas(cBrickBrown, 1, true),
+    brickCream:  texFromCanvas(cBrickCream, 1, true),
+    concrete:    texFromCanvas(cConcrete, 1, true),
+    concrete2:   texFromCanvas(cConcrete2, 1, true),
+    paving:      texFromCanvas(cPaving, 1, true),
+    asphalt:     texFromCanvas(cAsphalt, 1, true),
+    rust:        texFromCanvas(cRust, 1, true),
+    rust2:       texFromCanvas(cRust2, 1, true),
+    wood:        texFromCanvas(cWood, 1, true),
+    woodDark:    texFromCanvas(cWoodDark, 1, true),
+    fabric:      texFromCanvas(cTacticalFabric, 1, true),
+    screen:      texFromCanvas(cScreen, 1, true),
+    roundel:     texFromCanvas(roundelTex(), 1, true),
+    clockFace:   texFromCanvas(bigBenClockTex(), 1, true),
+    streetSign:  texFromCanvas(londonStreetSignTex('WHITEHALL', 'SW1'), 1, true),
+    streetSign2: texFromCanvas(londonStreetSignTex('PICCADILLY', 'W1'), 1, true),
+    pubSign:     texFromCanvas(pubSignTex(), 1, true),
+    busBlind:    texFromCanvas(busBlindTex(), 1, true),
+    police:      texFromCanvas(policeLiveryTex(), 1, true),
+    poster:      texFromCanvas(posterTex(), 1, true),
+    tubeTile:    texFromCanvas(tubeTileTex(), 1, true),
+    moquette:    texFromCanvas(moquetteTex(), 1, true),
+    lookLeft:    texFromCanvas(lookLeftTex('left'), 1, true),
+    lookRight:   texFromCanvas(lookLeftTex('right'), 1, true),
+    neonSigns:   texFromCanvas(neonSignsTex(), 1, true),
+    fishChips:   texFromCanvas(fishChipsTex(), 1, true),
+    royalMail:   texFromCanvas(royalMailVanTex(), 1, true),
+    manhole:     texFromCanvas(manholeTex(), 1, true),
+    newsagent:   texFromCanvas(newsagentTex(), 1, true),
+    ambulance:   texFromCanvas(ambulanceLiveryTex(), 1, true),
   };
 
   TEX.concreteRough = texFromCanvas(roughnessFrom(cConcrete, 70), 1, false);
@@ -446,6 +858,27 @@ export function buildMaterials() {
     leather:      pbr(0x221a14, { r:0.60, m:0.05, env:0.7 }),
     screenGlow:   pbr(0xffffff, { r:0.2, m:0.1, map:T.screen, em:0xffffff, emi:1.4, emMap:T.screen }),
     fabricTactical: pbr(0xffffff, { r:0.92, m:0.0, map:T.fabric, env:0.4 }),
+    roundel:      pbr(0xffffff, { map:T.roundel, em:0xffffff, emi:1.1, emMap:T.roundel, r:0.35 }),
+    clockFace:    pbr(0xffffff, { map:T.clockFace, em:0xffe2a0, emi:1.5, emMap:T.clockFace, r:0.2 }),
+    streetSign:   pbr(0xffffff, { map:T.streetSign, r:0.3, m:0.1 }),
+    streetSign2:  pbr(0xffffff, { map:T.streetSign2, r:0.3, m:0.1 }),
+    pubSign:      pbr(0xffffff, { map:T.pubSign, r:0.4, m:0.15 }),
+    busBlind:     pbr(0xffffff, { map:T.busBlind, em:0xffd700, emi:1.2, emMap:T.busBlind, r:0.3 }),
+    police:       pbr(0xffffff, { map:T.police, r:0.28, m:0.15 }),
+    poster:       pbr(0xffffff, { map:T.poster, r:0.65 }),
+    tubeTile:     pbr(0xffffff, { map:T.tubeTile, r:0.25, m:0.05 }),
+    moquette:     pbr(0xffffff, { map:T.moquette, r:0.95, m:0.0 }),
+    lookLeft:     pbr(0xffffff, { map:T.lookLeft, r:0.65 }),
+    lookRight:    pbr(0xffffff, { map:T.lookRight, r:0.65 }),
+    neonSigns:    pbr(0xffffff, { map:T.neonSigns, em:0xffffff, emi:1.3, emMap:T.neonSigns, r:0.25 }),
+    fishChips:    pbr(0xffffff, { map:T.fishChips, r:0.35, m:0.1 }),
+    royalMail:    pbr(0xffffff, { map:T.royalMail, r:0.35, m:0.1 }),
+    manhole:      pbr(0xffffff, { map:T.manhole, r:0.45, m:0.75 }),
+    newsagent:    pbr(0xffffff, { map:T.newsagent, r:0.55 }),
+    ambulance:    pbr(0xffffff, { map:T.ambulance, r:0.30, m:0.1 }),
+    thamesWater:  pbr(0x1a3330, { r:0.15, m:0.3, env:1.8 }),
+    gold:         pbr(0xd4af37, { r:0.22, m:0.88, env:1.6 }),
+    belisha:      pbr(0xff8800, { em:0xff7700, emi:2.5, r:0.15 }),
     glass: new THREE.MeshStandardMaterial({
       color: 0x8ab8d0, transparent: true, opacity: 0.32,
       roughness: 0.04, metalness: 0.1, envMapIntensity: 2.0, side: THREE.DoubleSide,
@@ -573,6 +1006,18 @@ export const BATCH = {
   yellow:    { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'cautionYellow' },
   leather:   { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'leather' },
   screen:    { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'screenGlow' },
+  roundel:   { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'roundel' },
+  clockFace: { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'clockFace' },
+  streetSign:{ pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'streetSign' },
+  streetSign2:{ pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'streetSign2' },
+  pubSign:   { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'pubSign' },
+  busBlind:  { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'busBlind' },
+  police:    { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'police' },
+  poster:    { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'poster' },
+  tubeTile:  { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'tubeTile' },
+  moquette:  { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'moquette' },
+  gold:      { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'gold' },
+  belisha:   { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'belisha' },
   glass:     { pos: [], nor: [], uv: [], idx: [], n: 0, matKey: 'glass' },
 };
 
@@ -988,6 +1433,17 @@ export function accessiblePub(cx, cz) {
 
   addBox(cx, totalH, cz, w + 0.4, 0.3, d + 0.4, 'concrete2', false, true);
 
+  // Exterior Hanging Pub Sign ("THE CROWN & ANCHOR - EST. 1842")
+  addBox(cx, 4.2, zFront - 1.2, 1.8, 1.8, 0.08, 'pubSign', false, true);
+  addBox(cx, 5.15, zFront - 0.6, 0.08, 0.08, 1.2, 'metalDark', false, true);
+  // Outdoor beer garden tables and benches
+  addBox(cx + 4.5, 0.45, zFront - 2.8, 1.8, 0.08, 0.9, 'wood', true, true);
+  addBox(cx + 4.5, 0.25, zFront - 3.4, 1.8, 0.08, 0.3, 'wood', true, true);
+  addBox(cx + 4.5, 0.25, zFront - 2.2, 1.8, 0.08, 0.3, 'wood', true, true);
+  // Second floor green felt pool table
+  addBox(cx - 3.2, floorH + 0.5, cz, 2.2, 0.45, 1.2, 'green', true, true);
+  addBox(cx - 3.2, floorH + 0.72, cz, 2.4, 0.12, 1.4, 'woodDark', false, true);
+
   occupy(cx - w / 2 - 0.5, cx + w / 2 + 0.5, cz - d / 2 - 0.5, cz + d / 2 + 0.5, 0.5);
 }
 
@@ -1095,31 +1551,47 @@ function terraceRow(cx, cz, len, floors, facing) {
   occupy(x0 - 0.3, x1 + 0.3, z0 - 0.3, z1 + 0.3, 0.5);
 }
 
-function phoneBox(x, z) {
-  const s = 1.0;
-  addBox(x, 0, z, 1.0 * s, 2.4 * s, 1.0 * s, 'red', true, true);
-  for (let side = 0; side < 4; side++) {
-    const ang = side * Math.PI / 2;
-    const dx = Math.sin(ang) * 0.51 * s;
-    const dz = Math.cos(ang) * 0.51 * s;
-    addBox(x + dx, 0.4, z + dz, side % 2 ? 0.06 * s : 0.55 * s, 1.9 * s, side % 2 ? 0.55 * s : 0.06 * s, 'glass', false, true);
-  }
-  addBox(x, 2.4 * s, z, 1.1 * s, 0.2 * s, 1.1 * s, 'red', false, true);
-  addBox(x, 2.5 * s, z, 1.2 * s, 0.1 * s, 1.2 * s, 'red', false, true);
-  addBox(x, 2.62 * s, z, 0.3 * s, 0.15 * s, 0.3 * s, 'red', false, true);
+function enterablePhoneBox(x, z) {
+  addBox(x, 0.05, z, 1.1, 0.1, 1.1, 'metalDark', true, true);
+  // Left wall
+  addBox(x - 0.5, 0.1, z, 0.08, 2.25, 1.0, 'red', true, true);
+  addBox(x - 0.51, 0.5, z, 0.02, 1.5, 0.75, 'glass', false, true);
+  // Right wall
+  addBox(x + 0.5, 0.1, z, 0.08, 2.25, 1.0, 'red', true, true);
+  addBox(x + 0.51, 0.5, z, 0.02, 1.5, 0.75, 'glass', false, true);
+  // Back wall
+  addBox(x, 0.1, z - 0.5, 1.0, 2.25, 0.08, 'red', true, true);
+  addBox(x, 0.5, z - 0.51, 0.75, 1.5, 0.02, 'glass', false, true);
+  // Front doorframe posts (leaving open doorway in center for player entry!)
+  addBox(x - 0.44, 0.1, z + 0.5, 0.14, 2.25, 0.08, 'red', true, true);
+  addBox(x + 0.44, 0.1, z + 0.5, 0.14, 2.25, 0.08, 'red', true, true);
+  addBox(x, 2.1, z + 0.5, 0.75, 0.25, 0.08, 'red', false, true);
+  // Interior vintage telephone unit
+  addBox(x, 1.25, z - 0.42, 0.35, 0.48, 0.12, 'metalDark', false, true);
+  addBox(x, 1.22, z - 0.34, 0.14, 0.14, 0.04, 'metal', false, true);
+  addBox(x - 0.14, 1.32, z - 0.34, 0.06, 0.28, 0.06, 'black', false, true);
+  addBox(x, 0.85, z - 0.35, 0.6, 0.04, 0.25, 'wood', false, true);
+  // Domed roof
+  addBox(x, 2.35, z, 1.15, 0.12, 1.15, 'red', false, true);
+  addBox(x, 2.47, z, 0.95, 0.18, 0.95, 'red', false, true);
+  addBox(x, 2.65, z, 0.25, 0.12, 0.25, 'gold', false, true);
 }
 
 function postBox(x, z) {
-  addBox(x, 0, z, 0.5, 1.0, 0.5, 'red', true, true);
-  addBox(x, 1.0, z, 0.55, 0.15, 0.55, 'black', false, true);
-  addBox(x, 0.6, z - 0.27, 0.3, 0.15, 0.05, 'black', false, true);
+  addBox(x, 0, z, 0.5, 0.15, 0.5, 'black', true, true);
+  addBox(x, 0.15, z, 0.46, 1.05, 0.46, 'red', true, true);
+  addBox(x, 1.2, z, 0.5, 0.15, 0.5, 'red', false, true);
+  addBox(x, 0.95, z + 0.24, 0.26, 0.06, 0.04, 'black', false, true);
+  addBox(x, 0.65, z + 0.24, 0.16, 0.22, 0.02, 'gold', false, true);
 }
 
 function streetLamp(x, z) {
-  addBox(x, 0, z, 0.2, 3.8, 0.2, 'black', true, true);
-  addBox(x, 3.8, z, 0.4, 0.15, 0.4, 'black', false, true);
-  addBox(x, 3.9, z, 0.15, 0.55, 0.15, 'black', false, true);
-  addBox(x, 4.4, z, 0.35, 0.35, 0.35, 'metal', false, true);
+  addBox(x, 0, z, 0.4, 0.7, 0.4, 'metalDark', true, true);
+  addBox(x, 0.7, z, 0.14, 3.2, 0.14, 'metalDark', true, true);
+  addBox(x, 3.9, z, 0.45, 0.15, 0.45, 'metalDark', false, true);
+  addBox(x, 4.05, z, 0.38, 0.55, 0.38, 'glass', false, true);
+  addBox(x, 4.25, z, 0.12, 0.18, 0.12, 'yellow', false, true);
+  addBox(x, 4.6, z, 0.45, 0.22, 0.45, 'metalDark', false, true);
 }
 
 function bench(x, z) {
@@ -1131,7 +1603,7 @@ function bench(x, z) {
 
 function bollard(x, z) {
   addBox(x, 0, z, 0.2, 0.85, 0.2, 'black', true, true);
-  addBox(x, 0.85, z, 0.26, 0.15, 0.26, 'black', false, true);
+  addBox(x, 0.85, z, 0.26, 0.15, 0.26, 'gold', false, true);
 }
 
 function tree(x, z, scene) {
@@ -1148,72 +1620,751 @@ function tree(x, z, scene) {
   }
 }
 
-function detailedDoubleDecker(x, z, yaw) {
-  const w = 2.5, l = 11, h = 4.3;
-  // Lower body chassis
-  addBox(x, 0.3, z, w, 1.8, l, 'red', true, true);
-  // Wheels
-  for (const wx of [-w / 2 - 0.05, w / 2 + 0.05]) {
-    for (const wz of [-l / 2 + 1.8, l / 2 - 2.2]) {
-      addBox(x + wx, 0, z + wz, 0.25, 0.9, 0.9, 'black', true, true);
+export function enterableDoubleDecker(cx, cz, isEastWest = false) {
+  const w = 2.6, l = 11.0;
+  if (!isEastWest) {
+    // LOWER DECK: floor at y = 0.16
+    addBox(cx, 0.16, cz, w - 0.2, 0.12, l - 0.4, 'metalDark', true, true);
+    // Wheels (4 sets)
+    for (const wx of [-w / 2 - 0.05, w / 2 + 0.05]) {
+      for (const wz of [-l / 2 + 1.8, l / 2 - 2.2]) {
+        addBox(cx + wx, 0, cz + wz, 0.25, 0.9, 0.9, 'black', true, true);
+        addBox(cx + wx * 1.05, 0.2, cz + wz, 0.08, 0.5, 0.5, 'metal', false, true);
+      }
     }
+    // Right exterior lower wall
+    addBox(cx + w / 2 - 0.06, 0.22, cz, 0.12, 0.85, l - 0.4, 'red', true, true);
+    addBox(cx + w / 2 - 0.06, 1.07, cz, 0.06, 0.95, l - 1.2, 'glass', false, true);
+    // Left exterior lower wall (leave rear 2.2m OPEN for boarding!)
+    addBox(cx - w / 2 + 0.06, 0.22, cz - 1.1, 0.12, 0.85, l - 2.8, 'red', true, true);
+    addBox(cx - w / 2 + 0.06, 1.07, cz - 1.1, 0.06, 0.95, l - 3.4, 'glass', false, true);
+    // Yellow chrome boarding pole at open rear door
+    addBox(cx - w / 2 + 0.1, 0.22, cz + 4.3, 0.06, 1.95, 0.06, 'yellow', true, true);
+    // Lower front wall & windshield
+    addBox(cx, 0.22, cz - l / 2 + 0.08, w - 0.2, 0.85, 0.12, 'red', true, true);
+    addBox(cx, 1.07, cz - l / 2 + 0.08, w - 0.3, 0.95, 0.06, 'glass', false, true);
+    // Lower rear wall (right portion closed, left open for entry)
+    addBox(cx + 0.65, 0.22, cz + l / 2 - 0.08, 1.2, 0.85, 0.12, 'red', true, true);
+    // Front driver cab
+    addBox(cx - 0.55, 0.22, cz - 4.2, 0.55, 0.48, 0.55, 'leather', true, true);
+    addBox(cx - 0.55, 0.7, cz - 4.7, 0.6, 0.4, 0.45, 'metalDark', true, true);
+    addBox(cx - 0.55, 0.95, cz - 4.55, 0.36, 0.36, 0.06, 'black', false, true);
+    addBox(cx + 0.2, 0.22, cz - 3.6, 0.8, 1.4, 0.08, 'metalDark', true, true);
+    // Lower passenger seats in moquette
+    for (let z = -2.8; z <= 2.2; z += 1.25) {
+      addBox(cx + 0.78, 0.22, cz + z, 0.75, 0.44, 0.45, 'moquette', true, true);
+      addBox(cx + 0.78, 0.66, cz + z - 0.18, 0.75, 0.42, 0.1, 'moquette', false, true);
+      addBox(cx - 0.78, 0.22, cz + z, 0.75, 0.44, 0.45, 'moquette', true, true);
+      addBox(cx - 0.78, 0.66, cz + z - 0.18, 0.75, 0.42, 0.1, 'moquette', false, true);
+    }
+    // Yellow grab stanchions
+    addBox(cx - 0.38, 0.22, cz - 0.5, 0.05, 1.9, 0.05, 'yellow', true, true);
+    addBox(cx + 0.38, 0.22, cz + 1.2, 0.05, 1.9, 0.05, 'yellow', true, true);
+    // INTERIOR STAIRCASE TO UPPER DECK (rear right)
+    addStairs(cx + 0.68, 0.22, cz + 3.6, 0.85, 2.0, 7, 's', 'metal');
+    // UPPER DECK FLOOR at y = 2.22
+    addBox(cx, 2.22, cz - 0.9, w - 0.2, 0.12, l - 3.0, 'metalDark', true, true);
+    addBox(cx + 0.2, 2.34, cz + 3.6, 0.06, 0.9, 1.8, 'yellow', true, true);
+    // Upper deck front row panoramic seats
+    addBox(cx - 0.6, 2.34, cz - 4.6, 0.8, 0.44, 0.45, 'moquette', true, true);
+    addBox(cx + 0.6, 2.34, cz - 4.6, 0.8, 0.44, 0.45, 'moquette', true, true);
+    // Upper deck passenger rows
+    for (let z = -3.2; z <= 2.2; z += 1.25) {
+      addBox(cx - 0.78, 2.34, cz + z, 0.75, 0.44, 0.45, 'moquette', true, true);
+      addBox(cx - 0.78, 2.78, cz + z - 0.18, 0.75, 0.42, 0.1, 'moquette', false, true);
+      addBox(cx + 0.78, 2.34, cz + z, 0.75, 0.44, 0.45, 'moquette', true, true);
+      addBox(cx + 0.78, 2.78, cz + z - 0.18, 0.75, 0.42, 0.1, 'moquette', false, true);
+    }
+    // Upper deck walls & panoramic windows all around
+    addBox(cx + w / 2 - 0.06, 2.22, cz, 0.12, 0.65, l - 0.4, 'red', true, true);
+    addBox(cx - w / 2 + 0.06, 2.22, cz, 0.12, 0.65, l - 0.4, 'red', true, true);
+    addBox(cx + w / 2 - 0.06, 2.87, cz, 0.06, 0.98, l - 0.6, 'glass', false, true);
+    addBox(cx - w / 2 + 0.06, 2.87, cz, 0.06, 0.98, l - 0.6, 'glass', false, true);
+    addBox(cx, 2.87, cz - l / 2 + 0.08, w - 0.3, 0.98, 0.06, 'glass', false, true);
+    addBox(cx, 2.87, cz + l / 2 - 0.08, w - 0.3, 0.98, 0.06, 'glass', false, true);
+    // Red bus roof
+    addBox(cx, 3.88, cz, w + 0.1, 0.22, l + 0.1, 'red', true, true);
+    addBox(cx, 4.05, cz, w - 0.2, 0.15, l - 0.4, 'red', false, true);
+    // Front & rear destination roll displays
+    addBox(cx, 3.48, cz - l / 2 - 0.02, 1.8, 0.42, 0.05, 'busBlind', false, true);
+    addBox(cx, 3.48, cz + l / 2 + 0.02, 1.8, 0.42, 0.05, 'busBlind', false, true);
+    // Front bumper, chrome grille & round headlights
+    addBox(cx, 0.25, cz - l / 2 - 0.15, w, 0.22, 0.15, 'metalDark', false, true);
+    addBox(cx, 0.45, cz - l / 2 - 0.12, 1.1, 0.45, 0.05, 'metal', false, true);
+    addBox(cx - 0.85, 0.52, cz - l / 2 - 0.12, 0.25, 0.25, 0.05, 'yellow', false, true);
+    addBox(cx + 0.85, 0.52, cz - l / 2 - 0.12, 0.25, 0.25, 0.05, 'yellow', false, true);
+  } else {
+    // East-West orientation
+    addBox(cx, 0.16, cz, l - 0.4, 0.12, w - 0.2, 'metalDark', true, true);
+    for (const wz of [-w / 2 - 0.05, w / 2 + 0.05]) {
+      for (const wx of [-l / 2 + 1.8, l / 2 - 2.2]) {
+        addBox(cx + wx, 0, cz + wz, 0.9, 0.9, 0.25, 'black', true, true);
+      }
+    }
+    addBox(cx, 0.22, cz + w / 2 - 0.06, l - 0.4, 0.85, 0.12, 'red', true, true);
+    addBox(cx, 1.07, cz + w / 2 - 0.06, l - 1.2, 0.95, 0.06, 'glass', false, true);
+    addBox(cx - 1.1, 0.22, cz - w / 2 + 0.06, l - 2.8, 0.85, 0.12, 'red', true, true);
+    addBox(cx - 1.1, 1.07, cz - w / 2 + 0.06, l - 3.4, 0.95, 0.06, 'glass', false, true);
+    addBox(cx + 4.3, 0.22, cz - w / 2 + 0.1, 0.06, 1.95, 0.06, 'yellow', true, true);
+    addStairs(cx + 3.6, 0.22, cz + 0.68, 0.85, 2.0, 7, 'e', 'metal');
+    addBox(cx - 0.9, 2.22, cz, l - 3.0, 0.12, w - 0.2, 'metalDark', true, true);
+    addBox(cx, 3.88, cz, l + 0.1, 0.22, w + 0.1, 'red', true, true);
+    addBox(cx - l / 2 - 0.02, 3.48, cz, 0.05, 0.42, 1.8, 'busBlind', false, true);
   }
-  // Windows lower
-  addBox(x + w / 2 + 0.01, 1.3, z, 0.05, 0.8, l - 2.2, 'glass', false, true);
-  addBox(x - w / 2 - 0.01, 1.3, z, 0.05, 0.8, l - 2.2, 'glass', false, true);
-  // Upper deck body
-  addBox(x, 2.2, z, w, 1.9, l, 'red', true, true);
-  // Windows upper
-  addBox(x + w / 2 + 0.01, 2.8, z, 0.05, 0.85, l - 1.2, 'glass', false, true);
-  addBox(x - w / 2 - 0.01, 2.8, z, 0.05, 0.85, l - 1.2, 'glass', false, true);
-  addBox(x, 2.8, z - l / 2 - 0.01, w - 0.4, 0.85, 0.05, 'glass', false, true);
-  // Destination roll sign
-  addBox(x, 3.85, z - l / 2 - 0.02, 1.4, 0.35, 0.05, 'yellow', false, true);
 }
 
-function detailedBlackCab(x, z) {
-  const w = 1.9, l = 4.6, h = 1.85;
-  // Wheels
-  for (const wx of [-w / 2 - 0.02, w / 2 + 0.02]) {
-    for (const wz of [-l / 2 + 1.1, l / 2 - 1.1]) {
-      addBox(x + wx, 0, z + wz, 0.22, 0.65, 0.65, 'black', true, true);
+export function enterableBlackCab(cx, cz, isEastWest = false) {
+  const w = 2.0, l = 4.6;
+  if (!isEastWest) {
+    // Wheels
+    for (const wx of [-w / 2 - 0.04, w / 2 + 0.04]) {
+      for (const wz of [-l / 2 + 1.1, l / 2 - 1.1]) {
+        addBox(cx + wx, 0, cz + wz, 0.22, 0.65, 0.65, 'black', true, true);
+        addBox(cx + wx * 1.05, 0.15, cz + wz, 0.06, 0.35, 0.35, 'metal', false, true);
+      }
+    }
+    // Floor
+    addBox(cx, 0.18, cz, w - 0.2, 0.1, l - 0.4, 'metalDark', true, true);
+    // Rear passenger leather bench seat
+    addBox(cx, 0.28, cz + 1.4, w - 0.35, 0.42, 0.6, 'leather', true, true);
+    addBox(cx, 0.7, cz + 1.75, w - 0.35, 0.5, 0.15, 'leather', false, true);
+    // Fold-down jump seats
+    addBox(cx - 0.5, 0.28, cz + 0.35, 0.45, 0.38, 0.38, 'leather', true, true);
+    addBox(cx + 0.5, 0.28, cz + 0.35, 0.45, 0.38, 0.38, 'leather', true, true);
+    // Driver seat and steering wheel (UK right side)
+    addBox(cx + 0.45, 0.28, cz - 0.55, 0.5, 0.45, 0.5, 'leather', true, true);
+    addBox(cx + 0.45, 0.82, cz - 0.95, 0.35, 0.35, 0.05, 'black', false, true);
+    addBox(cx, 0.65, cz - 1.15, w - 0.3, 0.4, 0.35, 'metalDark', true, true);
+    addBox(cx - 0.1, 0.88, cz - 1.0, 0.18, 0.12, 0.04, 'yellow', false, true);
+    // Front hood & grille
+    addBox(cx, 0.3, cz - 1.7, w - 0.35, 0.55, 1.3, 'black', true, true);
+    addBox(cx, 0.42, cz - 2.36, 0.75, 0.44, 0.05, 'metal', false, true);
+    addBox(cx - 0.65, 0.5, cz - 2.36, 0.22, 0.22, 0.05, 'yellow', false, true);
+    addBox(cx + 0.65, 0.5, cz - 2.36, 0.22, 0.22, 0.05, 'yellow', false, true);
+    // Windshield & roof
+    addBox(cx, 1.05, cz - 1.0, w - 0.4, 0.55, 0.06, 'glass', false, true);
+    addBox(cx, 1.75, cz + 0.3, w - 0.08, 0.12, 2.8, 'black', true, true);
+    // Open doorframe allows player to walk into the passenger cabin!
+    addBox(cx, 1.88, cz - 0.6, 0.52, 0.18, 0.18, 'yellow', false, true);
+  } else {
+    addBox(cx, 0.18, cz, l - 0.4, 0.1, w - 0.2, 'metalDark', true, true);
+    addBox(cx + 1.4, 0.28, cz, 0.6, 0.42, w - 0.35, 'leather', true, true);
+    addBox(cx + 0.3, 1.75, cz, 2.8, 0.12, w - 0.08, 'black', true, true);
+  }
+}
+
+export function enterablePoliceCar(cx, cz, isEastWest = false) {
+  const w = 2.0, l = 4.6;
+  addBox(cx, 0.18, cz, w - 0.2, 0.1, l - 0.4, 'metalDark', true, true);
+  // Livery sides
+  addBox(cx + w / 2 - 0.05, 0.35, cz, 0.1, 0.55, 2.6, 'police', false, true);
+  addBox(cx - w / 2 + 0.05, 0.35, cz, 0.1, 0.55, 2.6, 'police', false, true);
+  // Interior seats & wheel
+  addBox(cx - 0.45, 0.28, cz - 0.4, 0.45, 0.45, 0.45, 'leather', true, true);
+  addBox(cx + 0.45, 0.28, cz - 0.4, 0.45, 0.45, 0.45, 'leather', true, true);
+  addBox(cx, 0.28, cz + 1.2, w - 0.4, 0.42, 0.5, 'leather', true, true);
+  addBox(cx + 0.45, 0.82, cz - 0.8, 0.35, 0.35, 0.05, 'black', false, true);
+  // Roof & lightbar
+  addBox(cx, 1.62, cz + 0.2, w - 0.15, 0.1, 2.4, 'black', true, true);
+  addBox(cx, 1.72, cz, 1.1, 0.08, 0.22, 'metalDark', false, true);
+  addBox(cx - 0.35, 1.8, cz, 0.35, 0.12, 0.18, 'blue', false, true);
+  addBox(cx + 0.35, 1.8, cz, 0.35, 0.12, 0.18, 'red', false, true);
+}
+
+export function bigBenTower(cx, cz) {
+  const bw = 14, bd = 14, totalH = 44;
+  // Base plinth
+  addBox(cx, 0, cz, bw + 2, 0.8, bd + 2, 'concrete2', true, true);
+  addBox(cx, 0.8, cz, bw, 22.0, bd, 'brickC', true, true);
+  // Arched double portals (North and South) - open for player entry!
+  addBox(cx, 0.8, cz - bd / 2 + 0.15, 3.6, 4.4, 0.3, 'concrete2', false, false);
+  addBox(cx, 0.8, cz + bd / 2 - 0.15, 3.6, 4.4, 0.3, 'concrete2', false, false);
+  // Gothic plinth buttresses
+  for (let s = 0; s < 4; s++) {
+    const ang = s * Math.PI / 2;
+    const bx = Math.sin(ang) * (bw / 2 + 0.6), bz = Math.cos(ang) * (bd / 2 + 0.6);
+    addBox(cx + bx, 0.8, cz + bz, 1.6, 22.0, 1.6, 'concrete2', true, true);
+  }
+  // INTERIOR STAIRCASE FLIGHTS
+  // Level 1 (y = 0 to 6m)
+  addStairs(cx + 3.4, 0.8, cz, 1.6, 5.2, 14, 's', 'concrete2');
+  addBox(cx, 6.0, cz, bw - 1.2, 0.22, bd - 1.2, 'concrete2', true, true);
+  // Level 2 (y = 6m to 12m)
+  addStairs(cx - 3.4, 6.0, cz, 1.6, 6.0, 14, 'n', 'concrete2');
+  addBox(cx, 12.0, cz, bw - 1.2, 0.22, bd - 1.2, 'concrete2', true, true);
+  // Level 3 (y = 12m to 18m)
+  addStairs(cx, 12.0, cz + 3.4, 1.6, 6.0, 14, 'w', 'concrete2');
+  addBox(cx, 18.0, cz, bw - 1.2, 0.22, bd - 1.2, 'concrete2', true, true);
+  // Clockwork mechanism in Level 3
+  addBox(cx, 18.22, cz, 3.5, 2.2, 2.5, 'metalDark', true, true);
+  addBox(cx, 19.2, cz + 1.4, 0.8, 1.8, 0.2, 'gold', false, true);
+  // Level 4 (y = 18m to 24m)
+  addStairs(cx, 18.0, cz - 3.4, 1.6, 6.0, 14, 'e', 'concrete2');
+  addBox(cx, 24.0, cz, bw - 1.2, 0.22, bd - 1.2, 'concrete2', true, true);
+  // Level 5 (y = 24m to 30m) to BELFRY OBSERVATION DECK
+  addStairs(cx + 3.4, 24.0, cz, 1.6, 6.0, 14, 's', 'concrete2');
+  // THE GREAT CLOCK DIAL STAGE (y = 22.5 to 29.5)
+  addBox(cx, 22.8, cz, bw + 0.8, 6.8, bd + 0.8, 'brickC', true, true);
+  // 4 Giant Illuminated Clock Faces
+  addBox(cx, 26.0, cz - bd / 2 - 0.45, 6.2, 6.2, 0.12, 'clockFace', false, true);
+  addBox(cx, 26.0, cz + bd / 2 + 0.45, 6.2, 6.2, 0.12, 'clockFace', false, true);
+  addBox(cx - bw / 2 - 0.45, 26.0, cz, 0.12, 6.2, 6.2, 'clockFace', false, true);
+  addBox(cx + bw / 2 + 0.45, 26.0, cz, 0.12, 6.2, 6.2, 'clockFace', false, true);
+  // BELFRY & 360-DEGREE OBSERVATION DECK (y = 30m)
+  addBox(cx, 30.0, cz, bw + 0.4, 0.25, bd + 0.4, 'concrete2', true, true);
+  // Parapet with stone crenellations for sniper cover!
+  addBox(cx - bw / 2, 30.25, cz, 0.4, 1.15, bd, 'concrete2', true, true);
+  addBox(cx + bw / 2, 30.25, cz, 0.4, 1.15, bd, 'concrete2', true, true);
+  addBox(cx, 30.25, cz - bd / 2, bw, 1.15, 0.4, 'concrete2', true, true);
+  addBox(cx, 30.25, cz + bd / 2, bw, 1.15, 0.4, 'concrete2', true, true);
+  // THE GREAT BELL ("BIG BEN") IN THE CENTER
+  addBox(cx, 32.2, cz, 3.2, 0.75, 3.2, 'rust2', true, true);
+  addBox(cx, 32.95, cz, 2.5, 1.6, 2.5, 'rust2', true, true);
+  addBox(cx, 34.55, cz, 1.5, 0.6, 1.5, 'metalDark', false, true);
+  // Crossbeams supporting the bell
+  addBox(cx, 35.2, cz, bw - 2, 0.45, 0.45, 'metalDark', false, true);
+  addBox(cx, 35.2, cz, 0.45, 0.45, bd - 2, 'metalDark', false, true);
+  // Belfry corner columns
+  for (let s = 0; s < 4; s++) {
+    const ang = s * Math.PI / 2 + Math.PI / 4;
+    const px = Math.sin(ang) * (bw * 0.65), pz = Math.cos(ang) * (bd * 0.65);
+    addBox(cx + px, 30.25, cz + pz, 1.4, 6.5, 1.4, 'concrete2', true, true);
+  }
+  // GOTHIC SPIRE & LANTERN (y = 36m to 44m)
+  addBox(cx, 36.5, cz, bw - 2, 1.2, bd - 2, 'concrete2', false, true);
+  addBox(cx, 37.7, cz, bw - 4, 3.0, bd - 4, 'metalDark', false, true);
+  addBox(cx, 40.7, cz, 4.0, 3.5, 4.0, 'gold', false, true);
+  addBox(cx, 43.5, cz, 0.6, 2.5, 0.6, 'gold', false, true);
+  occupy(cx - bw / 2 - 1, cx + bw / 2 + 1, cz - bd / 2 - 1, cz + bd / 2 + 1, 0.5);
+}
+
+export function undergroundStation(cx, cz) {
+  const sw = 20, sd = 14, sh = 5.2;
+  // Red Edwardian glazed facade
+  addBox(cx, 0, cz, sw, sh, sd, 'red', true, true);
+  addBox(cx, sh, cz, sw + 0.6, 0.4, sd + 0.6, 'concrete2', false, true);
+  // Wide open station entrance portals (front)
+  addBox(cx, 0, cz - sd / 2 + 0.15, sw * 0.7, 3.8, 0.3, 'tubeTile', false, false);
+  // Station Interior Ticket Concourse
+  addBox(cx, 0.05, cz, sw - 1.2, 0.1, sd - 1.2, 'tubeTile', false, true);
+  // Interior white glazed tube tiles & posters
+  addBox(cx - sw / 2 + 0.4, 0.1, cz, 0.1, sh - 0.2, sd - 1.2, 'tubeTile', true, true);
+  addBox(cx + sw / 2 - 0.4, 0.1, cz, 0.1, sh - 0.2, sd - 1.2, 'tubeTile', true, true);
+  addBox(cx, 0.1, cz + sd / 2 - 0.4, sw - 1.2, sh - 0.2, 0.1, 'tubeTile', true, true);
+  // London Underground travel posters on interior walls
+  addBox(cx - sw / 2 + 0.52, 1.5, cz - 2.5, 0.05, 2.2, 1.6, 'poster', false, true);
+  addBox(cx - sw / 2 + 0.52, 1.5, cz + 2.5, 0.05, 2.2, 1.6, 'poster', false, true);
+  addBox(cx + sw / 2 - 0.52, 1.5, cz, 0.05, 2.2, 1.6, 'poster', false, true);
+  // Oyster card automatic ticket barrier gates
+  for (let g = -3; g <= 3; g += 1.5) {
+    addBox(cx + g, 0.1, cz - 1.0, 0.25, 1.1, 1.4, 'metalDark', true, true);
+    addBox(cx + g, 1.12, cz - 1.0, 0.2, 0.06, 0.3, 'yellow', false, true);
+  }
+  // Ticket vending machines
+  addBox(cx + 6.8, 0.1, cz - 3.5, 1.8, 2.1, 0.8, 'metalDark', true, true);
+  addBox(cx + 6.8, 1.3, cz - 3.88, 0.8, 0.6, 0.05, 'screen', false, true);
+  // Station staircase to upper pedestrian crossover bridge
+  addStairs(cx + 7.5, 0.1, cz + 2.0, 1.6, 3.4, 12, 'n', 'concrete2');
+  addBox(cx, 3.4, cz + 4.0, sw - 2, 0.2, 2.6, 'concrete2', true, true);
+  addBox(cx, 3.6, cz + 5.2, sw - 2, 1.05, 0.1, 'metal', true, true);
+  // Iconic London Underground Roundel Sign outside on pylon
+  addBox(cx, 0, cz - sd / 2 - 2.0, 0.25, 4.5, 0.25, 'metalDark', true, true);
+  addBox(cx, 4.2, cz - sd / 2 - 2.0, 2.2, 2.2, 0.15, 'roundel', false, true);
+  occupy(cx - sw / 2 - 0.5, cx + sw / 2 + 0.5, cz - sd / 2 - 3, cz + sd / 2 + 0.5, 0.5);
+}
+
+export function nelsonMonument(cx, cz) {
+  // Stepped stone plinths (Trafalgar Square)
+  addBox(cx, 0, cz, 16.0, 0.4, 16.0, 'concrete2', true, true);
+  addBox(cx, 0.4, cz, 12.0, 0.4, 12.0, 'concrete2', true, true);
+  addBox(cx, 0.8, cz, 8.0, 1.2, 8.0, 'concrete2', true, true);
+  // 4 Bronze Guardian Lions
+  addBox(cx - 5.2, 0.8, cz - 5.2, 2.4, 1.2, 1.2, 'metalDark', true, true);
+  addBox(cx + 5.2, 0.8, cz - 5.2, 2.4, 1.2, 1.2, 'metalDark', true, true);
+  addBox(cx - 5.2, 0.8, cz + 5.2, 2.4, 1.2, 1.2, 'metalDark', true, true);
+  addBox(cx + 5.2, 0.8, cz + 5.2, 2.4, 1.2, 1.2, 'metalDark', true, true);
+  // Towering fluted stone column
+  addBox(cx, 2.0, cz, 2.8, 20.0, 2.8, 'concrete2', true, true);
+  addBox(cx, 22.0, cz, 4.0, 1.2, 4.0, 'concrete2', false, true);
+  // Bronze statue of Admiral Nelson on top
+  addBox(cx, 23.2, cz, 1.2, 2.6, 1.2, 'metalDark', false, true);
+  occupy(cx - 8.5, cx + 8.5, cz - 8.5, cz + 8.5, 0.5);
+}
+
+export function zebraCrossing(cx, cz, isEastWest = false) {
+  const w = isEastWest ? 4.8 : 10.0, d = isEastWest ? 10.0 : 4.8;
+  const numStripes = 6;
+  for (let i = 0; i < numStripes; i++) {
+    const off = (i - (numStripes - 1) / 2) * 1.5;
+    if (!isEastWest) {
+      addBox(cx + off, 0.03, cz, 0.85, 0.02, d, 'paving', false, true);
+    } else {
+      addBox(cx, 0.03, cz + off, w, 0.02, 0.85, 'paving', false, true);
     }
   }
-  // Main chassis & hood
-  addBox(x, 0.25, z + 0.3, w, 0.75, l - 0.6, 'black', true, true);
-  addBox(x, 0.35, z - 1.5, w * 0.85, 0.55, 1.4, 'black', true, true);
-  // Chrome grille & headlights
-  addBox(x, 0.45, z - 2.22, 0.8, 0.45, 0.05, 'metal', false, true);
-  addBox(x - 0.65, 0.55, z - 2.22, 0.25, 0.25, 0.05, 'yellow', false, true);
-  addBox(x + 0.65, 0.55, z - 2.22, 0.25, 0.25, 0.05, 'yellow', false, true);
-  // Cabin & glass
-  addBox(x, 1.0, z + 0.2, w - 0.08, 0.75, 2.6, 'glass', false, true);
-  addBox(x, 1.75, z + 0.2, w - 0.05, 0.1, 2.7, 'black', false, true);
-  // Taxi roof sign
-  addBox(x, 1.85, z - 0.6, 0.5, 0.18, 0.2, 'yellow', false, true);
+  // Belisha Beacons (black-and-white striped posts with glowing orange globe)
+  const bOffsets = !isEastWest ? [[cx - 6.2, cz], [cx + 6.2, cz]] : [[cx, cz - 6.2], [cx, cz + 6.2]];
+  for (const [bx, bz] of bOffsets) {
+    for (let s = 0; s < 6; s++) {
+      addBox(bx, s * 0.45, bz, 0.14, 0.45, 0.14, s % 2 === 0 ? 'black' : 'paving', true, true);
+    }
+    // Glowing vibrant orange globe on top
+    addBox(bx, 2.7, bz, 0.45, 0.45, 0.45, 'belisha', false, true);
+  }
+}
+
+export function londonStreetPlaque(cx, cy, cz, street = 'WHITEHALL', post = 'SW1', facing = 's') {
+  const matKey = street.includes('PICCADILLY') ? 'streetSign2' : 'streetSign';
+  const isX = facing === 'e' || facing === 'w';
+  addBox(cx, cy, cz, isX ? 0.06 : 1.2, 0.7, isX ? 1.2 : 0.06, matKey, false, true);
+}
+
+// 14. ENTERABLE ROYAL MAIL DELIVERY VAN (Vibrant red, ER royal crest, open rear doors, parcel cargo)
+export function royalMailDeliveryVan(cx, cz, isEastWest = false) {
+  const w = 2.1, l = 5.2, h = 2.3;
+  if (!isEastWest) {
+    // Chassis & Floor
+    addBox(cx, 0.22, cz, w - 0.2, 0.12, l - 0.4, 'metalDark', true, true);
+    // Wheels (4 heavy duty rubber wheels)
+    addBox(cx - w / 2, 0.25, cz - 1.5, 0.26, 0.65, 0.65, 'metalDark', true, true);
+    addBox(cx + w / 2, 0.25, cz - 1.5, 0.26, 0.65, 0.65, 'metalDark', true, true);
+    addBox(cx - w / 2, 0.25, cz + 1.5, 0.26, 0.65, 0.65, 'metalDark', true, true);
+    addBox(cx + w / 2, 0.25, cz + 1.5, 0.26, 0.65, 0.65, 'metalDark', true, true);
+    // Scarlet Red Van Body Sides with Royal Mail Emblem
+    addBox(cx - w / 2 + 0.05, 0.35, cz + 0.3, 0.1, 1.5, 3.2, 'royalMail', true, true);
+    addBox(cx + w / 2 - 0.05, 0.35, cz + 0.3, 0.1, 1.5, 3.2, 'royalMail', true, true);
+    // Van Roof
+    addBox(cx, 1.95, cz + 0.1, w - 0.08, 0.14, 4.4, 'paintedRed', true, true);
+    // Front Cab: Hood, Grille, Windshield, Dashboard & Driver Seat
+    addBox(cx, 0.35, cz - 2.0, w - 0.3, 0.7, 1.0, 'paintedRed', true, true);
+    addBox(cx, 0.45, cz - 2.52, 0.9, 0.4, 0.05, 'metal', false, true); // grille
+    addBox(cx - 0.7, 0.55, cz - 2.52, 0.25, 0.25, 0.05, 'yellow', false, true); // headlight
+    addBox(cx + 0.7, 0.55, cz - 2.52, 0.25, 0.25, 0.05, 'yellow', false, true); // headlight
+    addBox(cx, 1.15, cz - 1.45, w - 0.35, 0.65, 0.06, 'glass', false, true); // windshield
+    addBox(cx + 0.45, 0.35, cz - 0.9, 0.5, 0.45, 0.5, 'leather', true, true); // UK driver seat
+    addBox(cx + 0.45, 0.88, cz - 1.25, 0.35, 0.35, 0.05, 'black', false, true); // steering wheel
+    // Interior Partition with walk-through opening
+    addBox(cx - 0.65, 0.35, cz - 0.5, 0.6, 1.5, 0.08, 'metalDark', true, true);
+    addBox(cx + 0.65, 0.35, cz - 0.5, 0.6, 1.5, 0.08, 'metalDark', true, true);
+    // Open Rear Cargo Bay with Mail Sacks and Parcel Crates for cover
+    addBox(cx - 0.45, 0.35, cz + 0.8, 0.6, 0.55, 0.7, 'fabricTactical', true, true); // mail sack pile
+    addBox(cx - 0.45, 0.90, cz + 0.8, 0.5, 0.45, 0.5, 'wood', true, true); // parcel box
+    addBox(cx + 0.45, 0.35, cz + 1.2, 0.55, 0.6, 0.8, 'woodDark', true, true); // parcel container
+    // Rear Doors swung open to 90 degrees allowing tactical entry!
+    addBox(cx - w / 2 - 0.4, 0.35, cz + 2.0, 0.8, 1.4, 0.08, 'paintedRed', true, true);
+    addBox(cx + w / 2 + 0.4, 0.35, cz + 2.0, 0.8, 1.4, 0.08, 'paintedRed', true, true);
+  } else {
+    // East-West orientation
+    addBox(cx, 0.22, cz, l - 0.4, 0.12, w - 0.2, 'metalDark', true, true);
+    addBox(cx + 0.3, 0.35, cz - w / 2 + 0.05, 3.2, 1.5, 0.1, 'royalMail', true, true);
+    addBox(cx + 0.3, 0.35, cz + w / 2 - 0.05, 3.2, 1.5, 0.1, 'royalMail', true, true);
+    addBox(cx + 0.1, 1.95, cz, 4.4, 0.14, w - 0.08, 'paintedRed', true, true);
+    addBox(cx - 2.0, 0.35, cz, 1.0, 0.7, w - 0.3, 'paintedRed', true, true);
+    addBox(cx - 1.45, 1.15, cz, 0.06, 0.65, w - 0.35, 'glass', false, true);
+    addBox(cx - 0.9, 0.35, cz + 0.45, 0.5, 0.45, 0.5, 'leather', true, true);
+    addBox(cx + 0.8, 0.35, cz - 0.45, 0.7, 0.55, 0.6, 'fabricTactical', true, true);
+    addBox(cx + 2.0, 0.35, cz - w / 2 - 0.4, 0.08, 1.4, 0.8, 'paintedRed', true, true);
+    addBox(cx + 2.0, 0.35, cz + w / 2 + 0.4, 0.08, 1.4, 0.8, 'paintedRed', true, true);
+  }
+}
+
+// 15. ENTERABLE NHS LONDON AMBULANCE (High-vis Battenburg livery, stretcher, blue lightbar)
+export function nhsAmbulance(cx, cz, isEastWest = false) {
+  const w = 2.2, l = 5.6;
+  if (!isEastWest) {
+    addBox(cx, 0.24, cz, w - 0.2, 0.12, l - 0.4, 'metalDark', true, true);
+    // Battenburg sides
+    addBox(cx - w / 2 + 0.05, 0.35, cz + 0.2, 0.1, 1.6, 3.6, 'ambulance', true, true);
+    addBox(cx + w / 2 - 0.05, 0.35, cz + 0.2, 0.1, 1.6, 3.6, 'ambulance', true, true);
+    addBox(cx, 2.05, cz + 0.1, w - 0.08, 0.12, 4.6, 'concrete2', true, true);
+    // Blue emergency lights
+    addBox(cx - 0.6, 2.18, cz - 1.4, 0.3, 0.16, 0.2, 'blue', false, true);
+    addBox(cx + 0.6, 2.18, cz - 1.4, 0.3, 0.16, 0.2, 'blue', false, true);
+    addBox(cx - 0.6, 2.18, cz + 2.0, 0.3, 0.16, 0.2, 'blue', false, true);
+    addBox(cx + 0.6, 2.18, cz + 2.0, 0.3, 0.16, 0.2, 'blue', false, true);
+    // Front cab
+    addBox(cx, 0.35, cz - 2.2, w - 0.3, 0.75, 1.0, 'concrete2', true, true);
+    addBox(cx, 1.20, cz - 1.6, w - 0.35, 0.65, 0.06, 'glass', false, true);
+    addBox(cx + 0.45, 0.35, cz - 1.0, 0.5, 0.45, 0.5, 'leather', true, true);
+    // Medical Treatment Interior
+    // Wheeled patient stretcher / gurney with mattress
+    addBox(cx - 0.35, 0.35, cz + 0.3, 0.65, 0.5, 1.9, 'metal', true, true);
+    addBox(cx - 0.35, 0.85, cz + 0.3, 0.60, 0.12, 1.8, 'leather', false, true);
+    // Medical equipment rack
+    addBox(cx + 0.65, 0.35, cz + 0.3, 0.45, 1.4, 2.0, 'metalDark', true, true);
+    addBox(cx + 0.65, 1.1, cz + 0.3, 0.35, 0.25, 0.35, 'red', false, true); // trauma kit
+    // Open rear ambulance doors
+    addBox(cx - w / 2 - 0.45, 0.35, cz + 2.2, 0.85, 1.5, 0.08, 'ambulance', true, true);
+    addBox(cx + w / 2 + 0.45, 0.35, cz + 2.2, 0.85, 1.5, 0.08, 'ambulance', true, true);
+  } else {
+    addBox(cx, 0.24, cz, l - 0.4, 0.12, w - 0.2, 'metalDark', true, true);
+    addBox(cx + 0.2, 0.35, cz - w / 2 + 0.05, 3.6, 1.6, 0.1, 'ambulance', true, true);
+    addBox(cx + 0.2, 0.35, cz + w / 2 - 0.05, 3.6, 1.6, 0.1, 'ambulance', true, true);
+    addBox(cx + 0.1, 2.05, cz, 4.6, 0.12, w - 0.08, 'concrete2', true, true);
+    addBox(cx - 1.4, 2.18, cz - 0.6, 0.2, 0.16, 0.3, 'blue', false, true);
+    addBox(cx - 1.4, 2.18, cz + 0.6, 0.2, 0.16, 0.3, 'blue', false, true);
+    addBox(cx - 2.2, 0.35, cz, 1.0, 0.75, w - 0.3, 'concrete2', true, true);
+    addBox(cx - 1.6, 1.20, cz, 0.06, 0.65, w - 0.35, 'glass', false, true);
+    addBox(cx + 0.3, 0.35, cz - 0.35, 1.9, 0.5, 0.65, 'metal', true, true);
+    addBox(cx + 0.3, 0.85, cz - 0.35, 1.8, 0.12, 0.60, 'leather', false, true);
+    addBox(cx + 2.2, 0.35, cz - w / 2 - 0.45, 0.08, 1.5, 0.85, 'ambulance', true, true);
+    addBox(cx + 2.2, 0.35, cz + w / 2 + 0.45, 0.08, 1.5, 0.85, 'ambulance', true, true);
+  }
+}
+
+// 16. PICCADILLY CIRCUS CURVED CORNER BUILDING & VIBRANT NEON BILLBOARDS
+export function piccadillyNeonBuilding(cx, cz) {
+  const bw = 16, bd = 16, h = 18;
+  // Neoclassical curved corner building
+  addBox(cx, 0, cz, bw, h, bd, 'brickC', true, true);
+  // Multi-tier Neon Signs (Bovril, Schweppes, Guinness) on outer avenue-facing facade
+  addBox(cx - bw / 2 - 0.25, 7.0, cz, 0.15, 9.0, 11.0, 'neonSigns', false, true);
+  addBox(cx, 7.0, cz - bd / 2 - 0.25, 11.0, 9.0, 0.15, 'neonSigns', false, true);
+
+  // Ground Floor Enterable Traditional British Newsagent & Tobacco Kiosk
+  // Open storefront entrance cut into the corner
+  addBox(cx - bw / 2 + 0.2, 0, cz + 2.5, 0.3, 3.2, 4.0, 'newsagent', false, true);
+  addBox(cx - bw / 2 + 3.0, 0, cz + 2.5, 3.5, 0.18, 4.0, 'woodDark', true, true); // kiosk floor
+  // Newsstand counter & newspaper piles
+  addBox(cx - bw / 2 + 2.5, 0.18, cz + 1.2, 2.2, 0.9, 0.7, 'wood', true, true);
+  addBox(cx - bw / 2 + 2.5, 1.08, cz + 1.2, 1.6, 0.18, 0.45, 'newsagent', false, true);
+  // Postcard display rack
+  addBox(cx - bw / 2 + 1.2, 0.18, cz + 3.6, 0.5, 1.6, 0.5, 'metalDark', true, true);
+  // Overhead newsagent awning
+  addBox(cx - bw / 2 - 0.8, 3.4, cz + 2.5, 1.8, 0.15, 5.0, 'paintedGreen', false, true);
+
+  // Internal stairs to upper levels & rooftop vantage point!
+  addStairs(cx + 2.0, 0, cz - 2.0, 1.5, 5.5, 12, 'n', 'concrete2');
+  addBox(cx, 5.5, cz, bw - 1.2, 0.25, bd - 1.2, 'woodDark', true, true); // 2nd floor
+  addStairs(cx - 2.0, 5.5, cz + 2.0, 1.5, 5.5, 12, 's', 'concrete2');
+  addBox(cx, 11.0, cz, bw - 1.2, 0.25, bd - 1.2, 'woodDark', true, true); // 3rd floor
+  addStairs(cx + 2.0, 11.0, cz - 2.0, 1.5, 6.5, 14, 'n', 'concrete2');
+  addBox(cx, 17.5, cz, bw + 0.4, 0.25, bd + 0.4, 'concrete2', true, true); // Roof observation deck
+  // Parapet around roof for cover
+  addBox(cx, 17.75, cz - bd / 2, bw, 1.1, 0.35, 'concrete2', true, true);
+  addBox(cx, 17.75, cz + bd / 2, bw, 1.1, 0.35, 'concrete2', true, true);
+  addBox(cx - bw / 2, 17.75, cz, 0.35, 1.1, bd, 'concrete2', true, true);
+  addBox(cx + bw / 2, 17.75, cz, 0.35, 1.1, bd, 'concrete2', true, true);
+}
+
+// 17. ENTERABLE TRADITIONAL LONDON FISH & CHIPS SHOP ("THE GOLDEN CHIP")
+export function fishAndChipsShop(cx, cz) {
+  const w = 12.0, d = 11.0, h = 4.2;
+  // Floor with black-and-white checkered vibe
+  addBox(cx, 0, cz, w, 0.16, d, 'paving', true, true);
+  // Exterior walls
+  addBox(cx, 0.16, cz - d / 2, w, h, 0.25, 'paintedBlue', true, true); // back
+  addBox(cx - w / 2, 0.16, cz, 0.25, h, d, 'paintedBlue', true, true); // left
+  addBox(cx + w / 2, 0.16, cz, 0.25, h, d, 'paintedBlue', true, true); // right
+  // Front with entrance door opening (w: 2.2m open)
+  addBox(cx - 3.8, 0.16, cz + d / 2, 4.4, h, 0.25, 'paintedBlue', true, true);
+  addBox(cx + 3.8, 0.16, cz + d / 2, 4.4, h, 0.25, 'paintedBlue', true, true);
+  addBox(cx, 2.6, cz + d / 2, 3.2, 1.6, 0.25, 'paintedBlue', false, true); // lintel above doorway
+  // Roof & ceiling
+  addBox(cx, h + 0.16, cz, w + 0.4, 0.2, d + 0.4, 'concrete2', true, true);
+  // "The Golden Chip" Banner above entrance
+  addBox(cx, 3.4, cz + d / 2 + 0.18, 7.5, 1.2, 0.1, 'fishChips', false, true);
+  // Striped awning over front windows
+  addBox(cx, 2.7, cz + d / 2 + 0.8, 8.5, 0.12, 1.6, 'paintedBlue', false, true);
+
+  // Interior: Stainless steel 3-pan fish & chip frying range with extractor chimney
+  addBox(cx, 0.16, cz - d / 2 + 1.4, 5.0, 1.1, 1.4, 'metal', true, true);
+  addBox(cx, 1.26, cz - d / 2 + 1.4, 4.6, 1.2, 1.0, 'metalDark', true, true); // extraction hood
+  addBox(cx, 2.46, cz - d / 2 + 1.4, 0.6, 1.8, 0.6, 'metalDark', false, true); // chimney pipe to roof
+  // Serving counter with glass sneeze guard
+  addBox(cx, 0.16, cz - 0.8, 6.0, 1.05, 0.85, 'wood', true, true);
+  addBox(cx, 1.21, cz - 0.8, 5.8, 0.35, 0.05, 'glass', false, true);
+  // Chalkboard menu on side wall
+  addBox(cx - w / 2 + 0.2, 1.8, cz - 1.2, 0.06, 1.4, 2.0, 'fishChips', false, true);
+  // 2 Dining tables with chairs and vinegar shakers
+  addBox(cx - 3.4, 0.16, cz + 2.2, 1.8, 0.82, 1.1, 'woodDark', true, true);
+  addBox(cx - 3.4, 0.98, cz + 2.2, 0.12, 0.25, 0.12, 'metalDark', false, true); // vinegar shaker
+  addBox(cx + 3.4, 0.16, cz + 2.2, 1.8, 0.82, 1.1, 'woodDark', true, true);
+  addBox(cx + 3.4, 0.98, cz + 2.2, 0.12, 0.25, 0.12, 'metalDark', false, true); // vinegar shaker
+}
+
+// 18. DOWNING STREET SECURITY GATES & POLICE SENTRY GUARD BOX
+export function downingStreetSecurity(cx, cz) {
+  // Heavy wrought-iron spiked gates spanning across avenue offshoot
+  addBox(cx - 4.5, 0, cz, 0.8, 3.8, 0.8, 'metalDark', true, true); // stone gatepost left
+  addBox(cx + 4.5, 0, cz, 0.8, 3.8, 0.8, 'metalDark', true, true); // stone gatepost right
+  addBox(cx - 4.5, 3.8, cz, 0.9, 0.3, 0.9, 'gold', false, true); // decorative finial
+  addBox(cx + 4.5, 3.8, cz, 0.9, 0.3, 0.9, 'gold', false, true); // decorative finial
+  // Iron gate railings with gold spear tips
+  for (let x = cx - 3.8; x <= cx + 3.8; x += 0.45) {
+    addBox(x, 0, cz, 0.08, 3.4, 0.08, 'metalDark', true, true);
+    addBox(x, 3.4, cz, 0.12, 0.25, 0.12, 'gold', false, true);
+  }
+  // Heavy gate crossbars
+  addBox(cx, 0.6, cz, 8.2, 0.12, 0.1, 'metalDark', false, true);
+  addBox(cx, 2.0, cz, 8.2, 0.12, 0.1, 'metalDark', false, true);
+  addBox(cx, 3.2, cz, 8.2, 0.12, 0.1, 'metalDark', false, true);
+
+  // British Police Sentry Guard Box
+  addBox(cx + 6.2, 0, cz + 0.4, 2.2, 3.2, 2.2, 'paintedBlack', true, true);
+  addBox(cx + 6.2, 1.4, cz - 0.72, 1.2, 0.9, 0.06, 'glass', false, true); // observation window
+  addBox(cx + 6.2, 3.2, cz + 0.4, 2.4, 0.3, 2.4, 'metalDark', false, true); // roof
+  // Tactical concrete vehicle crash barricades
+  addBox(cx - 1.8, 0, cz - 2.8, 2.4, 0.85, 0.75, 'concrete', true, true);
+  addBox(cx + 1.8, 0, cz - 2.8, 2.4, 0.85, 0.75, 'concrete', true, true);
+}
+
+// 19. VICTORIA EMBANKMENT & RIVER THAMES PROMENADE (Granite river wall, River Thames, mooring rings, patrol boat)
+export function victoriaEmbankment(scene) {
+  const zWall = -140;
+  const wallLen = 280;
+  // Broad paved riverside promenade
+  addBox(0, 0, zWall + 6, wallLen, 0.18, 12.0, 'paving', true, true);
+
+  // Granite River Retaining Wall (from river bed y = -3.8 up to promenade level y = 1.0)
+  addBox(0, -3.8, zWall, wallLen, 4.8, 2.2, 'concrete2', true, true);
+  // Stone Balustrade with cast-iron ornamental railings and coping along the river
+  addBox(0, 1.0, zWall, wallLen, 1.15, 0.45, 'concrete2', true, true);
+  // Bronze Lion-head Mooring Rings fixed into the granite wall above the water line
+  for (let x = -100; x <= 100; x += 30) {
+    addBox(x, -0.6, zWall - 1.15, 0.45, 0.45, 0.12, 'gold', false, true);
+  }
+
+  // RIVER THAMES WATER SURFACE (y = -3.5, deep reflective slate-green water)
+  const riverGeo = new THREE.PlaneGeometry(wallLen + 40, 75);
+  const riverMat = buildMaterials().thamesWater;
+  const riverMesh = new THREE.Mesh(riverGeo, riverMat);
+  riverMesh.rotation.set(-Math.PI / 2, 0, 0);
+  riverMesh.position.set(0, -3.5, zWall - 38);
+  riverMesh.receiveShadow = true;
+  scene.add(riverMesh);
+
+  // River Thames Promenade amenities (Benches and Historic Dolphin Gas Lamps)
+  for (let x = -110; x <= 110; x += 25) {
+    bench(x, zWall + 4);
+    // Ornate Victorian Dolphin River Lamp
+    addBox(x + 5, 1.0, zWall, 0.35, 3.6, 0.35, 'metalDark', true, true);
+    addBox(x + 5, 4.6, zWall, 0.65, 0.7, 0.65, 'belisha', false, true);
+  }
+
+  // Moored River Thames Police Patrol Launch & Boarding Gangway at (x = 35)
+  // Stone/metal descending gangway stairs from promenade down to floating pontoon
+  addStairs(35, -2.8, zWall - 4.5, 1.8, 3.8, 10, 's', 'metalDark');
+  // Floating pontoon deck (y = -2.8)
+  addBox(35, -3.1, zWall - 12.0, 6.0, 0.4, 12.0, 'concrete2', true, true);
+  // Moored Thames Patrol Boat (y = -3.2 to 0.5)
+  const bx = 35, bz = zWall - 22;
+  // Boat hull
+  addBox(bx, -3.2, bz, 4.4, 1.3, 14.0, 'paintedBlue', true, true);
+  addBox(bx, -1.9, bz, 4.0, 0.2, 13.4, 'woodDark', true, true); // deck
+  // Wheelhouse & Cabin
+  addBox(bx, -1.7, bz - 1.2, 3.2, 2.1, 5.5, 'concrete2', true, true);
+  addBox(bx, -0.6, bz - 4.0, 2.8, 0.7, 0.08, 'glass', false, true); // wheelhouse front window
+  addBox(bx - 1.62, -0.6, bz - 1.2, 0.08, 0.7, 4.0, 'glass', false, true); // side windows
+  addBox(bx + 1.62, -0.6, bz - 1.2, 0.08, 0.7, 4.0, 'glass', false, true); // side windows
+  // Radar dome & antenna mast on cabin roof
+  addBox(bx, 0.5, bz - 1.2, 0.8, 0.45, 0.8, 'metal', false, true);
+  addBox(bx, 0.95, bz - 1.2, 0.06, 1.4, 0.06, 'metalDark', false, true);
+  // Lifebuoy rings on cabin side
+  addBox(bx - 1.65, -0.8, bz + 2.0, 0.06, 0.5, 0.5, 'red', false, true);
+  addBox(bx + 1.65, -0.8, bz + 2.0, 0.06, 0.5, 0.5, 'red', false, true);
+}
+
+// 20. SHEFFIELD BIKE HOOP STANDS & COMMUTER BICYCLES
+export function sheffieldBikeStands(cx, cz, isEastWest = false) {
+  for (let i = -1; i <= 1; i++) {
+    const off = i * 1.8;
+    const sx = isEastWest ? cx : cx + off;
+    const sz = isEastWest ? cz + off : cz;
+    // Sheffield inverted-U tubular hoop
+    addBox(sx - 0.45, 0.16, sz, 0.08, 0.85, 0.08, 'metalDark', true, true);
+    addBox(sx + 0.45, 0.16, sz, 0.08, 0.85, 0.08, 'metalDark', true, true);
+    addBox(sx, 1.01, sz, 0.98, 0.08, 0.08, 'metalDark', false, true);
+    // Locked bicycle against the middle stand
+    if (i === 0) {
+      addBox(sx, 0.2, sz + 0.1, 0.9, 0.65, 0.12, 'paintedBlue', true, true);
+    }
+  }
+}
+
+// 21. WESTMINSTER SUBWAY UNDERPASS STAIRS (Descending below street level)
+export function undergroundSubwayUnderpass(cx, cz) {
+  // Descending stairs from sidewalk y = 0.16 down to underground pedestrian passage y = -2.8
+  addStairs(cx, -2.8, cz, 2.4, 2.96, 12, 'n', 'concrete2');
+  // Stone balustrade around the opening
+  addBox(cx - 1.4, 0.16, cz - 1.8, 0.22, 1.05, 5.0, 'metalDark', true, true);
+  addBox(cx + 1.4, 0.16, cz - 1.8, 0.22, 1.05, 5.0, 'metalDark', true, true);
+  // Tube roundel arch sign over subway entrance
+  addBox(cx - 1.3, 0.16, cz + 0.8, 0.16, 2.8, 0.16, 'metalDark', true, true);
+  addBox(cx + 1.3, 0.16, cz + 0.8, 0.16, 2.8, 0.16, 'metalDark', true, true);
+  addBox(cx, 2.8, cz + 0.8, 2.76, 0.2, 0.16, 'metalDark', false, true);
+  addBox(cx, 3.2, cz + 0.8, 1.4, 0.7, 0.1, 'roundel', false, true);
+  // Underpass tunnel hall below street
+  addBox(cx, -2.9, cz - 5.5, 4.5, 0.15, 6.0, 'tubeTile', true, true); // floor
+  addBox(cx - 2.2, -2.8, cz - 5.5, 0.2, 2.8, 6.0, 'tubeTile', true, true); // tiled wall
+  addBox(cx + 2.2, -2.8, cz - 5.5, 0.2, 2.8, 6.0, 'tubeTile', true, true); // tiled wall
+  addBox(cx, 0.0, cz - 5.5, 4.5, 0.2, 6.0, 'concrete2', true, true); // tunnel ceiling
 }
 
 export function generateCity(scene) {
-  // 1. KEY ACCESSIBLE BUILDINGS WITH CLIMBABLE STAIRS, FURNITURE & ROOFTOPS:
-  // North Accessible Townhouse (Command Post)
-  accessibleTownhouse(0, -42, 3, 's');
-  // South Accessible Townhouse
-  accessibleTownhouse(0, 42, 3, 'n');
-  // East Accessible Townhouse
-  accessibleTownhouse(46, 0, 3, 'w');
-  // West Accessible Pub (The Crown & Anchor) with bar, 2nd floor lounge and street balcony!
-  accessiblePub(-48, 0);
+  // 1. CENTRAL TRAFALGAR SQUARE & NELSON MONUMENT:
+  nelsonMonument(0, 0);
 
-  // Tactical Accessible Warehouse on the East flank with climbable catwalk
-  accessibleWarehouse(65, 55);
-  // Secondary Warehouse on the West flank
-  accessibleWarehouse(-65, -55);
+  // 2. BIG BEN & ELIZABETH TOWER (At the end of Whitehall! Enterable with 5-floor staircases & Belfry!)
+  bigBenTower(0, -92);
 
-  // Additional accessible townhouses in tactical corners
-  accessibleTownhouse(-52, 52, 3, 's');
-  accessibleTownhouse(52, -52, 3, 'n');
+  // 3. WESTMINSTER LONDON UNDERGROUND STATION (Red Edwardian facade, roundel sign, tiled concourse & ticket gates)
+  undergroundStation(-38, -28);
 
-  // Perimeter terrace rows
+  // 4. THE CROWN & ANCHOR TRADITIONAL BRITISH PUB (Pub sign, beer garden, mahogany bar, upstairs lounge & balcony)
+  accessiblePub(38, -28);
+  londonStreetPlaque(29, 3.2, -28, 'WHITEHALL', 'SW1', 'w');
+
+  // 5. ACCESSIBLE GEORGIAN & VICTORIAN TOWNHOUSES (Climbable stairs, desks, sofas, balconies & rooftops)
+  accessibleTownhouse(-38, 36, 3, 's');
+  londonStreetPlaque(-31, 3.2, 30, 'WHITEHALL', 'SW1', 'e');
+
+  accessibleTownhouse(38, 36, 3, 's');
+  londonStreetPlaque(31, 3.2, 30, 'PICCADILLY', 'W1', 'w');
+
+  accessibleTownhouse(-38, 88, 3, 'n');
+  accessibleTownhouse(38, 88, 3, 'n');
+
+  // 6. TACTICAL WAREHOUSES
+  accessibleWarehouse(72, 60);
+  accessibleWarehouse(-72, -60);
+
+  // 7. FULLY ENTERABLE LONDON DOUBLE DECKER BUSES (Open entrance, moquette seats, interior stairs to upper deck!)
+  // Bus 1: On Whitehall approaching the Square
+  enterableDoubleDecker(-3.5, -30, false);
+  // Bus 2: East-West avenue near station
+  enterableDoubleDecker(16, 8, true);
+  // Bus 3: South Whitehall
+  enterableDoubleDecker(-3.5, 48, false);
+
+  // 8. FULLY ENTERABLE LONDON BLACK CABS (Open doors, rear leather bench, driver cab, illuminated TAXI roof sign)
+  enterableBlackCab(3.6, -14, false);
+  enterableBlackCab(-16, 22, true);
+  enterableBlackCab(16, -60, false);
+
+  // 9. FULLY ENTERABLE MET POLICE PATROL CARS (Battenburg livery, open doors, interior seats, roof lightbar)
+  enterablePoliceCar(-3.6, 14, false);
+  enterablePoliceCar(22, -45, true);
+
+  // 10. ENTERABLE ROYAL MAIL DELIVERY VANS (Classic scarlet red, ER crest, mail sacks & parcel cargo cover)
+  royalMailDeliveryVan(-14, -68, false);
+  royalMailDeliveryVan(28, 48, true);
+
+  // 11. ENTERABLE NHS LONDON AMBULANCES (High-vis Battenburg livery, stretcher gurney, emergency flashers)
+  nhsAmbulance(16, 28, false);
+  nhsAmbulance(-28, -14, true);
+
+  // 12. PICCADILLY CIRCUS CURVED CORNER & VIBRANT NEON BILLBOARDS (Bovril, Schweppes, Guinness & Newsagent Kiosk)
+  piccadillyNeonBuilding(38, 28);
+
+  // 13. TRADITIONAL BRITISH FISH & CHIPS SHOP ("THE GOLDEN CHIP" with fryer range, counter & dining tables)
+  fishAndChipsShop(-38, -60);
+
+  // 14. DOWNING STREET SECURITY GATES & POLICE SENTRY GUARD BOX
+  downingStreetSecurity(0, 56);
+
+  // 15. VICTORIA EMBANKMENT & RIVER THAMES PROMENADE (Granite retaining wall, water surface, mooring rings & police boat)
+  victoriaEmbankment(scene);
+
+  // 16. WESTMINSTER SUBWAY PEDESTRIAN UNDERPASS (Subway stairs descending below street level to tiled tunnel)
+  undergroundSubwayUnderpass(-26, 8);
+
+  // 17. SHEFFIELD BIKE HOOP STANDS & COMMUTER BICYCLES
+  sheffieldBikeStands(-16, -12, false);
+  sheffieldBikeStands(16, 12, false);
+
+  // 18. FULLY ENTERABLE RED TELEPHONE BOXES (K6 open kiosk, interior rotary phone, handset, shelf)
+  enterablePhoneBox(-11, -8);
+  enterablePhoneBox(11, 8);
+  enterablePhoneBox(-24, -28);
+  enterablePhoneBox(24, -28);
+  enterablePhoneBox(-11, 48);
+
+  // 19. ROYAL MAIL POST BOXES
+  postBox(-9, -8);
+  postBox(9, 8);
+  postBox(22, -28);
+  postBox(-22, -28);
+  postBox(9, 48);
+
+  // 20. ZEBRA CROSSINGS WITH BELISHA BEACONS & "LOOK LEFT/RIGHT" ROAD STENCILS
+  zebraCrossing(0, -48, false);
+  zebraCrossing(0, 26, false);
+  zebraCrossing(-26, 0, true);
+  zebraCrossing(26, 0, true);
+
+  // Authentic London Street Stencils ("◄ LOOK LEFT" & "LOOK RIGHT ►")
+  addBox(-2.8, 0.04, -45.2, 3.2, 0.02, 0.8, 'lookLeft', false, true);
+  addBox(2.8, 0.04, -50.8, 3.2, 0.02, 0.8, 'lookRight', false, true);
+  addBox(-2.8, 0.04, 28.8, 3.2, 0.02, 0.8, 'lookRight', false, true);
+  addBox(2.8, 0.04, 23.2, 3.2, 0.02, 0.8, 'lookLeft', false, true);
+  addBox(-23.2, 0.04, -2.8, 0.8, 0.02, 3.2, 'lookLeft', false, true);
+  addBox(-28.8, 0.04, 2.8, 0.8, 0.02, 3.2, 'lookRight', false, true);
+  addBox(28.8, 0.04, -2.8, 0.8, 0.02, 3.2, 'lookRight', false, true);
+  addBox(23.2, 0.04, 2.8, 0.8, 0.02, 3.2, 'lookLeft', false, true);
+
+  // Cast-Iron Thames Water Manhole Covers on asphalt
+  addBox(1.5, 0.03, -20.0, 0.9, 0.02, 0.9, 'manhole', false, true);
+  addBox(-2.0, 0.03, -64.0, 0.9, 0.02, 0.9, 'manhole', false, true);
+  addBox(2.5, 0.03, 38.0, 0.9, 0.02, 0.9, 'manhole', false, true);
+  addBox(-38.0, 0.03, 1.8, 0.9, 0.02, 0.9, 'manhole', false, true);
+  addBox(42.0, 0.03, -1.8, 0.9, 0.02, 0.9, 'manhole', false, true);
+
+  // 13. CENTRAL SQUARE AMENITIES
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * TAU;
+    const r = 24;
+    const x = Math.cos(a) * r, z = Math.sin(a) * r;
+    if (isFree(x, z, 2)) {
+      bench(x, z);
+      bollard(x + 1.2, z);
+    }
+  }
+
+  // London Bus Stops with shelters
+  addBusStop(18, -12, 's');
+  addBusStop(-18, 12, 'n');
+
+  // Sidewalks along main London avenues
+  const roadW = 12, sidewalkW = 3.0;
+  for (let x = -MAP + 20; x < MAP - 20; x += 20) {
+    if (isFree(x + 10, -roadW / 2 - sidewalkW / 2, 2))
+      addBox(x + 10, 0, -roadW / 2 - sidewalkW / 2, 20, 0.16, sidewalkW, 'paving', false, true);
+    if (isFree(x + 10, roadW / 2 + sidewalkW / 2, 2))
+      addBox(x + 10, 0, roadW / 2 + sidewalkW / 2, 20, 0.16, sidewalkW, 'paving', false, true);
+  }
+  for (let z = -MAP + 20; z < MAP - 20; z += 20) {
+    if (isFree(-roadW / 2 - sidewalkW / 2, z + 10, 2))
+      addBox(-roadW / 2 - sidewalkW / 2, 0, z + 10, sidewalkW, 0.16, 20, 'paving', false, true);
+    if (isFree(roadW / 2 + sidewalkW / 2, z + 10, 2))
+      addBox(roadW / 2 + sidewalkW / 2, 0, z + 10, sidewalkW, 0.16, 20, 'paving', false, true);
+  }
+
+  // Victorian Street Lamps
+  for (let i = 0; i < 70; i++) {
+    const t = i % 4;
+    let x, z;
+    if (t === 0) { x = wr(-MAP + 40, MAP - 40); z = -roadW / 2 - sidewalkW - 0.5; }
+    else if (t === 1) { x = wr(-MAP + 40, MAP - 40); z = roadW / 2 + sidewalkW + 0.5; }
+    else if (t === 2) { x = -roadW / 2 - sidewalkW - 0.5; z = wr(-MAP + 40, MAP - 40); }
+    else { x = roadW / 2 + sidewalkW + 0.5; z = wr(-MAP + 40, MAP - 40); }
+    if (!isFree(x, z, 1.2)) continue;
+    streetLamp(x, z);
+  }
+
+  // Trees along the avenues
+  for (let i = 0; i < 50; i++) {
+    const t = i % 4;
+    let x, z;
+    if (t === 0) { x = wr(-MAP + 40, MAP - 40); z = -roadW / 2 - sidewalkW - 2.8; }
+    else if (t === 1) { x = wr(-MAP + 40, MAP - 40); z = roadW / 2 + sidewalkW + 2.8; }
+    else if (t === 2) { x = -roadW / 2 - sidewalkW - 2.8; z = wr(-MAP + 40, MAP - 40); }
+    else { x = roadW / 2 + sidewalkW + 2.8; z = wr(-MAP + 40, MAP - 40); }
+    if (!isFree(x, z, 2)) continue;
+    tree(x, z, scene);
+  }
+
+  // Perimeter London terrace rows
   const rowLen = 40, rowH = 3;
   const RING = 180;
   for (let side = 0; side < 4; side++) {
@@ -1229,122 +2380,13 @@ export function generateCity(scene) {
     }
   }
 
-  // Mid-ring accessible blocks and terraces
+  // Mid-ring London townhouses & squares
   for (let i = 0; i < 16; i++) {
     const a = (i / 16) * TAU + wr(-0.1, 0.1);
-    const r = 110 + wr(-15, 15);
+    const r = 115 + wr(-15, 15);
     const x = Math.cos(a) * r, z = Math.sin(a) * r;
     if (!isFree(x, z, 10)) continue;
-    const rr = rand();
-    if (rr < 0.45) {
-      accessibleTownhouse(x, z, 3, wpick(['n', 's', 'e', 'w']));
-    } else if (rr < 0.75) {
-      const facing = wpick(['n', 's', 'e', 'w']);
-      terraceRow(x, z, wr(20, 36), 2 + ((rand() * 2) | 0), facing);
-    } else {
-      const w = 12, d = 12, floors = 4, fh = 3.0;
-      addBox(x, 0, z, w, floors * fh, d, 'brickA', true, true);
-      addBox(x, floors * fh, z, w + 0.3, 0.3, d + 0.3, 'concrete2', false, true);
-      for (let f = 0; f < floors; f++) for (let s = 0; s < 4; s++) {
-        const ang = s * Math.PI / 2;
-        const dx = Math.sin(ang) * (w / 2 + 0.05), dz = Math.cos(ang) * (d / 2 + 0.05);
-        addBox(x + dx, f * fh + 1.0, z + dz, s % 2 ? 0.1 : 1.4, 1.6, s % 2 ? 1.4 : 0.1, 'glass', false, true);
-      }
-      occupy(x - w / 2 - 0.3, x + w / 2 + 0.3, z - d / 2 - 0.3, z + d / 2 + 0.3, 0.5);
-    }
-  }
-
-  // Central square features
-  for (let i = 0; i < 8; i++) {
-    const a = (i / 8) * TAU;
-    const r = 22;
-    const x = Math.cos(a) * r, z = Math.sin(a) * r;
-    if (!isFree(x, z, 2)) continue;
-    bench(x, z);
-  }
-
-  // London Bus Stops with glass shelters and timetables
-  addBusStop(18, -12, 's');
-  addBusStop(-18, 12, 'n');
-  addBusStop(-12, -18, 'e');
-  addBusStop(12, 18, 'w');
-
-  // Sidewalks along main cross roads
-  const roadW = 9, sidewalkW = 2.5;
-  for (let x = -MAP + 20; x < MAP - 20; x += 20) {
-    if (isFree(x + 10, -roadW / 2 - sidewalkW / 2, 2))
-      addBox(x + 10, 0, -roadW / 2 - sidewalkW / 2, 20, 0.15, sidewalkW, 'paving', false, true);
-    if (isFree(x + 10, roadW / 2 + sidewalkW / 2, 2))
-      addBox(x + 10, 0, roadW / 2 + sidewalkW / 2, 20, 0.15, sidewalkW, 'paving', false, true);
-  }
-  for (let z = -MAP + 20; z < MAP - 20; z += 20) {
-    if (isFree(-roadW / 2 - sidewalkW / 2, z + 10, 2))
-      addBox(-roadW / 2 - sidewalkW / 2, 0, z + 10, sidewalkW, 0.15, 20, 'paving', false, true);
-    if (isFree(roadW / 2 + sidewalkW / 2, z + 10, 2))
-      addBox(roadW / 2 + sidewalkW / 2, 0, z + 10, sidewalkW, 0.15, 20, 'paving', false, true);
-  }
-
-  // Street lamps
-  for (let i = 0; i < 80; i++) {
-    const t = i % 4;
-    let x, z;
-    if (t === 0) { x = wr(-MAP + 40, MAP - 40); z = -roadW / 2 - sidewalkW - 0.5; }
-    else if (t === 1) { x = wr(-MAP + 40, MAP - 40); z = roadW / 2 + sidewalkW + 0.5; }
-    else if (t === 2) { x = -roadW / 2 - sidewalkW - 0.5; z = wr(-MAP + 40, MAP - 40); }
-    else { x = roadW / 2 + sidewalkW + 0.5; z = wr(-MAP + 40, MAP - 40); }
-    if (!isFree(x, z, 1)) continue;
-    streetLamp(x, z);
-  }
-
-  // Trees
-  for (let i = 0; i < 60; i++) {
-    const t = i % 4;
-    let x, z;
-    if (t === 0) { x = wr(-MAP + 40, MAP - 40); z = -roadW / 2 - sidewalkW - 2.5; }
-    else if (t === 1) { x = wr(-MAP + 40, MAP - 40); z = roadW / 2 + sidewalkW + 2.5; }
-    else if (t === 2) { x = -roadW / 2 - sidewalkW - 2.5; z = wr(-MAP + 40, MAP - 40); }
-    else { x = roadW / 2 + sidewalkW + 2.5; z = wr(-MAP + 40, MAP - 40); }
-    if (!isFree(x, z, 2)) continue;
-    tree(x, z, scene);
-  }
-
-  // Phone boxes
-  for (let i = 0; i < 10; i++) {
-    const a = rand() * TAU, r = rand() * MAP * 0.7;
-    const x = Math.cos(a) * r, z = Math.sin(a) * r;
-    if (!isFree(x, z, 2)) continue;
-    phoneBox(x, z);
-    occupy(x - 0.5, x + 0.5, z - 0.5, z + 0.5, 0.5);
-  }
-  // Post boxes
-  for (let i = 0; i < 14; i++) {
-    const a = rand() * TAU, r = rand() * MAP * 0.7;
-    const x = Math.cos(a) * r, z = Math.sin(a) * r;
-    if (!isFree(x, z, 1)) continue;
-    postBox(x, z);
-    occupy(x - 0.3, x + 0.3, z - 0.3, z + 0.3, 0.3);
-  }
-  // Bollards
-  for (let i = 0; i < 30; i++) {
-    const a = rand() * TAU, r = 25 + rand() * 5;
-    const x = Math.cos(a) * r, z = Math.sin(a) * r;
-    if (!isFree(x, z, 0.5)) continue;
-    bollard(x, z);
-  }
-
-  // High detail Parked vehicles
-  for (let i = 0; i < 14; i++) {
-    const a = rand() * TAU, r = 25 + rand() * (MAP * 0.65);
-    const x = Math.cos(a) * r, z = Math.sin(a) * r;
-    if (!isFree(x, z, 6)) continue;
-    const yaw = rand() * Math.PI * 2;
-    if (rand() < 0.4) detailedDoubleDecker(x, z, yaw);
-    else if (rand() < 0.8) detailedBlackCab(x, z);
-    else {
-      addCrateStack(x, 0, z);
-      addBarrels(x + 2, 0, z);
-    }
-    occupy(x - 3.5, x + 3.5, z - 3.5, z + 3.5, 0.5);
+    accessibleTownhouse(x, z, 3, wpick(['n', 's', 'e', 'w']));
   }
 
   // Perimeter wall
@@ -1735,6 +2777,10 @@ export class Effects {
     this.scene = scene;
     this.items = [];
     this.casings = [];
+    this.flyingBullets = [];
+    this.cameraPos = null;
+    this.onBulletWhiz = null;
+    this.onCasingBounce = null;
 
     this.tracerGeo = new THREE.CylinderGeometry(0.032, 0.032, 1, 6);
     this.tracerGeo.translate(0, -0.5, 0);
@@ -1742,6 +2788,15 @@ export class Effects {
       color: 0xffe599, transparent: true, opacity: 0.9,
       blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
     });
+
+    // Flying bullet projectile geometry & glowing material
+    this.bulletGeo = new THREE.CylinderGeometry(0.042, 0.015, 1.8, 6);
+    this.bulletGeo.translate(0, -0.9, 0);
+    this.bulletMat = new THREE.MeshBasicMaterial({
+      color: 0xfff6cf, transparent: true, opacity: 0.95,
+      blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
+    });
+
     this.decalGeo = new THREE.CircleGeometry(0.07, 10);
     this.decalMat = new THREE.MeshBasicMaterial({
       color: 0x080808, transparent: true, opacity: 0.9, depthWrite: false,
@@ -1773,12 +2828,36 @@ export class Effects {
     const len = dir.length();
     if (len < 0.5) return;
     const use = Math.min(len, 160);
+
+    // 1. Instant beam tracer for immediate visual feedback
     const mesh = new THREE.Mesh(this.tracerGeo, this.tracerMat);
     mesh.position.copy(from);
-    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), dir.normalize());
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), dir.clone().normalize());
     mesh.scale.set(width || 1, use, width || 1);
     this.scene.add(mesh);
     this.items.push({ mesh, life: 0.06, max: 0.06, type: 'tracer' });
+
+    // 2. High-speed flying projectile tracer bolt (cinematic bullet animation)
+    const speed = 320; // units/second
+    const duration = Math.min(0.45, len / speed);
+    const bMesh = new THREE.Mesh(this.bulletGeo, this.bulletMat);
+    bMesh.position.copy(from);
+    bMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), dir.clone().normalize());
+    const bScale = Math.min(1.8, Math.max(0.6, len * 0.15));
+    bMesh.scale.set((width || 1) * 1.5, bScale, (width || 1) * 1.5);
+    this.scene.add(bMesh);
+
+    this.flyingBullets.push({
+      mesh: bMesh,
+      from: from.clone(),
+      to: to.clone(),
+      dir: dir.clone().normalize(),
+      len,
+      dist: 0,
+      speed,
+      life: duration,
+      whizFired: false,
+    });
   }
 
   ejectCasing(pos, rightDir, upDir) {
@@ -1801,15 +2880,20 @@ export class Effects {
   }
 
   puff(x, y, z, kind, n) {
-    const colors = { dust: 0xdcd6c2, blood: 0x9b111e, spark: 0xffe066 };
+    const colors = { dust: 0xdcd6c2, blood: 0x9b111e, spark: 0xffcf44 };
     const mat = new THREE.MeshBasicMaterial({ color: colors[kind] || 0xffffff });
+    const isSpark = kind === 'spark';
     for (let i = 0; i < (n || 4); i++) {
-      const s = rnd(0.08, 0.22);
+      const s = isSpark ? rnd(0.04, 0.12) : rnd(0.08, 0.22);
       const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), mat);
-      m.position.set(x + rnd(-0.12, 0.12), y + rnd(-0.12, 0.12), z + rnd(-0.12, 0.12));
+      m.position.set(x + rnd(-0.08, 0.08), y + rnd(-0.08, 0.08), z + rnd(-0.08, 0.08));
       m.scale.setScalar(s);
       this.scene.add(m);
-      this.items.push({ mesh: m, life: 0.32, max: 0.32, type: 'puff', s, vy: rnd(0.4, 2.0) });
+      const vx = isSpark ? rnd(-3, 3) : 0;
+      const vy = isSpark ? rnd(1.2, 4.5) : rnd(0.4, 2.0);
+      const vz = isSpark ? rnd(-3, 3) : 0;
+      const life = isSpark ? 0.25 : 0.32;
+      this.items.push({ mesh: m, life, max: life, type: 'puff', s, vx, vy, vz, isSpark });
     }
   }
 
@@ -1837,8 +2921,37 @@ export class Effects {
       } else if (e.type === 'puff') {
         e.mesh.scale.setScalar(Math.max(0.001, e.s * (e.life / e.max)));
         e.mesh.position.y += dt * e.vy;
+        if (e.isSpark) {
+          e.mesh.position.x += dt * e.vx;
+          e.mesh.position.z += dt * e.vz;
+          e.vy -= 14 * dt; // gravity on sparks
+        }
       } else if (e.type === 'decal') {
         e.mesh.material.opacity = Math.min(0.9, e.life / 2);
+      }
+    }
+
+    // Update flying bullet projectile streaks
+    for (let i = this.flyingBullets.length - 1; i >= 0; i--) {
+      const b = this.flyingBullets[i];
+      b.dist += b.speed * dt;
+      b.life -= dt;
+      if (b.dist >= b.len || b.life <= 0) {
+        this.scene.remove(b.mesh);
+        this.flyingBullets.splice(i, 1);
+        this.puff(b.to.x, b.to.y, b.to.z, 'spark', 4);
+        continue;
+      }
+      const curPos = b.from.clone().addScaledVector(b.dir, b.dist);
+      b.mesh.position.copy(curPos);
+
+      // Check for camera near-miss whiz sound
+      if (!b.whizFired && this.cameraPos) {
+        const dCam = curPos.distanceTo(this.cameraPos);
+        if (dCam < 4.0 && b.dist > 2.0 && b.dist < b.len - 2.0) {
+          b.whizFired = true;
+          if (this.onBulletWhiz) this.onBulletWhiz();
+        }
       }
     }
 
@@ -1866,6 +2979,7 @@ export class Effects {
           c.vel.z *= 0.6;
           c.rotVel.multiplyScalar(0.5);
           c.bounces++;
+          if (this.onCasingBounce) this.onCasingBounce();
         } else {
           c.vel.set(0, 0, 0);
           c.rotVel.set(0, 0, 0);

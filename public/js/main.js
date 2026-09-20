@@ -102,6 +102,13 @@ function sfxReload(duration = 2.2) {
   }, duration * 820);
 }
 const sfxPickup = () => sfxTone(520, 0.1, 0.15, 'sine', 780);
+const sfxCasing = () => sfxTone(2800 + Math.random() * 600, 0.02, 0.04, 'sine');
+const sfxWhiz = () => sfxTone(1800, 0.038, 0.065, 'sine', 420);
+function sfxBigBen() {
+  sfxTone(164.8, 2.8, 0.26, 'sine');
+  setTimeout(() => sfxTone(329.6, 2.0, 0.12, 'sine'), 10);
+  setTimeout(() => sfxTone(659.2, 1.2, 0.06, 'triangle'), 20);
+}
 
 /* ================================================================
    BOT CHAT AI
@@ -229,7 +236,8 @@ $('game').appendChild(renderer.domElement);
 const canvasEl = renderer.domElement;
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x8a9098, 0.0022);
+scene.background = new THREE.Color(0x94a6b8);
+scene.fog = new THREE.FogExp2(0x94a6b8, 0.0018);
 const camera = new THREE.PerspectiveCamera(BASE_FOV, window.innerWidth / window.innerHeight, 0.08, 1500);
 camera.rotation.order = 'YXZ';
 scene.add(camera);
@@ -298,14 +306,21 @@ const groundGeo = new THREE.PlaneGeometry(MAP * 2 + 200, MAP * 2 + 200, 160, 160
   const p = groundGeo.attributes.position;
   for (let i = 0; i < p.count; i++) {
     const x = p.getX(i), y = p.getY(i);
-    const v = (Math.sin(x * 0.028 + 1.3) * Math.sin(y * 0.024 + 0.4) + 0.6 * Math.sin(x * 0.08 + y * 0.06) + 0.35 * Math.sin(y * 0.13 - x * 0.07)) / 2;
-    p.setZ(i, v * 0.4);
+    const d = Math.hypot(x, y);
+    // Keep central London streets and buildings completely flat for pristine street alignment
+    if (d < 180) {
+      p.setZ(i, 0);
+    } else {
+      const blend = Math.min(1, (d - 180) / 100);
+      const v = (Math.sin(x * 0.028 + 1.3) * Math.sin(y * 0.024 + 0.4) + 0.6 * Math.sin(x * 0.08 + y * 0.06) + 0.35 * Math.sin(y * 0.13 - x * 0.07)) / 2;
+      p.setZ(i, v * 0.4 * blend);
+    }
   }
   groundGeo.computeVertexNormals();
 })();
 const M = buildMaterials();
 const groundMat = new THREE.MeshStandardMaterial({
-  color: 0x5c5240, roughness: 0.98, metalness: 0.02,
+  color: 0x4a4844, roughness: 0.95, metalness: 0.02,
   map: buildTextures().concrete.clone(),
   roughnessMap: buildTextures().concreteRough.clone(),
   envMapIntensity: 0.3,
@@ -319,20 +334,32 @@ scene.add(ground);
 
 setLoad(0.35, 'city');
 
-// Roads
-const roadMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2c, roughness: 0.85, map: buildTextures().asphalt, envMapIntensity: 0.6 });
-const road1 = new THREE.Mesh(new THREE.PlaneGeometry(9, MAP * 2), roadMat);
+// Central Trafalgar Square Plaza (stone paving)
+const plazaGeo = new THREE.PlaneGeometry(64, 64);
+const plazaMat = new THREE.MeshStandardMaterial({
+  color: 0x9a968e, roughness: 0.88, map: buildTextures().paving, envMapIntensity: 0.45
+});
+plazaMat.map.repeat.set(12, 12);
+const plaza = new THREE.Mesh(plazaGeo, plazaMat);
+plaza.rotation.x = -Math.PI / 2;
+plaza.position.y = 0.025;
+plaza.receiveShadow = true;
+scene.add(plaza);
+
+// London Avenues (Whitehall & Piccadilly)
+const roadMat = new THREE.MeshStandardMaterial({ color: 0x242426, roughness: 0.82, map: buildTextures().asphalt, envMapIntensity: 0.6 });
+const road1 = new THREE.Mesh(new THREE.PlaneGeometry(12, MAP * 2), roadMat);
 road1.rotation.x = -Math.PI / 2;
 road1.position.y = 0.02;
 road1.receiveShadow = true;
 scene.add(road1);
-const road2 = new THREE.Mesh(new THREE.PlaneGeometry(9, MAP * 2), roadMat);
+const road2 = new THREE.Mesh(new THREE.PlaneGeometry(12, MAP * 2), roadMat);
 road2.rotation.set(-Math.PI / 2, 0, Math.PI / 2);
 road2.position.y = 0.02;
 road2.receiveShadow = true;
 scene.add(road2);
-occupy(-5, 5, -MAP, MAP, 0);
-occupy(-MAP, MAP, -5, 5, 0);
+occupy(-6.5, 6.5, -MAP, MAP, 0);
+occupy(-MAP, MAP, -6.5, 6.5, 0);
 
 // Generate city
 generateCity(scene);
@@ -532,6 +559,14 @@ function stopEmote(f) {
 
 // Create actor
 function makeActor(f) {
+  if (f.isPlayer) {
+    // Local player is strictly first-person; do not create a static dummy in the world
+    f.mesh = null;
+    f.bones = null;
+    f.label = null;
+    f.gun = null;
+    return;
+  }
   const palette = f.name === 'NoDeX' ? NODEX_PALETTE : getSkin(f.name);
   const rig = buildCharacterRig(palette, f.name);
   scene.add(rig.root);
@@ -851,7 +886,7 @@ function spawn(f) {
   f.stuckT = 0;
   f.reactT = 0;
   f.nextShot = T + 0.5;
-  if (f.mesh) {
+  if (f.mesh && !f.isPlayer) {
     f.mesh.visible = true;
     f.mesh.rotation.set(0, f.yaw, 0);
   }
@@ -930,17 +965,23 @@ function onPlayerDeath(a, head) {
   state = 'dead';
   deadT = 0;
   P.reload = 0;
-  mouseL = false;
+  mouseL = mouseR = false;
   if (a) $('killer').textContent = 'Taken out by ' + a.name + (head ? ' — headshot' : '');
   else $('killer').textContent = 'You were eliminated';
+  const cEl = $('respawnCount');
+  if (cEl) cEl.textContent = '3';
   $('death').classList.remove('hidden');
+  $('pause').classList.add('hidden');
   $('shield').classList.add('hidden');
   gunRoot.visible = false;
   $('scope').classList.add('hidden');
-  if (document.pointerLockElement) document.exitPointerLock();
+  try {
+    if (document.exitPointerLock) document.exitPointerLock();
+  } catch {}
 }
 
 function doRespawn() {
+  if (state !== 'dead') return;
   spawn(player);
   P.ammo = WEAPONS.map(w => w.mag);
   P.reload = 0;
@@ -952,6 +993,7 @@ function doRespawn() {
   setGun(0);
   state = 'playing';
   $('death').classList.add('hidden');
+  $('pause').classList.add('hidden');
   gunRoot.visible = true;
   requestLock(false);
   if (mode === 'multi' && net.ws && net.ws.readyState === 1) net.ws.send(JSON.stringify({ t: 'spawn' }));
@@ -1256,6 +1298,14 @@ function updateDeadCamera(dt) {
   );
   camera.rotation.set(clamp(pitch - fallT * 0.35, -1.3, 1.3), yaw, roll);
   camera.updateMatrixWorld(true);
+
+  // Auto-respawn countdown
+  const rem = Math.max(0, Math.ceil(3.2 - deadT));
+  const countEl = $('respawnCount');
+  if (countEl) countEl.textContent = rem;
+  if (deadT >= 3.2) {
+    doRespawn();
+  }
 }
 
 /* ================================================================
@@ -1723,7 +1773,7 @@ function syncPause() {
 }
 
 function paused() {
-  return (state === 'playing' || state === 'dead') && !locked && !fallback && !starting && !chatOpen;
+  return state === 'playing' && !locked && !fallback && !starting && !chatOpen;
 }
 
 function openChat() {
@@ -1863,7 +1913,8 @@ function leaveMatch(msg) {
 $('playSolo').addEventListener('click', () => startGame('single'));
 $('playMulti').addEventListener('click', () => startGame('multi'));
 $('leave').addEventListener('click', e => { e.stopPropagation(); leaveMatch(); });
-$('respawnBtn').addEventListener('click', () => { doRespawn(); });
+$('respawnBtn').addEventListener('click', e => { e.stopPropagation(); doRespawn(); });
+$('death').addEventListener('click', () => { if (state === 'dead') doRespawn(); });
 $('pause').addEventListener('click', () => requestLock(false));
 
 document.addEventListener('pointerlockchange', () => {
@@ -1893,6 +1944,11 @@ document.addEventListener('mousemove', e => {
 });
 document.addEventListener('mousedown', e => {
   if (chatOpen || !$('adminPrompt').classList.contains('hidden')) return;
+  if (state === 'dead') {
+    e.preventDefault();
+    doRespawn();
+    return;
+  }
   if (state !== 'playing' || paused()) return;
   if (e.button === 0) { mouseL = true; mousePressed = true; }
   if (e.button === 2) mouseR = true;
@@ -1913,6 +1969,11 @@ document.addEventListener('wheel', e => {
 document.addEventListener('keydown', e => {
   if (chatOpen) return;
   if (!$('adminPrompt').classList.contains('hidden')) return;
+  if (state === 'dead' && (e.code === 'Space' || e.code === 'Enter' || e.code === 'KeyF' || e.code === 'KeyR')) {
+    e.preventDefault();
+    doRespawn();
+    return;
+  }
   if (e.code === 'Tab') {
     e.preventDefault();
     if (state === 'playing' || state === 'dead') { renderBoard(); $('board').classList.remove('hidden'); }
@@ -2017,6 +2078,9 @@ function step(dt) {
   }
 
   syncMeshes(dt);
+  effects.cameraPos = camera.position;
+  effects.onBulletWhiz = sfxWhiz;
+  effects.onCasingBounce = sfxCasing;
   effects.update(dt);
 
   // Sun follows player for shadows
