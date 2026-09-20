@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Shotline — Fallen City</title>
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -15,10 +15,10 @@ body.fb #game{cursor:none}
 .hidden{display:none!important}
 kbd{font:inherit;font-size:.85em;padding:1px 7px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;background:rgba(255,255,255,.06);color:var(--text)}
 .screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:30;text-align:center;padding:24px}
-#menu{background:radial-gradient(ellipse at 50% 55%,rgba(8,16,22,.35) 0%,rgba(8,16,22,.86) 78%)}
-.wordmark{font-size:clamp(56px,11vw,132px);font-weight:700;letter-spacing:-.02em;line-height:.9;text-shadow:0 6px 40px rgba(0,0,0,.5)}
+#menu{background:radial-gradient(ellipse at 50% 55%,rgba(8,16,22,.35) 0%,rgba(8,16,22,.86) 78%);overflow-y:auto;overflow-x:hidden;justify-content:flex-start;padding-top:max(4vh,20px);padding-bottom:max(4vh,20px);-webkit-overflow-scrolling:touch}
+.wordmark{font-size:clamp(44px,10vw,110px);font-weight:700;letter-spacing:-.02em;line-height:.9;text-shadow:0 6px 40px rgba(0,0,0,.5)}
 .wordmark i{font-style:normal;color:var(--accent)}
-.lede{margin:14px 0 30px;color:var(--dim);font-size:clamp(14px,2vw,18px);max-width:34ch;line-height:1.45}
+.lede{margin:12px 0 22px;color:var(--dim);font-size:clamp(13px,1.8vw,17px);max-width:34ch;line-height:1.45}
 .card{width:min(380px,92vw);display:flex;flex-direction:column;gap:14px;text-align:left}
 .field{display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--dim)}
 .field input[type=text]{background:rgba(255,255,255,.07);border:1px solid var(--line);border-radius:8px;color:var(--text);font:inherit;font-size:17px;padding:11px 14px;outline:none}
@@ -33,24 +33,90 @@ kbd{font:inherit;font-size:.85em;padding:1px 7px;border:1px solid var(--line);bo
 .btn.ghost:hover{background:rgba(255,255,255,.12)}
 .keys{display:grid;grid-template-columns:auto 1fr;gap:7px 14px;font-size:13.5px;color:var(--dim);margin-top:6px;align-items:center}
 .keys b{font-weight:500;color:var(--text);text-align:right}
-.note{margin-top:18px;font-size:12.5px;color:var(--dim);opacity:.85}
+.note{margin-top:14px;font-size:12.5px;color:var(--dim);opacity:.85}
 .modes{font-size:13px;color:var(--dim);line-height:1.5}
 .modes b{color:var(--text);font-weight:600}
 #menumsg{color:#ff9a8a;min-height:1em}
+
+/* ---- Menu tabs ---- */
+.menu-tabs{display:flex;gap:6px;margin:16px 0 16px;background:rgba(9,18,24,.72);border:1px solid var(--line);border-radius:12px;padding:5px;flex-shrink:0}
+.tab-btn{font:inherit;font-weight:600;font-size:14px;letter-spacing:.06em;color:var(--dim);background:transparent;border:0;border-radius:8px;padding:9px 22px;cursor:pointer;transition:all .18s;text-transform:uppercase;white-space:nowrap}
+.tab-btn:hover{color:var(--text)}
+.tab-btn.active{background:var(--accent);color:#1a0d05}
+.tab-panel{width:min(420px,92vw);display:flex;flex-direction:column;gap:14px;text-align:left;padding-bottom:10px}
+.tab-panel.hidden{display:none}
+.tab-panel .card{width:100%}
+.settings-group{display:flex;flex-direction:column;gap:14px;background:rgba(255,255,255,.02);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.settings-group h3{font-size:12px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase;font-weight:600;margin-bottom:-4px}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;font-size:14px;color:var(--text)}
+.toggle-row input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent)}
+
+/* ===== MOBILE TOUCH CONTROLS (Free Fire / Deadshot style) ===== */
+body.touch{touch-action:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+#game canvas{touch-action:none}
+#mobileHud{position:fixed;inset:0;z-index:12;pointer-events:none;touch-action:none}
+#mobileHud.hidden{display:none!important}
+
+/* ---- Joystick (bottom-left) ---- */
+#joyZone{position:absolute;left:0;bottom:0;width:55vw;height:62vh;max-width:460px;max-height:520px;pointer-events:auto;touch-action:none}
+#joyBase{position:absolute;width:150px;height:150px;margin:-75px 0 0 -75px;border-radius:50%;border:2px solid rgba(190,225,240,.5);background:radial-gradient(circle at center,rgba(20,30,40,.4),rgba(20,30,40,.12));box-shadow:0 0 24px rgba(0,0,0,.5),inset 0 0 22px rgba(111,227,255,.14);pointer-events:none;opacity:0;transition:opacity .12s}
+#joyBase.active{opacity:1}
+#joyKnob{position:absolute;left:50%;top:50%;width:66px;height:66px;margin:-33px 0 0 -33px;border-radius:50%;background:radial-gradient(circle at 40% 35%,rgba(255,255,255,.9),rgba(150,200,230,.5));border:2px solid rgba(255,255,255,.6);box-shadow:0 0 16px rgba(120,200,255,.75);pointer-events:none;will-change:transform}
+
+/* ---- Top-right icon row ---- */
+#mTopRight{position:absolute;right:14px;top:max(14px,env(safe-area-inset-top));display:flex;gap:8px;pointer-events:none;touch-action:none}
+#mTopRight .mbtn{width:44px;height:44px;font-size:18px;padding:0;border-radius:50%}
+
+/* ---- Right-side action cluster ---- */
+/* Small round action buttons */
+.mbtn{font:700 11px 'Chakra Petch',sans-serif;color:#eaf3f6;background:rgba(15,25,35,.72);border:2px solid rgba(190,225,240,.5);border-radius:50%;display:flex;align-items:center;justify-content:center;pointer-events:auto;touch-action:none;letter-spacing:.03em;text-shadow:0 1px 3px #000;backdrop-filter:blur(3px);user-select:none;-webkit-user-select:none;transition:transform .08s,background .12s,box-shadow .12s;box-shadow:0 3px 10px rgba(0,0,0,.4)}
+.mbtn.on{transform:scale(.93)}
+#mFire{position:absolute;right:max(18px,env(safe-area-inset-right));bottom:max(24px,env(safe-area-inset-bottom));width:110px;height:110px;font-size:22px;background:radial-gradient(circle at 38% 32%,rgba(255,140,60,.92),rgba(200,60,20,.9));border-color:#ff6a2b;box-shadow:0 0 22px rgba(255,106,43,.5),0 3px 12px rgba(0,0,0,.5)}
+#mFire.on{background:#ff6a2b;color:#1a0d05;border-color:#fff;box-shadow:0 0 30px rgba(255,140,60,.9)}
+#mAds{position:absolute;right:calc(max(18px,env(safe-area-inset-right)) + 122px);bottom:max(40px,calc(env(safe-area-inset-bottom) + 40px));width:62px;height:62px;background:rgba(20,60,110,.75);border-color:#4af;font-size:11px}
+#mAds.on{background:#4af;color:#0a0d10;border-color:#fff}
+#mJump{position:absolute;right:max(22px,env(safe-area-inset-right));bottom:calc(max(24px,env(safe-area-inset-bottom)) + 122px);width:66px;height:66px;background:rgba(30,80,60,.75);border-color:#43e0a0}
+#mJump.on{background:#43e0a0;color:#08240f;border-color:#fff}
+#mReload{position:absolute;right:calc(max(18px,env(safe-area-inset-right)) + 122px);bottom:calc(max(24px,env(safe-area-inset-bottom)) + 118px);width:62px;height:62px}
+#mSprint{position:absolute;right:max(24px,env(safe-area-inset-right));bottom:calc(max(24px,env(safe-area-inset-bottom)) + 200px);width:58px;height:58px;font-size:10px;background:rgba(30,60,50,.75);border-color:rgba(67,224,160,.75)}
+#mSprint.on{background:#43e0a0;color:#08240f;border-color:#fff}
+
+/* ---- Weapon slots (right vertical column) ---- */
+#mWeapons{position:absolute;right:max(12px,env(safe-area-inset-right));top:50%;transform:translateY(-58%);display:flex;flex-direction:column;gap:6px;pointer-events:none;touch-action:none}
+.mw{font:700 13px 'Chakra Petch',sans-serif;color:#eaf3f6;background:rgba(15,25,35,.72);border:1.5px solid rgba(190,225,240,.45);border-radius:8px;padding:7px 10px;min-width:38px;text-align:center;pointer-events:auto;touch-action:none;text-shadow:0 1px 2px #000;letter-spacing:.04em;transition:transform .08s,background .12s}
+.mw:active{transform:scale(.9)}
+.mw.on{background:#ff6a2b;color:#1a0d05;border-color:#fff}
+
+@media (max-width:520px){
+  #mFire{width:96px;height:96px;font-size:19px}
+  #mJump{width:58px;height:58px}
+  #mAds,#mReload{width:56px;height:56px}
+  #mAds{right:calc(max(18px,env(safe-area-inset-right)) + 106px);bottom:max(40px,calc(env(safe-area-inset-bottom) + 40px))}
+  #mReload{right:calc(max(18px,env(safe-area-inset-right)) + 106px);bottom:calc(max(24px,env(safe-area-inset-bottom)) + 102px)}
+  #mJump{right:max(22px,env(safe-area-inset-right));bottom:calc(max(24px,env(safe-area-inset-bottom)) + 106px)}
+  #mSprint{width:52px;height:52px;bottom:calc(max(24px,env(safe-area-inset-bottom)) + 176px)}
+  #mWeapons{gap:5px}
+  .mw{padding:6px 8px;font-size:12px;min-width:34px}
+}
+@media (max-height:640px){
+  #mSprint{bottom:calc(max(24px,env(safe-area-inset-bottom)) + 168px);width:52px;height:52px}
+  .mw{padding:5px 8px;font-size:11px}
+}
+
 #grade{position:fixed;inset:0;z-index:5;pointer-events:none;background:radial-gradient(ellipse at center,transparent 56%,rgba(4,10,16,.46) 100%)}
 #game canvas{filter:contrast(1.06) saturate(1.1)}
 #grain{position:fixed;left:-50%;top:-50%;width:200%;height:200%;z-index:6;pointer-events:none;opacity:.07;mix-blend-mode:overlay;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");animation:grain .5s steps(4) infinite}
 @keyframes grain{0%{transform:translate(0,0)}25%{transform:translate(-3%,2%)}50%{transform:translate(2%,-3%)}75%{transform:translate(-2%,-2%)}100%{transform:translate(0,0)}}
 #hud{position:fixed;inset:0;pointer-events:none;z-index:10}
-#radarWrap{position:absolute;left:18px;top:18px;width:150px}
+#radarWrap{position:absolute;left:max(18px,env(safe-area-inset-left));top:max(18px,env(safe-area-inset-top));width:150px}
 #radar{display:block;width:150px;height:150px;border-radius:50%;border:2px solid var(--line);box-shadow:0 4px 22px rgba(0,0,0,.35)}
 #radarWrap p{margin-top:8px;font-size:12px;color:#fff;text-shadow:0 1px 3px #000;opacity:.85}
-#topbar{position:absolute;left:50%;top:14px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:4px}
+#topbar{position:absolute;left:50%;top:max(14px,env(safe-area-inset-top));transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:4px}
 #timer{font-size:20px;font-weight:700;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:2px 22px;font-variant-numeric:tabular-nums}
 #goal{font-size:13px;color:#fff;text-shadow:0 1px 3px #000}
 #myscore{position:absolute;left:50%;top:78px;transform:translateX(-50%);font-size:14px;color:#fff;text-shadow:0 1px 3px #000}
 #myscore b{color:var(--you);font-size:17px}
-#feed{position:absolute;right:18px;top:18px;display:flex;flex-direction:column;align-items:flex-end;gap:5px;max-width:42vw}
+#feed{position:absolute;right:max(18px,env(safe-area-inset-right));top:max(18px,env(safe-area-inset-top));display:flex;flex-direction:column;align-items:flex-end;gap:5px;max-width:42vw}
 .fi{background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:4px 11px;font-size:14px;display:flex;gap:9px;align-items:center;white-space:nowrap}
 .fi.me{border-color:var(--accent)}
 .fi b{font-weight:600}
@@ -83,14 +149,14 @@ kbd{font:inherit;font-size:.85em;padding:1px 7px;border:1px solid var(--line);bo
 #dmgdir i{position:absolute;left:-34px;top:-128px;width:68px;height:22px;background:var(--danger);clip-path:polygon(50% 0,100% 100%,0 100%);filter:drop-shadow(0 0 6px rgba(255,0,0,.8))}
 #vig{position:absolute;inset:0;box-shadow:inset 0 0 180px 50px rgba(255,20,20,.8);opacity:0}
 #shield{position:absolute;left:50%;top:72%;transform:translateX(-50%);font-size:14px;color:var(--you);text-shadow:0 1px 3px #000}
-#stat{position:absolute;left:24px;bottom:22px;display:flex;flex-direction:column;gap:6px;width:min(300px,40vw)}
+#stat{position:absolute;left:max(24px,env(safe-area-inset-left));bottom:max(22px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:6px;width:min(300px,40vw)}
 #stat .row{display:flex;align-items:baseline;gap:10px}
 #hpnum{font-size:44px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;text-shadow:0 2px 8px rgba(0,0,0,.6)}
 #stat small{font-size:13px;color:#fff;opacity:.8;text-shadow:0 1px 3px #000}
 .bar{height:9px;border-radius:5px;background:rgba(0,0,0,.5);border:1px solid var(--line);overflow:hidden}
 .bar i{display:block;height:100%;width:100%;background:var(--good);transition:width .12s}
 .bar i.low{background:var(--danger)}
-#ammo{position:absolute;right:24px;bottom:22px;text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+#ammo{position:absolute;right:max(24px,env(safe-area-inset-right));bottom:max(22px,env(safe-area-inset-bottom));text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
 #wname{font-size:15px;font-weight:600;text-shadow:0 1px 4px #000}
 #mag{font-size:52px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;text-shadow:0 2px 8px rgba(0,0,0,.6)}
 #mag.empty{color:var(--danger)}
@@ -109,7 +175,7 @@ kbd{font:inherit;font-size:.85em;padding:1px 7px;border:1px solid var(--line);bo
 #interact{position:fixed;left:50%;top:62%;transform:translateX(-50%);z-index:9;background:rgba(10,15,22,.78);padding:6px 14px;border-radius:6px;color:#dbe9f7;font-size:13px;pointer-events:none}
 #scope::before{left:50%;top:calc(50% - 29vmin);width:2px;height:58vmin}
 #scope::after{top:50%;left:calc(50% - 29vmin);height:2px;width:58vmin}
-#chatlog{position:fixed;left:16px;bottom:120px;width:min(440px,52vw);max-height:230px;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;font-size:12px;color:#c2d2e2;pointer-events:none;z-index:20}
+#chatlog{position:fixed;left:max(16px,env(safe-area-inset-left));bottom:120px;width:min(440px,52vw);max-height:230px;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;font-size:12px;color:#c2d2e2;pointer-events:none;z-index:20}
 #chatlog .chat{background:rgba(10,15,22,.75);padding:3px 9px;margin-top:3px;border-radius:3px;word-wrap:break-word;flex:none}
 #chatlog .chat b{color:#7fc4ff}
 #chatlog .chat.sys{color:#8fa3b8;font-style:italic}
@@ -117,7 +183,7 @@ kbd{font:inherit;font-size:.85em;padding:1px 7px;border:1px solid var(--line);bo
 #chatlog .chat.faded{display:none}
 #chatlog.open{max-height:min(46vh,380px);overflow-y:auto;pointer-events:auto;justify-content:flex-start;background:rgba(6,11,16,.72);border:1px solid rgba(120,160,200,.25);border-radius:8px;padding:6px}
 #chatlog.open .chat.faded{display:block}
-#chatbar{position:fixed;left:16px;bottom:32px;display:flex;gap:8px;align-items:center;background:rgba(10,15,22,.92);border:1px solid rgba(190,225,240,.35);border-radius:8px;padding:8px 12px;z-index:22;width:min(420px,50vw);pointer-events:auto}
+#chatbar{position:fixed;left:max(16px,env(safe-area-inset-left));bottom:max(32px,env(safe-area-inset-bottom));display:flex;gap:8px;align-items:center;background:rgba(10,15,22,.92);border:1px solid rgba(190,225,240,.35);border-radius:8px;padding:8px 12px;z-index:22;width:min(420px,50vw);pointer-events:auto}
 #chatbar span{color:#90a6b1;font-size:12px}
 #chatbar input{flex:1;background:transparent;border:0;outline:none;color:#eaf3f6;font:inherit;font-size:13px;padding:0}
 #pause,#death{background:rgba(6,12,16,.62)}
@@ -141,35 +207,28 @@ tr.top td.rk{color:var(--accent);font-weight:700}
 .st{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--good)}
 tr.dead .st{background:var(--danger)}
 .bfoot{margin-top:12px;color:var(--dim);font-size:13px}
-@media (max-width:700px){#radarWrap{transform:scale(.75);transform-origin:top left}#feed{max-width:60vw}.keys{display:none}}
 
-/* ===== MOBILE TOUCH CONTROLS ===== */
-body.touch{touch-action:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
-#game canvas{touch-action:none}
-#mobileHud{position:fixed;inset:0;z-index:12;pointer-events:none;touch-action:none}
-#mobileHud.hidden{display:none!important}
-#joyZone{position:absolute;left:0;bottom:0;width:46vw;height:56vh;max-width:420px;max-height:480px;pointer-events:auto;touch-action:none}
-#joyBase{position:absolute;width:140px;height:140px;margin:-70px 0 0 -70px;border-radius:50%;border:2px solid rgba(190,225,240,.5);background:radial-gradient(circle at center,rgba(20,30,40,.35),rgba(20,30,40,.15));box-shadow:0 0 24px rgba(0,0,0,.5);pointer-events:none;opacity:0;transition:opacity .12s}
-#joyBase.active{opacity:1}
-#joyKnob{position:absolute;left:50%;top:50%;width:62px;height:62px;margin:-31px 0 0 -31px;border-radius:50%;background:radial-gradient(circle at 40% 35%,rgba(255,255,255,.85),rgba(150,200,230,.45));border:2px solid rgba(255,255,255,.55);box-shadow:0 0 14px rgba(120,200,255,.7);pointer-events:none;will-change:transform}
-#mTopRight{position:absolute;right:14px;top:14px;display:flex;gap:8px;pointer-events:none;touch-action:none}
-#mTopRight .mbtn{width:48px;height:48px;font-size:20px;padding:0}
-#mWeapons{position:absolute;right:14px;top:74px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px;pointer-events:none;touch-action:none}
-.mw{font:700 13px 'Chakra Petch',sans-serif;color:#eaf3f6;background:rgba(15,25,35,.72);border:1.5px solid rgba(190,225,240,.45);border-radius:7px;padding:8px 10px;min-width:34px;text-align:center;pointer-events:auto;touch-action:none;text-shadow:0 1px 2px #000;letter-spacing:.04em}
-.mw.on{background:#ff6a2b;color:#1a0d05;border-color:#fff}
-#mBottomRight{position:absolute;right:18px;bottom:22px;display:grid;grid-template-columns:auto auto;grid-gap:12px;align-items:end;justify-items:end;pointer-events:none;touch-action:none}
-.mbtn{font:700 12px 'Chakra Petch',sans-serif;color:#eaf3f6;background:rgba(15,25,35,.72);border:2px solid rgba(190,225,240,.5);border-radius:50%;width:72px;height:72px;display:flex;align-items:center;justify-content:center;pointer-events:auto;touch-action:none;letter-spacing:.05em;text-shadow:0 1px 3px #000;backdrop-filter:blur(3px);user-select:none;-webkit-user-select:none}
-.mbtn.on{background:rgba(255,106,43,.9);border-color:#fff;color:#1a0d05}
-#mFire{grid-column:1/-1;width:120px;height:96px;border-radius:16px;font-size:20px;background:rgba(200,60,30,.7);border-color:#ff6a2b}
-#mFire.on{background:#ff6a2b;color:#1a0d05;border-color:#fff}
-#mAds{background:rgba(20,60,110,.7);border-color:#4af}
-#mAds.on{background:#4af;color:#0a0d10;border-color:#fff}
-#mSprint.on{background:#43e0a0;color:#08240f;border-color:#fff}
-@media (max-width:500px){
-  #mFire{width:100px;height:82px;font-size:17px}
-  .mbtn{width:62px;height:62px;font-size:11px}
-  #mWeapons{gap:5px}
-  .mw{padding:7px 8px;font-size:12px}
+/* Menu responsiveness */
+@media (max-width:700px){
+  #radarWrap{transform:scale(.75);transform-origin:top left}
+  #feed{max-width:60vw}
+  .keys{display:none}
+}
+@media (max-height:700px){
+  .wordmark{font-size:clamp(38px,8vw,72px)}
+  .lede{margin:8px 0 14px;font-size:13px}
+  .menu-tabs{margin:10px 0 12px}
+  .tab-btn{padding:8px 18px;font-size:13px}
+  #menu{padding-top:16px;padding-bottom:16px}
+  .card{gap:10px}
+  .field{font-size:13px}
+  .field input[type=text]{font-size:15px;padding:9px 12px}
+  .btn{font-size:18px;padding:12px 18px}
+}
+@media (max-height:560px){
+  .lede{display:none}
+  .wordmark{font-size:36px}
+  .menu-tabs{margin:8px 0}
 }
 </style>
 </head>
@@ -214,27 +273,70 @@ body.touch{touch-action:none;-webkit-touch-callout:none;-webkit-tap-highlight-co
   <span>Say:</span><input id="chatinput" maxlength="180" autocomplete="off" spellcheck="false">
 </div>
 
+<!-- ===================== MENU (with tabs) ===================== -->
 <div id="menu" class="screen">
   <h1 class="wordmark">Shot<i>line</i></h1>
   <p class="lede">A fallen city. Tight alleys, collapsed towers, snipers on the rooftops. Drop in.</p>
-  <div class="card">
-    <label class="field">Callsign<input id="name" type="text" maxlength="14" placeholder="Enter a name" autocomplete="off"></label>
-    <label class="field">Mouse sensitivity<input id="sens" type="range" min="1" max="10" value="5"></label>
-    <label class="field">Graphics<select id="gfx"><option value="high">High: shadows, sharpest</option><option value="medium">Medium</option><option value="low">Low: fastest</option></select></label>
-    <button id="playMulti" class="btn">Play online</button>
-    <button id="playSolo" class="btn ghost">Single player</button>
-    <p class="modes"><b>Play online</b> — real players only, border shrinks when few online. <b>Single player</b> — offline practice vs 17 bots.</p>
-    <p class="note" id="menumsg"></p>
-    <div class="keys">
-      <b><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></b><span>Move · <kbd>Shift</kbd> sprint · <kbd>Space</kbd> jump</span>
-      <b>Mouse</b><span>Aim · LMB fire · RMB ADS</span>
-      <b><kbd>R</kbd></b><span>Reload</span>
-      <b><kbd>1</kbd>–<kbd>8</kbd></b><span>Weapons (or scroll)</span>
-      <b><kbd>Tab</kbd></b><span>Leaderboard</span>
-      <b><kbd>Enter</kbd></b><span>Global chat</span>
+
+  <div class="menu-tabs" role="tablist">
+    <button class="tab-btn active" data-tab="play" role="tab">Play</button>
+    <button class="tab-btn" data-tab="settings" role="tab">Settings</button>
+    <button class="tab-btn" data-tab="controls" role="tab">Controls</button>
+  </div>
+
+  <!-- PLAY TAB -->
+  <div class="tab-panel" data-tab="play">
+    <div class="card">
+      <label class="field">Callsign<input id="name" type="text" maxlength="14" placeholder="Enter a name" autocomplete="off"></label>
+      <button id="playMulti" class="btn">Play online</button>
+      <button id="playSolo" class="btn ghost">Single player</button>
+      <p class="modes"><b>Play online</b> — real players only, border shrinks when few online. <b>Single player</b> — offline practice vs 17 bots.</p>
+      <p class="note" id="menumsg"></p>
     </div>
   </div>
-  <p class="note">Desktop with mouse and keyboard · Touch controls on mobile.</p>
+
+  <!-- SETTINGS TAB -->
+  <div class="tab-panel hidden" data-tab="settings">
+    <div class="settings-group">
+      <h3>Aim</h3>
+      <label class="field">Mouse sensitivity<input id="sens" type="range" min="1" max="10" value="5"></label>
+    </div>
+    <div class="settings-group">
+      <h3>Graphics</h3>
+      <label class="field">Quality
+        <select id="gfx">
+          <option value="high">High: shadows, sharpest</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low: fastest</option>
+        </select>
+      </label>
+    </div>
+    <div class="settings-group">
+      <h3>Audio</h3>
+      <div class="toggle-row"><span>Sound effects</span><input id="optSfx" type="checkbox" checked></div>
+      <div class="toggle-row"><span>Bot chatter</span><input id="optChat" type="checkbox" checked></div>
+    </div>
+    <div class="settings-group">
+      <h3>HUD</h3>
+      <div class="toggle-row"><span>Show FPS hint</span><input id="optFps" type="checkbox" checked></div>
+    </div>
+    <button id="resetSettings" class="btn ghost" style="font-size:16px;padding:12px">Reset to defaults</button>
+  </div>
+
+  <!-- CONTROLS TAB -->
+  <div class="tab-panel hidden" data-tab="controls">
+    <div class="card">
+      <div class="keys">
+        <b><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></b><span>Move · <kbd>Shift</kbd> sprint · <kbd>Space</kbd> jump</span>
+        <b>Mouse</b><span>Aim · LMB fire · RMB ADS</span>
+        <b><kbd>R</kbd></b><span>Reload</span>
+        <b><kbd>1</kbd>–<kbd>8</kbd></b><span>Weapons (or scroll)</span>
+        <b><kbd>Tab</kbd></b><span>Leaderboard</span>
+        <b><kbd>Enter</kbd></b><span>Global chat</span>
+      </div>
+      <p class="note">Desktop with mouse and keyboard · Touch controls auto-enable on mobile.</p>
+    </div>
+  </div>
 </div>
 
 <div id="pause" class="screen hidden">
@@ -274,12 +376,18 @@ body.touch{touch-action:none;-webkit-touch-callout:none;-webkit-tap-highlight-co
   </div>
 </div>
 
+<!-- ===================== MOBILE HUD (Free Fire / Deadshot style) ===================== -->
 <div id="mobileHud" class="hidden">
+  <!-- Joystick zone -->
   <div id="joyZone"><div id="joyBase"><div id="joyKnob"></div></div></div>
+
+  <!-- Top-right icon row -->
   <div id="mTopRight">
     <button class="mbtn" data-act="board" aria-label="Leaderboard">☰</button>
-    <button class="mbtn" data-act="chat" aria-label="Chat">💬</button>
+    <button class="mbtn" data-act="chat" aria-label="Chat">🗨</button>
   </div>
+
+  <!-- Right vertical weapon column -->
   <div id="mWeapons">
     <button class="mw" data-w="0">1</button>
     <button class="mw" data-w="1">2</button>
@@ -290,13 +398,13 @@ body.touch{touch-action:none;-webkit-touch-callout:none;-webkit-tap-highlight-co
     <button class="mw" data-w="6">7</button>
     <button class="mw" data-w="7">8</button>
   </div>
-  <div id="mBottomRight">
-    <button id="mAds" class="mbtn" data-act="ads">ADS</button>
-    <button id="mJump" class="mbtn" data-act="jump">JUMP</button>
-    <button id="mReload" class="mbtn" data-act="reload">RELOAD</button>
-    <button id="mSprint" class="mbtn" data-act="sprint">SPRINT</button>
-    <button id="mFire" class="mbtn" data-act="fire">FIRE</button>
-  </div>
+
+  <!-- Right action cluster (fire, jump, ads, reload, sprint) -->
+  <button id="mSprint" class="mbtn" data-act="sprint">SPRINT</button>
+  <button id="mJump" class="mbtn" data-act="jump">JUMP</button>
+  <button id="mReload" class="mbtn" data-act="reload">RELOAD</button>
+  <button id="mAds" class="mbtn" data-act="ads">ADS</button>
+  <button id="mFire" class="mbtn" data-act="fire">FIRE</button>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -310,6 +418,36 @@ if(!window.THREE){
   $('menu').insertAdjacentHTML('beforeend','<p class="note" style="color:#ff8a8a">The 3D engine failed to load.</p>');
   return;
 }
+
+/* ---- Menu tabs ---- */
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const tab=btn.dataset.tab;
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b===btn));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('hidden',p.dataset.tab!==tab));
+  });
+});
+/* Load settings from localStorage */
+try{
+  const s=localStorage.getItem('shotline.sens');if(s)$('sens').value=s;
+  const g=localStorage.getItem('shotline.gfx');if(g)$('gfx').value=g;
+  const sx=localStorage.getItem('shotline.sfx');if(sx!==null)$('optSfx').checked=sx==='1';
+  const ch=localStorage.getItem('shotline.botchat');if(ch!==null)$('optChat').checked=ch==='1';
+}catch(e){}
+$('resetSettings').addEventListener('click',()=>{
+  $('sens').value=5;$('gfx').value='high';$('optSfx').checked=true;$('optChat').checked=true;
+  try{
+    localStorage.setItem('shotline.sens','5');
+    localStorage.setItem('shotline.gfx','high');
+    localStorage.setItem('shotline.sfx','1');
+    localStorage.setItem('shotline.botchat','1');
+  }catch(e){}
+  if(typeof applyGfx==='function')applyGfx('high');
+});
+$('sens').addEventListener('input',()=>{try{localStorage.setItem('shotline.sens',$('sens').value);}catch(e){}});
+$('gfx').addEventListener('change',()=>{try{localStorage.setItem('shotline.gfx',$('gfx').value);}catch(e){}});
+$('optSfx').addEventListener('change',()=>{try{localStorage.setItem('shotline.sfx',$('optSfx').checked?'1':'0');}catch(e){}});
+$('optChat').addEventListener('change',()=>{try{localStorage.setItem('shotline.botchat',$('optChat').checked?'1':'0');}catch(e){}});
 
 const MAP=480, NUM_BOTS=17, MP_MAX=20;
 const ADMIN_NAME='NoDeX';
@@ -442,8 +580,8 @@ const BotChat=(function(){
 let actx=null,noiseBuf=null;
 function initAudio(){try{if(!actx){const AC=window.AudioContext||window.webkitAudioContext;if(AC)actx=new AC();}if(actx&&actx.state==='suspended')actx.resume();}catch(e){actx=null;}}
 function getNoise(){if(!noiseBuf){const len=Math.floor(actx.sampleRate*0.6);noiseBuf=actx.createBuffer(1,len,actx.sampleRate);const d=noiseBuf.getChannelData(0);for(let i=0;i<len;i++)d[i]=Math.random()*2-1;}return noiseBuf;}
-function sfxNoise(vol,f0,f1,dur,type){if(!actx||vol<0.01)return;try{const t=actx.currentTime,s=actx.createBufferSource();s.buffer=getNoise();const f=actx.createBiquadFilter();f.type=type||'lowpass';f.frequency.setValueAtTime(f0,t);f.frequency.exponentialRampToValueAtTime(Math.max(40,f1),t+dur);const g=actx.createGain();g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(0.001,t+dur);s.connect(f);f.connect(g);g.connect(actx.destination);s.start(t);s.stop(t+dur+0.02);}catch(e){}}
-function sfxTone(freq,dur,vol,type,f2){if(!actx||vol<0.01)return;try{const t=actx.currentTime,o=actx.createOscillator(),g=actx.createGain();o.type=type||'sine';o.frequency.setValueAtTime(freq,t);if(f2)o.frequency.exponentialRampToValueAtTime(f2,t+dur);g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(g);g.connect(actx.destination);o.start(t);o.stop(t+dur+0.02);}catch(e){}}
+function sfxNoise(vol,f0,f1,dur,type){if(!actx||vol<0.01)return;if($('optSfx')&&!$('optSfx').checked)return;try{const t=actx.currentTime,s=actx.createBufferSource();s.buffer=getNoise();const f=actx.createBiquadFilter();f.type=type||'lowpass';f.frequency.setValueAtTime(f0,t);f.frequency.exponentialRampToValueAtTime(Math.max(40,f1),t+dur);const g=actx.createGain();g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(0.001,t+dur);s.connect(f);f.connect(g);g.connect(actx.destination);s.start(t);s.stop(t+dur+0.02);}catch(e){}}
+function sfxTone(freq,dur,vol,type,f2){if(!actx||vol<0.01)return;if($('optSfx')&&!$('optSfx').checked)return;try{const t=actx.currentTime,o=actx.createOscillator(),g=actx.createGain();o.type=type||'sine';o.frequency.setValueAtTime(freq,t);if(f2)o.frequency.exponentialRampToValueAtTime(f2,t+dur);g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(g);g.connect(actx.destination);o.start(t);o.stop(t+dur+0.02);}catch(e){}}
 function sfxShot(kind,vol){
   if(kind==='shotgun'){sfxNoise(vol*0.9,3200,180,0.32);sfxTone(90,0.2,vol*0.5,'sine',40);}
   else if(kind==='sniper'){sfxNoise(vol,2600,120,0.55);sfxTone(70,0.35,vol*0.7,'sine',30);}
@@ -1276,7 +1414,7 @@ const puffMats={dust:new THREE.MeshBasicMaterial({color:L(0xdcd6c2)}),blood:new 
 function puff(x,y,z,kind,n){const isSmoke=kind==='smoke';for(let i=0;i<(n||3);i++){const m=new THREE.Mesh(boxGeo,puffMats[kind]);const s=rnd(0.06,isSmoke?0.16:0.2);m.position.set(x+rnd(-0.12,0.12),y+rnd(-0.12,0.12),z+rnd(-0.12,0.12));m.scale.setScalar(s);scene.add(m);const life=isSmoke?rnd(0.55,0.9):0.28;fx.push({mesh:m,life,max:life,puff:true,s:s,vy:isSmoke?rnd(0.6,1.3):rnd(0.4,1.6),drift:isSmoke?rnd(-0.3,0.3):0,driftZ:isSmoke?rnd(-0.3,0.3):0});}}
 function updateFx(dt){for(let i=fx.length-1;i>=0;i--){const e=fx[i];e.life-=dt;if(e.life<=0){scene.remove(e.mesh);fx.splice(i,1);}else if(e.puff){e.mesh.scale.setScalar(Math.max(0.001,e.s*(e.life/e.max)));e.mesh.position.y+=dt*e.vy;e.mesh.position.x+=dt*(e.drift||0);e.mesh.position.z+=dt*(e.driftZ||0);}}}
 
-/* --------- Dust motes + bullet holes (graphics upgrade) --------- */
+/* --------- Dust motes + bullet holes --------- */
 const MN=240,moteGeo=new THREE.BufferGeometry(),motePos=new Float32Array(MN*3),moteVel=new Float32Array(MN*3);
 for(let i=0;i<MN;i++){motePos[i*3]=rnd(-16,16);motePos[i*3+1]=rnd(0,9);motePos[i*3+2]=rnd(-16,16);moteVel[i*3]=rnd(-0.15,0.15);moteVel[i*3+1]=rnd(-0.05,0.12);moteVel[i*3+2]=rnd(-0.15,0.15);}
 moteGeo.setAttribute('position',new THREE.BufferAttribute(motePos,3));
@@ -1827,7 +1965,7 @@ function updatePlayer(dt){
   const rl01=P.reload>0?1-P.reload/P.reloadTotal:0;
   let lower=0,magY=0,magZ=0,magRotX=0,magRotZ=0,magRotY=0,magHide=false,jerk=0,rollR=0,slideOff=0,boltOff=0,boltRotX=0,boltRotZ=0,tiltX=0,tiltZ=0,pump=0,coverOpen=0;
   const kind=w.key;
-  const isPistol=kind==='pistol';const isShotgun=kind==='shotgun';const isSniper=kind==='sniper';const isDMR=kind==='dmr';const isBolt=isSniper||isDMR;const kindMag=(!isShotgun&&!isSniper&&!isPistol);
+  const isPistol=kind==='pistol';const isShotgun=kind==='shotgun';const isSniper=kind==='sniper';const isDMR=kind==='dmr';const isBolt=isSniper||isDMR;
   const bob=rl01<0.12?rl01/0.12:(rl01<0.88?1:1-(rl01-0.88)/0.12);lower=bob;
   if(isPistol){tiltZ=Math.sin(rl01*Math.PI)*0.10;tiltX=Math.sin(rl01*Math.PI)*0.22;}
   else if(kind==='smg'){tiltZ=Math.sin(Math.min(1,rl01*1.2)*Math.PI)*0.42;tiltX=Math.sin(Math.min(1,rl01)*Math.PI)*0.16;rollR=Math.sin(Math.min(1,rl01*1.2)*Math.PI)*0.42;}
@@ -2024,7 +2162,7 @@ renderBoard();
 requestAnimationFrame(frame);
 
 /* ============================================================
-   MOBILE TOUCH CONTROLS
+   MOBILE TOUCH CONTROLS  (Free Fire / Deadshot style)
    ============================================================ */
 const TOUCH_SENS=0.0042;
 if(isMobile){
