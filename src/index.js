@@ -154,12 +154,22 @@ export class Arena extends DurableObject {
   onJoin(ws, s, msg) {
     if (s.joined) return;
     const name = String(msg.name || "Player").slice(0,14).trim() || "Player";
-    const taken = [...this.sessions.values()]
-      .some(o => o !== s && o.joined && o.name.toLowerCase() === name.toLowerCase());
-    if (taken) {
-      ws.send(JSON.stringify({ t:"error", m:`"${name}" is already online.` }));
-      return;
+
+    /* Evict any stale session with the same name (a fast reconnect used to
+       leave a ghost of ourselves in the roster with alive:false → red dot). */
+    const stale = [];
+    for (const [ows, o] of this.sessions.entries()) {
+      if (ows === ws || o === s) continue;
+      if (o.joined && o.name.toLowerCase() === name.toLowerCase()) stale.push([ows, o]);
     }
+    for (const [ows, o] of stale) {
+      try { ows.close(4001, "Session replaced"); } catch {}
+      this.sessions.delete(ows);
+      this.broadcast({ t:"left", id:o.id, name:o.name }, ws);
+      this.chatHistory.push({ sys:"leave", name:o.name, t:Date.now() });
+      if (this.chatHistory.length > CHAT_HISTORY) this.chatHistory.shift();
+    }
+
     const liveCount = [...this.sessions.values()].filter(o => o.joined).length;
     if (liveCount >= MAX_PLAYERS) {
       ws.send(JSON.stringify({ t:"error", m:"Arena is full." }));
