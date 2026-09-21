@@ -175,7 +175,7 @@ const wr=(a,b)=>a+rand()*(b-a);
 const wpick=a=>a[(rand()*a.length)|0];
 let DECO=false;const drand=mulberry32(31337);const dr=(a,b)=>a+drand()*(b-a);const vr=()=>DECO?drand():rand();
 
-/* ---- World texture generators ---- */
+/* ---- World textures ---- */
 const trng=mulberry32(777);
 function cnv(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;return [c,c.getContext('2d')];}
 function blot(g,W,Hh,n,r0,r1,rgb,a0,a1){for(let i=0;i<n;i++){const x=trng()*W,y=trng()*Hh,r=r0+trng()*(r1-r0),a=a0+trng()*(a1-a0);for(const ox of[-W,0,W])for(const oy of[-Hh,0,Hh]){const gr=g.createRadialGradient(x+ox,y+oy,0,x+ox,y+oy,r);gr.addColorStop(0,'rgba('+rgb+','+a+')');gr.addColorStop(1,'rgba('+rgb+',0)');g.fillStyle=gr;g.fillRect(x+ox-r,y+oy-r,r*2,r*2);}}}
@@ -467,7 +467,7 @@ const GX=(function(){
 })();
 
 /* =========================================================
-   GunLib — procedural gun models (side-profile extrusions)
+   GunLib
    ========================================================= */
 const GunLib=(function(){
   const R=GX.rbox,C=GX.cy,PF=GX.prof,CV=GX.cyV,CX=GX.cyX,SP=GX.sph;
@@ -736,7 +736,7 @@ const GunLib=(function(){
 })();
 
 /* =========================================================
-   HandLib — gloved hands
+   HandLib
    ========================================================= */
 const HandLib=(function(){
   const R=GX.rbox,CY=GX.cy;
@@ -878,7 +878,7 @@ const VM=(function(){
     pz+=S.landDip*0.35;py+=-S.landDip*0.7;rx+=S.landDip*0.4;
     if(!S.onGround){py+=0.012;rx+=0.03;}
     const dr=S.swap;if(dr>0){const d=dr*dr;py+=-0.30*d;px+=0.10*d;rx+=0.55*d;ry+=-0.35*d;rz+=-0.2*d;}
-    let LposO=null,LrotO=null,Lg=0.85,Rpos=A.rGrip,Rg=0.88,magState=0,magTilt=0,bolt=0,slide=0,pump=0,cover=0,bh=0;
+    let LposO=null,Lg=0.85,Rpos=A.rGrip,Rg=0.88,magState=0,magTilt=0,bolt=0,slide=0,pump=0,cover=0,bh=0;
     if(S.reload01>0){const t=S.reload01,T=r.tracks;
       if(T.GN){samp(T.GN,t,tmp6);px+=tmp6[0];py+=tmp6[1];pz+=tmp6[2];rx+=tmp6[3];ry+=tmp6[4];rz+=tmp6[5];}
       if(T.L){samp(T.L,t,tmp3);LposO=tmp3.slice();}
@@ -930,9 +930,7 @@ const VM=(function(){
 })();
 
 /* =========================================================
-   CH — third-person soldiers (REBUILT)
-   Proper heads, layered gear, articulated limbs with pads,
-   detailed boots, per-player fabric variety, IK limbs.
+   CH — third-person soldiers
    ========================================================= */
 const CH=(function(){
   const R=GX.rbox,CVg=GX.cyV,CYl=GX.cy,SPH=GX.sph,PF=GX.prof;
@@ -942,36 +940,40 @@ const CH=(function(){
   const POLE_LEG=new THREE.Vector3(0,0,-1),POLE_ARM_R=new THREE.Vector3(0.5,-0.8,0.2),POLE_ARM_L=new THREE.Vector3(-0.5,-0.8,0.2);
   const S=(a,b,t)=>a+(b-a)*t;
   function gunInst(kind){
-    if(!tplCache[kind]){const t=GunLib.build(kind,false);t.traverse(o=>{o.userData={};});t.userData={anch:t.userData.anch};tplCache[kind]=t;}
-    const t=tplCache[kind];const g=t.clone(true);const U=g.userData={anch:t.userData.anch,kind:kind};
-    for(const n of ['mag','slide','bolt','trigger','pump','cover','boltHandle']){const o=g.getObjectByName(n);if(o){U[n]=o;o.userData={base:o.position.clone()};}}
-    return g;}
+    if(!tplCache[kind]){
+      const t=GunLib.build(kind,false);
+      const anch=t.userData.anch;             /* capture BEFORE traverse wipes userData */
+      t.traverse(o=>{o.userData={};});
+      t.userData={anch:anch};                 /* restore only what we need */
+      tplCache[kind]=t;
+    }
+    const t=tplCache[kind];
+    const g=t.clone(true);
+    const U=g.userData={anch:t.userData.anch,kind:kind};
+    for(const n of ['mag','slide','bolt','trigger','pump','cover','boltHandle']){
+      const o=g.getObjectByName(n);
+      if(o){U[n]=o;o.userData={base:o.position.clone()};}
+    }
+    return g;
+  }
   function faceTex(pal,name){
     const key=name;if(faceCache[key])return faceCache[key];
     const c=document.createElement('canvas');c.width=64;c.height=64;const g=c.getContext('2d');const rng=mulberry32(hashStr(name)^0x77);
     g.fillStyle=pal.skinTone;g.fillRect(0,0,64,64);
     for(let i=0;i<70;i++){g.fillStyle='rgba(60,30,20,'+(0.05+rng()*0.10)+')';g.fillRect(rng()*64,rng()*64,2,2);}
-    // cheek shadow
     g.fillStyle='rgba(40,25,20,0.18)';g.fillRect(6,42,52,22);
-    // eyes with whites + iris + pupil
     g.fillStyle='#f2ece2';g.fillRect(13,24,12,6);g.fillRect(39,24,12,6);
     g.fillStyle=rng()<0.5?'#3a5f7a':'#4a3220';g.fillRect(17,25,6,5);g.fillRect(43,25,6,5);
     g.fillStyle='#111';g.fillRect(19,26,3,4);g.fillRect(45,26,3,4);
-    // brows
     g.fillStyle='rgba(25,15,10,0.85)';g.fillRect(11,18,16,3);g.fillRect(37,18,16,3);
-    // nose shadow + nostril hint
     g.fillStyle='rgba(60,35,25,0.35)';g.fillRect(30,30,5,10);
     g.fillStyle='rgba(30,15,10,0.55)';g.fillRect(29,40,2,2);g.fillRect(34,40,2,2);
-    // mouth
     g.fillStyle='rgba(115,45,40,0.72)';g.fillRect(25,49,14,3);
-    // stubble / beard / balaclava
     const mode=Math.floor(rng()*4);
     if(mode===0){g.fillStyle='rgba(30,25,22,0.20)';g.fillRect(8,44,48,20);}
     else if(mode===1){g.fillStyle='rgba(25,20,18,0.35)';for(let i=0;i<160;i++)g.fillRect(rng()*64,44+rng()*20,1,1);}
     else if(mode===2){g.fillStyle='#1c1e22';g.fillRect(0,44,64,20);g.fillStyle='rgba(0,0,0,0.2)';g.fillRect(0,46,64,2);}
-    // scar sometimes
     if(rng()<0.35){g.strokeStyle='rgba(120,50,40,0.7)';g.lineWidth=1.5;g.beginPath();g.moveTo(46,30);g.lineTo(54,42);g.stroke();}
-    // warpaint
     if(rng()<0.28){g.fillStyle='rgba(40,60,40,0.7)';g.fillRect(10,26,6,2);g.fillRect(12,30,4,2);g.fillRect(48,26,6,2);g.fillRect(48,30,4,2);}
     const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;t.magFilter=THREE.NearestFilter;
     return faceCache[key]=new THREE.MeshStandardMaterial({map:t,roughness:0.75,metalness:0,envMap:GX.env(),envMapIntensity:0.25});
@@ -990,71 +992,55 @@ const CH=(function(){
     const g=new THREE.Group();
     const isN=f.name&&/^NoDeX$/i.test(f.name);const pal=isN?NODEX_PALETTE:getSkin(f.name);
     const E=GX.env();
-    /* -- per-palette materials (cached on the palette object) -- */
     const cloth=pal._cl||(pal._cl=new THREE.MeshStandardMaterial({map:pal.texture,roughness:0.96,metalness:0,envMap:E,envMapIntensity:0.12}));
     const clothDark=pal._dk||(pal._dk=new THREE.MeshStandardMaterial({color:new THREE.Color(pal.dark).convertSRGBToLinear(),roughness:0.9,metalness:0,envMap:E,envMapIntensity:0.12}));
     const skinM=pal._sk||(pal._sk=new THREE.MeshStandardMaterial({color:new THREE.Color(pal.skinTone).convertSRGBToLinear(),roughness:0.7,metalness:0,envMap:E,envMapIntensity:0.25}));
     const acc=pal._ac||(pal._ac=new THREE.MeshStandardMaterial({color:new THREE.Color(pal.accent).convertSRGBToLinear(),roughness:0.55,metalness:0.2,envMap:E,envMapIntensity:0.5}));
-    const black=GX.mat('blk'),leather=GX.mat('leat'),fabric=GX.mat('fab'),web=GX.mat('web'),polT=GX.mat('polT'),aluM=GX.mat('alu'),rubber=GX.mat('rub'),gls=GX.mat('gls'),stl=GX.mat('stl');
+    const black=GX.mat('blk'),leather=GX.mat('leat'),fabric=GX.mat('fab'),web=GX.mat('web'),polT=GX.mat('polT'),rubber=GX.mat('rub'),gls=GX.mat('gls'),stl=GX.mat('stl');
 
     const HIP=0.93;
     const body=new THREE.Group();body.position.set(0,HIP,0);g.add(body);
-    /* Helper: mesh a rounded box with a material */
     const mkMesh=(parent,geo,mat,x,y,z,rx,ry,rz)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x||0,y||0,z||0);m.rotation.set(rx||0,ry||0,rz||0);m.castShadow=true;m.frustumCulled=false;parent.add(m);return m;};
-    /* UV-scaled rbox for cloth items so fabric repeats match body scale */
     const cg=(w,h,d,r)=>{const g=R(w,h,d,r);const uv=g.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*4.5,uv.getY(i)*4.5);return g;};
 
-    /* ---------- PELVIS + TORSO (cloth base) ---------- */
-    mkMesh(body,cg(0.34,0.18,0.24,0.06),cloth,0,0.02,0);            // pelvis
-    mkMesh(body,cg(0.28,0.14,0.20,0.05),clothDark,0,-0.03,0);        // hip flare
-    mkMesh(body,cg(0.40,0.44,0.24,0.07),cloth,0,0.34,0);             // chest base
-    mkMesh(body,cg(0.34,0.10,0.20,0.04),cloth,0,0.60,0);             // neck base shelf
-    // belt + buckle
+    /* pelvis */
+    mkMesh(body,cg(0.34,0.18,0.24,0.06),cloth,0,0.02,0);
+    mkMesh(body,cg(0.28,0.14,0.20,0.05),clothDark,0,-0.03,0);
+    /* torso base */
+    mkMesh(body,cg(0.40,0.44,0.24,0.07),cloth,0,0.34,0);
+    mkMesh(body,cg(0.34,0.10,0.20,0.04),cloth,0,0.60,0);
+    /* belt */
     mkMesh(body,R(0.42,0.055,0.27,0.015),leather,0,0.10,0);
     mkMesh(body,R(0.05,0.05,0.02,0.008),stl,0,0.10,-0.145);
     mkMesh(body,R(0.02,0.03,0.01,0.003),stl,0,0.10,-0.155);
-    // thigh pouches / dump pouch
     mkMesh(body,R(0.11,0.11,0.07,0.015),fabric,-0.16,-0.05,0.15);
     mkMesh(body,R(0.09,0.09,0.06,0.012),fabric,0.16,-0.05,0.15);
-    // holster (if applicable)
     if(pal.holster){
       mkMesh(body,R(0.06,0.18,0.11,0.012),leather,0.235,-0.07,0.03);
-      mkMesh(body,R(0.05,0.06,0.06,0.008),black,0.235,-0.14,0.03);       // pistol grip sticking out
-      mkMesh(body,R(0.03,0.02,0.03,0.005),stl,0.235,-0.02,0.03);         // retention strap
+      mkMesh(body,R(0.05,0.06,0.06,0.008),black,0.235,-0.14,0.03);
+      mkMesh(body,R(0.03,0.02,0.03,0.005),stl,0.235,-0.02,0.03);
     }
-    /* ---------- PLATE CARRIER (layered) ---------- */
+    /* plate carrier */
     if(pal.vest){
-      // front plate + back plate + side wraps
       mkMesh(body,R(0.34,0.36,0.05,0.045),web,0,0.36,-0.15);
       mkMesh(body,R(0.34,0.36,0.05,0.045),web,0,0.36,0.15);
       mkMesh(body,R(0.05,0.34,0.24,0.04),web,-0.20,0.36,0);
       mkMesh(body,R(0.05,0.34,0.24,0.04),web,0.20,0.36,0);
-      // shoulder straps
       mkMesh(body,R(0.10,0.10,0.30,0.03),web,-0.13,0.56,0);
       mkMesh(body,R(0.10,0.10,0.30,0.03),web,0.13,0.56,0);
-      // cummerbund
       mkMesh(body,R(0.42,0.10,0.26,0.02),web,0,0.24,0);
-      // 3 front mag pouches with flaps
-      for(let i=0;i<3;i++){
-        const px=-0.12+i*0.12;
+      for(let i=0;i<3;i++){const px=-0.12+i*0.12;
         mkMesh(body,R(0.105,0.15,0.055,0.014),fabric,px,0.20,-0.185);
         mkMesh(body,R(0.108,0.04,0.06,0.008),fabric,px,0.275,-0.185);
-        mkMesh(body,R(0.03,0.02,0.02,0.004),black,px,0.255,-0.215);
-      }
-      // admin pouch top
+        mkMesh(body,R(0.03,0.02,0.02,0.004),black,px,0.255,-0.215);}
       mkMesh(body,R(0.14,0.10,0.05,0.012),fabric,0,0.44,-0.18);
       mkMesh(body,R(0.10,0.03,0.02,0.004),black,0,0.46,-0.20);
-      // radio pouch right side
       mkMesh(body,R(0.07,0.12,0.06,0.012),fabric,0.19,0.38,-0.15);
       mkMesh(body,R(0.055,0.06,0.05,0.008),black,0.19,0.43,-0.15);
-      // molle rows (horizontal strips)
-      for(let row=0;row<3;row++){
-        mkMesh(body,R(0.30,0.02,0.01,0.003),black,0,0.14+row*0.10,-0.19);
-      }
-      // patch / flag
+      for(let row=0;row<3;row++)mkMesh(body,R(0.30,0.02,0.01,0.003),black,0,0.14+row*0.10,-0.19);
       mkMesh(body,R(0.06,0.05,0.008,0.003),isN?acc:polT,-0.14,0.44,-0.19);
     }
-    /* ---------- BACKPACK ---------- */
+    /* backpack */
     if(pal.back){
       mkMesh(body,R(0.30,0.38,0.15,0.04),fabric,0,0.36,0.22);
       mkMesh(body,R(0.24,0.16,0.055,0.02),fabric,0,0.30,0.325);
@@ -1067,45 +1053,31 @@ const CH=(function(){
         mkMesh(body,R(0.02,0.02,0.02,0.005),acc,0.19,0.86,0.20);
       }
     }
-    /* ---------- NECK + HEAD ---------- */
-    // neck (tapered)
+    /* head */
     mkMesh(body,CVg(0.055,0.062,0.10,10),skinM,0,0.63,0);
     const head=new THREE.Group();head.position.set(0,0.66,0);body.add(head);
-    // skull (rounded)
     mkMesh(head,R(0.165,0.185,0.185,0.055),skinM,0,0.08,0);
-    // jaw
     mkMesh(head,R(0.155,0.06,0.185,0.03),skinM,0,0.0,-0.005);
-    // brow ridge
     mkMesh(head,R(0.17,0.035,0.10,0.02),skinM,0,0.13,-0.055);
-    // face plane (decal)
     const face=faceTex(pal,f.name);
     const fm=new THREE.Mesh(new THREE.PlaneGeometry(0.155,0.135),face);
     fm.position.set(0,0.075,-0.0935);head.add(fm);
-    // nose
     mkMesh(head,R(0.032,0.045,0.04,0.01),skinM,0,0.065,-0.105);
-    // ears
     mkMesh(head,R(0.028,0.055,0.03,0.008),skinM,-0.084,0.075,0.005);
     mkMesh(head,R(0.028,0.055,0.03,0.008),skinM,0.084,0.075,0.005);
-    // mouth/chin shadow box
     mkMesh(head,R(0.09,0.025,0.02,0.006),black,0,0.02,-0.092);
-    // ---------- Headwear variants ----------
     const headType=pal.special?'none':(pal.helmet?'helmet':pal.boonie?'boonie':pal.beret?'beret':pal.cap?'cap':(f.name.length%4===0?'balaclava':'none'));
     if(headType==='helmet'){
-      // shell
       mkMesh(head,cg(0.215,0.135,0.235,0.05),clothDark,0,0.175,0.005);
-      mkMesh(head,R(0.225,0.03,0.245,0.012),black,0,0.135,0.005);        // rim
-      mkMesh(head,R(0.10,0.03,0.16,0.02),black,0,0.20,0.09);              // rear cover
-      // NVG mount
+      mkMesh(head,R(0.225,0.03,0.245,0.012),black,0,0.135,0.005);
+      mkMesh(head,R(0.10,0.03,0.16,0.02),black,0,0.20,0.09);
       mkMesh(head,R(0.06,0.05,0.05,0.01),black,0,0.235,-0.11);
       mkMesh(head,R(0.035,0.025,0.02,0.005),black,0,0.245,-0.145);
-      // side rails
       mkMesh(head,R(0.02,0.09,0.13,0.008),black,-0.11,0.16,0.005);
       mkMesh(head,R(0.02,0.09,0.13,0.008),black,0.11,0.16,0.005);
-      // chinstrap
       mkMesh(head,R(0.16,0.02,0.01,0.003),black,0,0.06,-0.09);
       mkMesh(head,R(0.02,0.10,0.01,0.003),black,-0.078,0.05,0.0);
       mkMesh(head,R(0.02,0.10,0.01,0.003),black,0.078,0.05,0.0);
-      // cover band w/ patch
       mkMesh(head,R(0.22,0.03,0.02,0.005),acc,-0.03,0.175,-0.115);
     } else if(headType==='cap'){
       mkMesh(head,cg(0.20,0.08,0.21,0.04),clothDark,0,0.19,0.0);
@@ -1121,28 +1093,23 @@ const CH=(function(){
       mkMesh(head,R(0.03,0.03,0.06,0.008),clothDark,0,0.20,-0.13);
     } else if(headType==='balaclava'){
       mkMesh(head,R(0.185,0.20,0.20,0.05),clothDark,0,0.075,0.0);
-      // eye slot
       mkMesh(head,R(0.15,0.05,0.02,0.008),skinM,0,0.10,-0.098);
       mkMesh(head,R(0.15,0.06,0.02,0.01),black,0,0.02,-0.098);
     }
-    // goggles + mask (always, on face)
     mkMesh(head,R(0.185,0.055,0.05,0.012),black,0,0.105,-0.105);
     mkMesh(head,R(0.155,0.04,0.012,0.006),gls,0,0.105,-0.128);
-    // shemagh / neck gaiter sometimes
     if(f.name.length%3===0){
       mkMesh(head,R(0.20,0.08,0.21,0.03),fabric,0,-0.02,0.005);
       mkMesh(head,R(0.14,0.10,0.05,0.02),fabric,0,0.0,-0.09);
     }
-
-    /* ---------- SHOULDERS / DELTOIDS ---------- */
+    /* deltoids */
     mkMesh(body,SPH(0.075,12,10),cloth,-0.20,0.53,0);
     mkMesh(body,SPH(0.075,12,10),cloth,0.20,0.53,0);
     if(pal.pads){
       mkMesh(body,R(0.13,0.10,0.14,0.03),black,-0.22,0.53,-0.01);
       mkMesh(body,R(0.13,0.10,0.14,0.03),black,0.22,0.53,-0.01);
     }
-
-    /* ---------- GUN PIVOT + ARMS + LEGS (bones) ---------- */
+    /* gun pivot + bones */
     const gp=new THREE.Group();gp.position.set(0.12,0.40,-0.12);body.add(gp);
     const hr=HandLib.make(false),hl=HandLib.make(true,{watch:true});
     const bones={};
@@ -1150,54 +1117,33 @@ const CH=(function(){
     bones.uaL=bone(g,0.30,0.062,0.050,cloth);bones.faL=bone(g,0.28,0.050,0.040,cloth);
     bones.thR=bone(g,0.44,0.10,0.078,cloth);bones.shR=bone(g,0.44,0.078,0.056,cloth);
     bones.thL=bone(g,0.44,0.10,0.078,cloth);bones.shL=bone(g,0.44,0.078,0.056,cloth);
-
-    // Elbow pads (attached to upper-arm bones near elbow)
-    const addElbowPads=(bn)=>{const gr=new THREE.Group();gr.position.set(0,0.0,0);bones[bn].add(gr);
-      const m=new THREE.Mesh(R(0.075,0.06,0.09,0.02),black);m.position.set(0,0.30,-0.005);m.rotation.x=-0.15;m.castShadow=true;gr.add(m);};
+    const addElbowPads=(bn)=>{const gr=new THREE.Group();bones[bn].add(gr);const m=new THREE.Mesh(R(0.075,0.06,0.09,0.02),black);m.position.set(0,0.30,-0.005);m.rotation.x=-0.15;m.castShadow=true;gr.add(m);};
     if(pal.pads){addElbowPads('uaR');addElbowPads('uaL');}
-    // Forearm wrist cuff
-    for(const bn of ['faR','faL']){const gr=new THREE.Group();bones[bn].add(gr);
-      const m=new THREE.Mesh(R(0.075,0.09,0.075,0.015),GX.mat('glv'));m.position.set(0,0.26,0);m.castShadow=true;gr.add(m);}
-    // Shoulder pads
+    for(const bn of ['faR','faL']){const gr=new THREE.Group();bones[bn].add(gr);const m=new THREE.Mesh(R(0.075,0.09,0.075,0.015),GX.mat('glv'));m.position.set(0,0.26,0);m.castShadow=true;gr.add(m);}
     for(const bn of ['uaR','uaL']){if(pal.pads){const m=new THREE.Mesh(R(0.09,0.07,0.09,0.02),black);m.position.set(0,0.03,0);bones[bn].add(m);}}
-    // Sleeve/upper torso cover — the top of each upper arm gets a short sleeve cap
     for(const bn of ['uaR','uaL']){const m=new THREE.Mesh(CVg(0.062,0.072,0.10,10),cloth);m.position.set(0,0.05,0);bones[bn].add(m);}
-
-    // Knee pads on thigh bones (near knee)
     const addKneePads=(bn)=>{const m=new THREE.Mesh(R(0.11,0.09,0.11,0.028),black);m.position.set(0,0.40,-0.015);m.castShadow=true;bones[bn].add(m);};
     if(pal.pads){addKneePads('thR');addKneePads('thL');}
-    // Quad bulge (front of thigh) and calf bulge (back of shin)
     for(const bn of ['thR','thL']){const m=new THREE.Mesh(R(0.085,0.30,0.04,0.02),cloth);m.position.set(0,0.22,-0.055);m.castShadow=true;bones[bn].add(m);}
     for(const bn of ['shR','shL']){const m=new THREE.Mesh(R(0.06,0.20,0.045,0.02),cloth);m.position.set(0,0.20,0.05);m.castShadow=true;bones[bn].add(m);}
-
-    /* ---------- BOOTS (parented to shin bones) ---------- */
+    /* boots on shin bones */
     const boots={R:new THREE.Group(),L:new THREE.Group()};
     for(const k of ['R','L']){
       const bn=bones['sh'+k];
       bn.add(boots[k]);
       boots[k].position.set(0,0.42,0);
-      // ankle collar
       mkMesh(boots[k],R(0.09,0.08,0.09,0.02),leather,0,0.02,0.01);
-      // main boot body
       mkMesh(boots[k],R(0.105,0.115,0.22,0.03),leather,0,-0.055,-0.035);
-      // toe cap
       mkMesh(boots[k],R(0.105,0.085,0.08,0.02),leather,0,-0.075,-0.155);
-      // sole plate
       mkMesh(boots[k],R(0.115,0.028,0.28,0.01),rubber,0,-0.115,-0.035);
-      // heel block
       mkMesh(boots[k],R(0.10,0.045,0.06,0.012),rubber,0,-0.105,0.075);
-      // tongue
       mkMesh(boots[k],R(0.075,0.075,0.03,0.008),leather,0,0.0,-0.09);
-      // 3 lace rows
       for(let i=0;i<3;i++)mkMesh(boots[k],R(0.095,0.008,0.02,0.002),black,0,-0.015-i*0.026,-0.075);
-      // buckle strap
       mkMesh(boots[k],R(0.11,0.02,0.14,0.006),black,0,-0.03,-0.03);
       mkMesh(boots[k],R(0.03,0.03,0.03,0.006),stl,0.055,-0.03,-0.03);
     }
-    // muzzle flash sprite for this rig
     const fl=new THREE.Mesh(new THREE.PlaneGeometry(0.42,0.42),new THREE.MeshBasicMaterial({map:ftex,color:L(0xffd090),transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,fog:false}));
     fl.visible=false;
-
     f.rig={body,head,gp,hr,hl,bones,boots,fl,gun:null,walk:0,kick:0,gdown:0};
     f.body=body;f.gunGrip=gp;f.legL=bones.thL;f.legR=bones.thR;
     return g;
