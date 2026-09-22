@@ -1041,8 +1041,8 @@ const CH=(function(){
     rg.gdown=S(rg.gdown||0,gunDown,Math.min(1,dt*8));
     rg.body.rotation.set(lean+pitch*0.30+(rl>0?0.05:0),(moving?Math.sin(ph)*0.10*norm:0)+(rl>0?0.12:0),Math.sin(ph*2)*0.02*norm);
     rg.head.rotation.set(-pitch*0.15+(rl>0?-0.15:0),(rl>0?-0.1:0),0);
-    rg.gp.rotation.set(pitch*0.62+kickT*0.10-0.55*rg.gdown-(rl>0?0.35:0),0.20*rg.gdown+(rl>0?0.35:0),(rl>0?-0.25:0));
-    const mOffZ=rg.model?-0.34:-0.14,mOffY=rg.model?1.10:0.26;
+    rg.gp.rotation.set(pitch*0.50+kickT*0.10-0.55*rg.gdown-(rl>0?0.35:0),0.20*rg.gdown+(rl>0?0.35:0),(rl>0?-0.25:0));
+    const mOffZ=rg.model?-0.32:-0.14,mOffY=rg.model?0.48:0.26;
     rg.gp.position.set(0.12,mOffY-0.05*rg.gdown-(rl>0?0.06:0),mOffZ+kickT*0.05-(rl>0?0.06:0));
     const U=rg.gun.userData;
     if(U.slide)U.slide.position.z=U.slide.userData.base.z+kickT*0.035;
@@ -1709,9 +1709,23 @@ player.alive=false;renderBoard();requestAnimationFrame(frame);
 /* ============ MOBILE ============ */
 const TOUCH_SENS=0.0042;
 if(isMobile)document.body.classList.add('touch');
+
+/* Adaptive Keys/Touch tab — same tab, contents switch by device */
+(function(){
+  const keysTabBtn=document.querySelector('.tab-btn[data-tab="keys"]');
+  const pc=document.getElementById('keysPcContent'),tc=document.getElementById('keysTouchContent');
+  if(isMobile){
+    if(pc)pc.style.display='none';
+    if(tc)tc.style.display='flex';
+    if(keysTabBtn)keysTabBtn.textContent='Touch';
+  }else{
+    if(pc)pc.style.display='flex';
+    if(tc)tc.style.display='none';
+    if(keysTabBtn)keysTabBtn.textContent='Keys';
+  }
+})();
+
 /* Mobile HUD scale + layout */
-const mobileSettingsGroup=$('mobileSettingsGroup');
-if(mobileSettingsGroup && ('ontouchstart' in window || navigator.maxTouchPoints>0)) mobileSettingsGroup.style.display='flex';
 const mScaleEl=$('mScale'),mScaleVal=$('mScaleVal');
 if(mScaleEl){
   try{const s=localStorage.getItem('shotline.mscale');if(s)mScaleEl.value=s;}catch(e){}
