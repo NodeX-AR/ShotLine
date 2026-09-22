@@ -952,7 +952,7 @@ const VM=(function(){
             const sk=o.skeleton;
             const armIdx=[];
             armBoneNames.forEach(n=>{
-              const b=sk.bones.find(x=>x.name==='mixamorig:'+n||x.name===n);
+              const b=sk.bones.find(x=>x.name==='mixamorig:'+n||x.name==='mixamorig'+n||x.name===n);
               if(b)armIdx.push(sk.bones.indexOf(b));
             });
             const conds=armIdx.map(v=>`if(abs(vBone-${v}.0)<0.5) keep=true;`).join('\n');
@@ -988,7 +988,7 @@ const VM=(function(){
         if(acts.walk){acts.walk.play();acts.walk.setEffectiveWeight(0);}
         if(acts.run){acts.run.play();acts.run.setEffectiveWeight(0);}
       }
-      const B=n=>clone.getObjectByName('mixamorig:'+n);
+      const B=n=>clone.getObjectByName('mixamorig:'+n)||clone.getObjectByName('mixamorig'+n)||clone.getObjectByName(n);
       const bones={rA:B('RightArm'),rF:B('RightForeArm'),rH:B('RightHand'),
                    lA:B('LeftArm'),lF:B('LeftForeArm'),lH:B('LeftHand')};
       fp.clone=clone;fp.bones=bones;fp.mixer=mixer;fp.acts=acts;fp.w={idle:1,walk:0,run:0};fp.ready=true;
@@ -1194,7 +1194,7 @@ const CH=(function(){
     if(acts.idle)acts.idle.play();
     if(acts.walk){acts.walk.play();acts.walk.setEffectiveWeight(0);}
     if(acts.run){acts.run.play();acts.run.setEffectiveWeight(0);}
-    const B=n=>clone.getObjectByName('mixamorig:'+n);
+    const B=n=>clone.getObjectByName('mixamorig:'+n)||clone.getObjectByName('mixamorig'+n)||clone.getObjectByName(n);
     const bones={hips:B('Hips'),spine:B('Spine'),spine1:B('Spine1'),spine2:B('Spine2'),neck:B('Neck'),head:B('Head'),rA:B('RightArm'),rF:B('RightForeArm'),rH:B('RightHand'),lA:B('LeftArm'),lF:B('LeftForeArm'),lH:B('LeftHand')};
     for(const child of rg.body.children.slice()){if(child!==rg.gp)child.visible=false;}
     for(const k in rg.bones)if(rg.bones[k])rg.bones[k].visible=false;
