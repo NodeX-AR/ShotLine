@@ -992,8 +992,11 @@ const VM=(function(){
         if(ic){const a=mixer.clipAction(ic);a.play();}
       }
       const B=n=>clone.getObjectByName('mixamorig'+n);
-      const bones={rA:B('RightArm'),rF:B('RightForeArm'),rH:B('RightHand'),
-                   lA:B('LeftArm'),lF:B('LeftForeArm'),lH:B('LeftHand')};
+/* clone is rotated 180° about Y (model faces -Z), so the model's Right*
+   bones render on the screen's LEFT and Left* bones on the screen's RIGHT.
+   Label them by what the player sees so the rest of the code stays valid. */
+      const bones={rA:B('LeftArm'),rF:B('LeftForeArm'),rH:B('LeftHand'),
+        lA:B('RightArm'),lF:B('RightForeArm'),lH:B('RightHand')};
       fp.clone=clone;fp.bones=bones;fp.mixer=mixer;fp.ready=true;
       console.log('[VM] FP GLB arms active');
     }catch(e){console.warn('[VM] FP GLB setup failed:',e);}
@@ -1095,12 +1098,12 @@ const VM=(function(){
         aimBone(bn.rA,bn.rF,_fpV4);
         aimBone(bn.rF,bn.rH,_fpV5);
         if(!reloading){
-          orientHand(bn.rH,wristLocal,fLocal,pLocal,cfg.roll||0,false);
+          orientHand(bn.rH,wristLocal,fLocal,pLocal,cfg.roll||0,true);
         }
         const rc={};
         const rp=cfg.curl;
         rc.index=rp.index*Rg; rc.middle=rp.middle*Rg; rc.ring=rp.ring*Rg; rc.pinky=rp.pinky*Rg; rc.thumb=rp.thumb*Rg;
-        applyFingerCurl(bn.rH,'r',rc);
+        applyFingerCurl(bn.rH,'l',rc);
       }
 
       /* ---- LEFT ARM = support hand (screen left) ---- */
@@ -1125,13 +1128,13 @@ const VM=(function(){
         aimBone(bn.lA,bn.lF,_fpV4);
         aimBone(bn.lF,bn.lH,_fpV5);
         if(!reloading){
-          orientHand(bn.lH,wristLocal,fLocal,pLocal,cfg.roll||0,true);
+          orientHand(bn.lH,wristLocal,fLocal,pLocal,cfg.roll||0,false);
         }
         if(!oneHanded||reloading){
           const lc={};
           const lpp=cfg.curl;
           lc.index=lpp.index*Lg; lc.middle=lpp.middle*Lg; lc.ring=lpp.ring*Lg; lc.pinky=lpp.pinky*Lg; lc.thumb=lpp.thumb*Lg;
-          applyFingerCurl(bn.lH,'l',lc);
+          applyFingerCurl(bn.lH,'r',lc);
         }
       }
     }
