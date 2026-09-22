@@ -1070,46 +1070,22 @@ const VM=(function(){
       const bn=fp.bones;
       const tune=(FP_HAND[r.kind]||FP_HAND._default);
       const reloading=S.reload01>0;
+      const oneHanded=!!tune.oh;
+      const lp=LposO||A.lHold;
 
-      /* ---- RIGHT ARM ---- */
-      if(bn.rA&&bn.rF&&bn.rH){
+      /* The FP model is rotated 180° (faces the camera), so Mixamo's
+         RightArm ends up on the SCREEN'S LEFT and Mixamo's LeftArm on
+         the SCREEN'S RIGHT. So Mixamo-Left solves the shooting hand
+         (A.rGrip) and Mixamo-Right solves the support hand (A.lHold). */
+
+      /* ---- MIXAMO LEFT ARM = shooting hand (screen right) ---- */
+      if(bn.lA&&bn.lF&&bn.lH){
         const cfg=tune.r;
         const wristLocal=new THREE.Vector3(Rpos[0]+cfg.w[0],Rpos[1]+cfg.w[1],Rpos[2]+cfg.w[2]);
         const fLocal   =new THREE.Vector3(Rpos[0]+cfg.f[0],Rpos[1]+cfg.f[1],Rpos[2]+cfg.f[2]);
         const pLocal   =new THREE.Vector3(Rpos[0]+cfg.p[0],Rpos[1]+cfg.p[1],Rpos[2]+cfg.p[2]);
         g.localToWorld(wristLocal); g.localToWorld(fLocal); g.localToWorld(pLocal);
 
-        bn.rA.getWorldPosition(_fpV1);
-        bn.rF.getWorldPosition(_fpV2);
-        bn.rH.getWorldPosition(_fpV3);
-        const l1=_fpV1.distanceTo(_fpV2), l2=_fpV2.distanceTo(_fpV3);
-        ikFP(_fpV1,wristLocal,l1,l2,new THREE.Vector3(0.55,-1,0.35),_fpV4,_fpV5);
-        aimBone(bn.rA,bn.rF,_fpV4);
-        aimBone(bn.rF,bn.rH,_fpV5);
-        if(!reloading){
-          orientHand(bn.rH,wristLocal,fLocal,pLocal,cfg.roll||0);
-        }
-        const rc={};
-        const rp=cfg.curl;
-        rc.index=rp.index*Rg; rc.middle=rp.middle*Rg; rc.ring=rp.ring*Rg; rc.pinky=rp.pinky*Rg; rc.thumb=rp.thumb*Rg;
-        applyFingerCurl(bn.rH,'r',rc);
-      }
-
-      /* ---- LEFT ARM ---- */
-      if(bn.lA&&bn.lF&&bn.lH){
-        const cfg=tune.l;
-        const oneHanded=!!tune.oh;
-        let wristLocal,fLocal,pLocal;
-        if(oneHanded&&!reloading){
-          wristLocal=new THREE.Vector3(0.38,-0.58,0.02);
-          fLocal=new THREE.Vector3(0.38,-0.78,-0.10);
-          pLocal=new THREE.Vector3(0.10,-0.60,-0.02);
-        } else {
-          wristLocal=new THREE.Vector3(lp[0]+cfg.w[0],lp[1]+cfg.w[1],lp[2]+cfg.w[2]);
-          fLocal    =new THREE.Vector3(lp[0]+cfg.f[0],lp[1]+cfg.f[1],lp[2]+cfg.f[2]);
-          pLocal    =new THREE.Vector3(lp[0]+cfg.p[0],lp[1]+cfg.p[1],lp[2]+cfg.p[2]);
-          g.localToWorld(wristLocal); g.localToWorld(fLocal); g.localToWorld(pLocal);
-        }
         bn.lA.getWorldPosition(_fpV1);
         bn.lF.getWorldPosition(_fpV2);
         bn.lH.getWorldPosition(_fpV3);
@@ -1120,11 +1096,42 @@ const VM=(function(){
         if(!reloading){
           orientHand(bn.lH,wristLocal,fLocal,pLocal,cfg.roll||0);
         }
+        const rc={};
+        const rp=cfg.curl;
+        rc.index=rp.index*Rg; rc.middle=rp.middle*Rg; rc.ring=rp.ring*Rg; rc.pinky=rp.pinky*Rg; rc.thumb=rp.thumb*Rg;
+        applyFingerCurl(bn.lH,'l',rc);
+      }
+
+      /* ---- MIXAMO RIGHT ARM = support hand (screen left) ---- */
+      if(bn.rA&&bn.rF&&bn.rH){
+        const cfg=tune.l;
+        let wristLocal,fLocal,pLocal;
+        if(oneHanded&&!reloading){
+          /* Park the support hand off-screen (below-right of view) */
+          wristLocal=new THREE.Vector3(0.42,-0.62,0.02);
+          fLocal    =new THREE.Vector3(0.42,-0.82,-0.10);
+          pLocal    =new THREE.Vector3(0.16,-0.66,-0.02);
+        } else {
+          wristLocal=new THREE.Vector3(lp[0]+cfg.w[0],lp[1]+cfg.w[1],lp[2]+cfg.w[2]);
+          fLocal    =new THREE.Vector3(lp[0]+cfg.f[0],lp[1]+cfg.f[1],lp[2]+cfg.f[2]);
+          pLocal    =new THREE.Vector3(lp[0]+cfg.p[0],lp[1]+cfg.p[1],lp[2]+cfg.p[2]);
+          g.localToWorld(wristLocal); g.localToWorld(fLocal); g.localToWorld(pLocal);
+        }
+        bn.rA.getWorldPosition(_fpV1);
+        bn.rF.getWorldPosition(_fpV2);
+        bn.rH.getWorldPosition(_fpV3);
+        const l1=_fpV1.distanceTo(_fpV2), l2=_fpV2.distanceTo(_fpV3);
+        ikFP(_fpV1,wristLocal,l1,l2,new THREE.Vector3(0.55,-1,0.35),_fpV4,_fpV5);
+        aimBone(bn.rA,bn.rF,_fpV4);
+        aimBone(bn.rF,bn.rH,_fpV5);
+        if(!reloading){
+          orientHand(bn.rH,wristLocal,fLocal,pLocal,cfg.roll||0);
+        }
         if(!oneHanded||reloading){
           const lc={};
           const lpp=cfg.curl;
           lc.index=lpp.index*Lg; lc.middle=lpp.middle*Lg; lc.ring=lpp.ring*Lg; lc.pinky=lpp.pinky*Lg; lc.thumb=lpp.thumb*Lg;
-          applyFingerCurl(bn.lH,'l',lc);
+          applyFingerCurl(bn.rH,'r',lc);
         }
       }
     }
