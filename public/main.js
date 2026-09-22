@@ -1075,7 +1075,7 @@ const VM=(function(){
       r.R.sleeve.visible=false;r.R.cuff.visible=false;
       r.Lh.sleeve.visible=false;r.Lh.cuff.visible=false;
       if(S.frozen)return r;
-      if(fp.mixer)fp.mixer.update(dt);
+      // if(fp.mixer)fp.mixer.update(dt);
       const bn=fp.bones;
       const tune=(FP_HAND[r.kind]||FP_HAND._default);
       const reloading=S.reload01>0;
