@@ -871,10 +871,15 @@ const VM=(function(){
     handBone.updateWorldMatrix(false,true);
   }
 
-  function orientHand(handBone, wrist, fTarget, pTarget, roll){
+  function orientHand(handBone, wrist, fTarget, pTarget, roll, flip){
     _fpV1.copy(fTarget).sub(wrist); if(_fpV1.lengthSq()<1e-8)_fpV1.set(0,0,-1); _fpV1.normalize();
     _fpV2.copy(pTarget).sub(wrist); if(_fpV2.lengthSq()<1e-8)_fpV2.set(-1,0,0); _fpV2.normalize();
-    _fpV3.crossVectors(_fpV2,_fpV1);
+    /* Building a 3-axis frame from just two target directions has two valid
+       chiralities (cross(p,f) vs cross(f,p)); only one matches a given hand's
+       true bind-pose convention. This model's Left/Right hand bones don't
+       mirror that convention consistently, so the caller must tell us which
+       chirality this bone needs via `flip` (see call sites). */
+    if(flip) _fpV3.crossVectors(_fpV1,_fpV2); else _fpV3.crossVectors(_fpV2,_fpV1);
     if(_fpV3.lengthSq()<1e-8)_fpV3.set(1,0,0);
     _fpV3.normalize();
     _fpV4.crossVectors(_fpV1,_fpV3).normalize();
@@ -1106,7 +1111,7 @@ const VM=(function(){
         aimBone(bn.lA,bn.lF,_fpV4);
         aimBone(bn.lF,bn.lH,_fpV5);
         if(!reloading){
-          orientHand(bn.lH,wristLocal,fLocal,pLocal,cfg.roll||0);
+          orientHand(bn.lH,wristLocal,fLocal,pLocal,cfg.roll||0,true);
         }
         const rc={};
         const rp=cfg.curl;
