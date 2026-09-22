@@ -859,23 +859,49 @@ const VM=(function(){
       r.Lh.sleeve.visible=false;r.Lh.cuff.visible=false;
       if(fp.mixer)fp.mixer.update(dt);
       const bn=fp.bones;
-      /* Right arm: target = wrist behind grip, so palm wraps the grip */
-        if(bn.rA&&bn.rF&&bn.rH){
-        Lh.root.getWorldPosition(_iT);
-        _iT.z+=0.06;
-        bn.rA.getWorldPosition(_iA);bn.rF.getWorldPosition(_iE);bn.rH.getWorldPosition(_iW);
-        const l1=_iA.distanceTo(_iE),l2=_iE.distanceTo(_iW);
-        ikFP(_iA,_iT,l1,l2,new THREE.Vector3(0.6,-1,0),_iEL,_iEND);
-        aimFP(bn.rA,bn.rF,_iEL);aimFP(bn.rF,bn.rH,_iEND);
+      const tune=(FP_HAND[r.kind]||FP_HAND._default);
+
+      /* ---- Right arm: wrist goes to A.rGrip, fingers wrap forward ---- */
+      if(bn.rA&&bn.rF&&bn.rH){
+        /* Wrist target = gun-local grip + per-gun offset, converted to world */
+        _iW.set(A.rGrip[0]+tune.r[0], A.rGrip[1]+tune.r[1], A.rGrip[2]+tune.r[2]);
+        g.localToWorld(_iW);
+        /* Aim target = point in front of the grip where fingers should point */
+        _iT.set(A.rGrip[0]+tune.r[3], A.rGrip[1]+tune.r[4], A.rGrip[2]+tune.r[5]);
+        g.localToWorld(_iT);
+
+        bn.rA.getWorldPosition(_iA);
+        bn.rF.getWorldPosition(_iE);
+        bn.rH.getWorldPosition(_iEND);
+        const l1=_iA.distanceTo(_iE), l2=_iE.distanceTo(_iEND);
+        ikFP(_iA,_iW,l1,l2,new THREE.Vector3(0.55,-1,0.35),_iEL,_iEND);
+        aimFP(bn.rA,bn.rF,_iEL);
+        aimFP(bn.rF,bn.rH,_iEND);
+        /* Aim the hand mesh so the palm curls around the grip */
+        let kid=null;
+        for(const c of bn.rH.children){if(c.isBone&&/Index|Middle|Ring|Pinky/i.test(c.name)){kid=c;break;}}
+        if(!kid&&bn.rH.children.length)kid=bn.rH.children[0];
+        if(kid)aimFP(bn.rH,kid,_iT);
       }
-      /* Left arm */
+
+      /* ---- Left arm ---- */
       if(bn.lA&&bn.lF&&bn.lH){
-        Rh.root.getWorldPosition(_iT);
-        _iT.z+=0.06;
-        bn.lA.getWorldPosition(_iA);bn.lF.getWorldPosition(_iE);bn.lH.getWorldPosition(_iW);
-        const l1=_iA.distanceTo(_iE),l2=_iE.distanceTo(_iW);
-        ikFP(_iA,_iT,l1,l2,new THREE.Vector3(-0.6,-1,0),_iEL,_iEND);
-        aimFP(bn.lA,bn.lF,_iEL);aimFP(bn.lF,bn.lH,_iEND);
+        _iW.set(A.lHold[0]+tune.l[0], A.lHold[1]+tune.l[1], A.lHold[2]+tune.l[2]);
+        g.localToWorld(_iW);
+        _iT.set(A.lHold[0]+tune.l[3], A.lHold[1]+tune.l[4], A.lHold[2]+tune.l[5]);
+        g.localToWorld(_iT);
+
+        bn.lA.getWorldPosition(_iA);
+        bn.lF.getWorldPosition(_iE);
+        bn.lH.getWorldPosition(_iEND);
+        const l1=_iA.distanceTo(_iE), l2=_iE.distanceTo(_iEND);
+        ikFP(_iA,_iW,l1,l2,new THREE.Vector3(-0.55,-1,0.35),_iEL,_iEND);
+        aimFP(bn.lA,bn.lF,_iEL);
+        aimFP(bn.lF,bn.lH,_iEND);
+        let kid=null;
+        for(const c of bn.lH.children){if(c.isBone&&/Index|Middle|Ring|Pinky/i.test(c.name)){kid=c;break;}}
+        if(!kid&&bn.lH.children.length)kid=bn.lH.children[0];
+        if(kid)aimFP(bn.lH,kid,_iT);
       }
     }
     return r;
@@ -883,7 +909,25 @@ const VM=(function(){
     const tcache={};function tracks(kind,A){return tcache[kind]||(tcache[kind]=reloadFor(kind,A));}
 
   /* === First-person GLB arms === */
+    /* === First-person GLB arms === */
   const fp={ready:false,clone:null,bones:null,mixer:null};
+  /* Per-weapon FP hand tuning.
+     r/l = [wristX, wristY, wristZ,  aimX, aimY, aimZ]
+     All values are in GUN-LOCAL space, added on top of A.rGrip / A.lHold.
+     First 3 = where the wrist joint goes.
+     Last 3  = the point the fingers should point toward (grip curve).
+     Tweak these numbers if a specific gun looks off. */
+  const FP_HAND={
+    pistol:  {r:[ 0.000, 0.005, 0.010,  0.000,-0.025,-0.100], l:[-0.020, 0.010,-0.020,  0.015,-0.020,-0.070]},
+    smg:     {r:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.120], l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.120]},
+    rifle:   {r:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.140], l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.140]},
+    bullpup: {r:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.140], l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.140]},
+    dmr:     {r:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.140], l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.140]},
+    lmg:     {r:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.120], l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.120]},
+    shotgun: {r:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.120], l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.120]},
+    sniper:  {r:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.140], l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.140]},
+    _default:{r:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.120], l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.120]}
+  };
   const _iA=new THREE.Vector3(),_iE=new THREE.Vector3(),_iW=new THREE.Vector3(),
         _iT=new THREE.Vector3(),_iP=new THREE.Vector3(),_iEL=new THREE.Vector3(),
         _iEND=new THREE.Vector3(),_iD=new THREE.Vector3(),_iPv=new THREE.Vector3(),
