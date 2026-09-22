@@ -6,7 +6,7 @@
 <title>Shotline — Fallen City</title>
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0c151b;--panel:rgba(9,18,24,.85);--line:rgba(190,225,240,.16);--text:#eaf3f6;--dim:#90a6b1;--accent:#ff6a2b;--you:#6fe3ff;--danger:#ff4d4d;--good:#43e0a0}
+:root{--bg:#0c151b;--panel:rgba(9,18,24,.85);--line:rgba(190,225,240,.16);--text:#eaf3f6;--dim:#90a6b1;--accent:#ff6a2b;--you:#6fe3ff;--danger:#ff4d4d;--good:#43e0a0;--mScale:1}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Chakra Petch','Rajdhani','Segoe UI',system-ui,sans-serif;overflow:hidden;user-select:none;-webkit-user-select:none}
 body.fb #game{cursor:none}
@@ -54,11 +54,12 @@ kbd{font:inherit;font-size:.85em;padding:1px 7px;border:1px solid var(--line);bo
 .bind-key.listening{background:var(--accent);color:#1a0d05;border-color:var(--accent)}
 .bind-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px}
 
-/* MOBILE TOUCH CONTROLS */
+/* MOBILE CONTROLS */
 body.touch{touch-action:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
 #game canvas{touch-action:none}
 #mobileHud{position:fixed;inset:0;z-index:12;pointer-events:none;touch-action:none}
 #mobileHud.hidden{display:none!important}
+#mobileHud .mbtn,#mobileHud .mw,#joyBase,#joyKnob{zoom:var(--mScale)}
 #joyZone{position:absolute;left:0;bottom:0;width:38vw;height:60vh;max-width:360px;pointer-events:auto;touch-action:none}
 #joyBase{position:absolute;left:22px;bottom:22px;width:118px;height:118px;border-radius:50%;border:2px solid rgba(190,225,240,.42);background:radial-gradient(circle at center,rgba(20,30,40,.4),rgba(20,30,40,.12));box-shadow:0 0 16px rgba(0,0,0,.45),inset 0 0 16px rgba(111,227,255,.10);pointer-events:none;opacity:.62;transition:opacity .15s}
 #joyBase.active{opacity:1}
@@ -76,6 +77,8 @@ body.touch{touch-action:none;-webkit-touch-callout:none;-webkit-tap-highlight-co
 #mReload{right:100px;bottom:calc(max(20px,env(safe-area-inset-bottom)) + 80px);width:44px;height:44px;font-size:9px}
 #mSprint{right:24px;bottom:calc(max(20px,env(safe-area-inset-bottom)) + 142px);width:44px;height:44px;font-size:9px;background:rgba(30,60,50,.72);border-color:rgba(67,224,160,.75)}
 #mSprint.on{background:#43e0a0;color:#08240f;border-color:#fff}
+#mExit{background:rgba(60,20,20,.8);border-color:var(--danger);color:#ffdddd}
+#mExit.on{background:var(--danger);color:#fff;border-color:#fff}
 #mWeapons{position:absolute;right:max(10px,env(safe-area-inset-right));top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:5px;pointer-events:none;touch-action:none}
 .mw{font:700 11px 'Chakra Petch',sans-serif;color:#eaf3f6;background:rgba(15,25,35,.68);border:1.5px solid rgba(190,225,240,.45);border-radius:7px;padding:6px 7px;min-width:30px;text-align:center;pointer-events:auto;touch-action:none;text-shadow:0 1px 2px #000;letter-spacing:.04em;transition:transform .08s,background .12s}
 .mw:active{transform:scale(.9)}
@@ -92,6 +95,16 @@ body.touch{touch-action:none;-webkit-touch-callout:none;-webkit-tap-highlight-co
   #mTopRight .mbtn{width:32px;height:32px;font-size:13px}
 }
 
+/* Compact mobile chat */
+@media (max-width:900px) and (orientation:landscape){
+  #chatlog{left:8px;bottom:76px;width:min(240px,38vw);max-height:96px;font-size:10.5px}
+  #chatlog .chat{padding:2px 6px;margin-top:2px;font-size:10.5px}
+  #chatlog.open{max-height:min(34vh,200px);padding:4px}
+  #chatbar{left:8px;bottom:8px;width:min(260px,52vw);padding:5px 8px;font-size:11px}
+  #chatbar input{font-size:12px}
+  #chatbar span{font-size:11px}
+}
+
 /* Landscape lock */
 #rotateOverlay{display:none;position:fixed;inset:0;z-index:9999;background:radial-gradient(ellipse at center,#0c151b 0%,#050a0d 100%);color:var(--text);font-family:'Chakra Petch',sans-serif;align-items:center;justify-content:center;flex-direction:column;gap:22px;text-align:center;padding:40px}
 #rotateOverlay svg{width:120px;height:120px;opacity:.85;animation:rot 2.4s ease-in-out infinite}
@@ -100,7 +113,7 @@ body.touch{touch-action:none;-webkit-touch-callout:none;-webkit-tap-highlight-co
 @keyframes rot{0%,40%{transform:rotate(0deg)}60%,100%{transform:rotate(-90deg)}}
 @media (orientation:portrait) and (max-width:900px){
   #rotateOverlay{display:flex}
-  #game,#hud,#menu,#pause,#death,#board,#mobileHud,#chatbar,#chatlog,#scope,#reddot,#borderWarn,#interact{display:none !important}
+  #game,#hud,#menu,#pause,#death,#board,#mobileHud,#chatbar,#chatlog,#scope,#reddot,#borderWarn,#interact{display:none!important}
 }
 
 #grade{position:fixed;inset:0;z-index:5;pointer-events:none;background:radial-gradient(ellipse at center,transparent 56%,rgba(4,10,16,.46) 100%)}
@@ -259,9 +272,7 @@ tr.dead .st{background:var(--danger)}
   </div>
 </div>
 
-<div id="chatbar" class="hidden">
-  <span>Say:</span><input id="chatinput" maxlength="180" autocomplete="off" spellcheck="false">
-</div>
+<div id="chatbar" class="hidden"><span>Say:</span><input id="chatinput" maxlength="180" autocomplete="off" spellcheck="false"></div>
 
 <div id="menu" class="screen">
   <h1 class="wordmark">Shot<i>line</i></h1>
@@ -293,6 +304,15 @@ tr.dead .st{background:var(--danger)}
       <div class="toggle-row"><span>Bot chatter</span><input id="optChat" type="checkbox" checked></div></div>
     <div class="settings-group"><h3>HUD</h3>
       <div class="toggle-row"><span>Show FPS hint</span><input id="optFps" type="checkbox" checked></div></div>
+    <div class="settings-group" id="mobileSettingsGroup" style="display:none">
+      <h3>Mobile HUD</h3>
+      <label class="field">Button size <span id="mScaleVal" style="color:var(--accent);font-weight:700">100%</span>
+        <input id="mScale" type="range" min="60" max="140" value="100">
+      </label>
+      <div class="toggle-row"><span>Layout edit mode</span><input id="optLayout" type="checkbox"></div>
+      <button id="resetLayout" class="btn ghost" style="font-size:14px;padding:9px">Reset button positions</button>
+      <p class="note" style="margin-top:6px">Layout mode: drag any round button to reposition it. Tap ✕ in-game to pause.</p>
+    </div>
     <button id="resetSettings" class="btn ghost" style="font-size:16px;padding:12px">Reset to defaults</button>
   </div>
   <div class="tab-panel hidden" data-tab="controls">
@@ -304,6 +324,7 @@ tr.dead .st{background:var(--danger)}
         <b><kbd>1</kbd>–<kbd>8</kbd></b><span>Weapons (or scroll)</span>
         <b><kbd>Tab</kbd></b><span>Leaderboard</span>
         <b><kbd>Enter</kbd></b><span>Global chat</span>
+        <b><kbd>Esc</kbd></b><span>Pause / Menu</span>
       </div>
       <p class="note">Desktop with mouse and keyboard · Touch controls auto-enable on mobile.</p>
     </div>
@@ -343,7 +364,14 @@ tr.dead .st{background:var(--danger)}
   </div>
 </div>
 
-<div id="pause" class="screen hidden"><div class="big" id="pauseT">Paused</div><p class="sub" id="pauseS">Click anywhere to jump back in</p><button id="leave" class="btn ghost" style="margin-top:22px;font-size:18px">Leave match</button></div>
+<div id="pause" class="screen hidden">
+  <div class="big" id="pauseT">Paused</div>
+  <p class="sub" id="pauseS">Click anywhere to jump back in</p>
+  <div style="display:flex;gap:10px;margin-top:22px">
+    <button id="resume" class="btn">Resume</button>
+    <button id="leave" class="btn ghost" style="font-size:18px">Leave match</button>
+  </div>
+</div>
 <div id="death" class="screen hidden"><div class="big">Eliminated</div><p class="sub" id="killer"></p><button id="respawnBtn" class="btn">Respawn</button></div>
 <div id="board" class="hidden"><div class="panel"><div class="bhead"><div><h2 id="btitle">Live leaderboard</h2><div class="sub" id="bsub">—</div></div><div class="btimer" id="btimer">—</div></div>
 <table><thead><tr><th class="c">#</th><th>Player</th><th class="n">Kills</th><th class="n">Deaths</th><th class="n">K/D</th><th class="c">Alive</th></tr></thead><tbody id="brows"></tbody></table>
@@ -360,12 +388,17 @@ tr.dead .st{background:var(--danger)}
   <div id="mTopRight">
     <button class="mbtn" data-act="board" aria-label="Leaderboard">☰</button>
     <button class="mbtn" data-act="chat" aria-label="Chat">💬</button>
+    <button id="mExit" class="mbtn" data-act="exit" aria-label="Menu">✕</button>
   </div>
   <div id="mWeapons">
-    <button class="mw" data-w="0">1</button><button class="mw" data-w="1">2</button>
-    <button class="mw" data-w="2">3</button><button class="mw" data-w="3">4</button>
-    <button class="mw" data-w="4">5</button><button class="mw" data-w="5">6</button>
-    <button class="mw" data-w="6">7</button><button class="mw" data-w="7">8</button>
+    <button class="mw" id="mw0" data-w="0">1</button>
+    <button class="mw" id="mw1" data-w="1">2</button>
+    <button class="mw" id="mw2" data-w="2">3</button>
+    <button class="mw" id="mw3" data-w="3">4</button>
+    <button class="mw" id="mw4" data-w="4">5</button>
+    <button class="mw" id="mw5" data-w="5">6</button>
+    <button class="mw" id="mw6" data-w="6">7</button>
+    <button class="mw" id="mw7" data-w="7">8</button>
   </div>
   <button id="mFire" class="mbtn" data-act="fire">FIRE</button>
   <button id="mAds" class="mbtn" data-act="ads">ADS</button>
@@ -375,6 +408,7 @@ tr.dead .st{background:var(--danger)}
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/loaders/GLTFLoader.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/utils/SkeletonUtils.js"></script>
 <script src="soldier-gen.js"></script>
 <script src="main.js" defer></script>
