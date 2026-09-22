@@ -986,11 +986,6 @@ const VM=(function(){
       });
       viewScene.add(clone);
       let mixer=null;
-      if(glb.animations&&glb.animations.length){
-        mixer=new THREE.AnimationMixer(clone);
-        const ic=glb.animations.find(c=>c.name==='Idle');
-        if(ic){const a=mixer.clipAction(ic);a.play();}
-      }
       const B=n=>clone.getObjectByName('mixamorig'+n);
 /* clone is rotated 180° about Y (model faces -Z), so the model's Right*
    bones render on the screen's LEFT and Left* bones on the screen's RIGHT.
