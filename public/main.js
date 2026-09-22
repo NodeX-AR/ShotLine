@@ -347,7 +347,6 @@ function yard(cx,cz){for(let i=0;i<6;i++){const x=cx+wr(-9,9),z=cz+wr(-9,9);if(i
     else if(r<0.2||(d>400&&r<0.4))ruin(cx,cz,BLOCK-2,BLOCK-2);
     else if(d>360&&r<0.65)forest(cx,cz);
     else{Q(cx-h,cx+h,cz-h,cz+h,0.008,'concrete',0xb0aea6);lots(cx,cz,dtn,res);}
-    // Roadside props — more cars, buses, planks, oil drums
     if(rand()<0.24){const x=cx+wr(-h-1,h+1);if(rand()<0.55)car(x,cz+(rand()<0.5?1:-1)*(h+3.8),true,wpick(CARC),rand()<0.35);}
     if(rand()<0.24){const z=cz+wr(-h-1,h+1);if(rand()<0.55)car(cx+(rand()<0.5?1:-1)*(h+3.8),z,false,wpick(CARC),rand()<0.35);}
     if(rand()<0.10){const x=cx+wr(-h*0.7,h*0.7),z=cz+(rand()<0.5?1:-1)*(h+4.5);bus(x,z,true,wpick(BUSC));}
@@ -786,6 +785,167 @@ const VM=(function(){
     r.slideT=1;r.trigT=1;r.pumpT=(r.kind==='shotgun')?1:0;r.boltT=(r.kind==='sniper')?1:0;}
   function spring(x,v,dt,k,c){const a=-k*x-c*v;v+=a*dt;x+=v*dt;return [x,v];}
   const tmp=[0,0,0,0,0,0,0],tmp3=[0,0,0],tmp6=[0,0,0,0,0,0];
+  /* === First-person GLB arms === */
+  const fp={ready:false,clone:null,bones:null,mixer:null};
+  /* Per-weapon FP hand tuning.
+     r/l = [wristX, wristY, wristZ, aimX, aimY, aimZ, roll, curlMap]
+     All positions are in GUN-LOCAL space, added on top of A.rGrip / A.lHold.
+     curlMap = per-finger curl amount (0..1.2) — right hand on grip/trigger,
+     left hand wraps foregrip. */
+  const FP_HAND={
+    pistol:  {r:[-0.015, 0.010, 0.035,  0.000,-0.030,-0.080, -1.20, {index:0.95,middle:0.95,ring:0.90,pinky:0.85,thumb:0.45}],
+              l:[-0.020, 0.010,-0.020,  0.010,-0.020,-0.070, -1.20, {index:1.15,middle:1.15,ring:1.10,pinky:1.05,thumb:0.60}]},
+    smg:     {r:[ 0.000, 0.000, 0.025,  0.000,-0.020,-0.100, -1.30, {index:0.95,middle:0.95,ring:0.90,pinky:0.85,thumb:0.45}],
+              l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.140, -1.30, {index:1.10,middle:1.10,ring:1.05,pinky:1.00,thumb:0.55}]},
+    rifle:   {r:[ 0.000, 0.000, 0.025,  0.000,-0.020,-0.120, -1.30, {index:0.95,middle:0.95,ring:0.90,pinky:0.85,thumb:0.45}],
+              l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.160, -1.30, {index:1.10,middle:1.10,ring:1.05,pinky:1.00,thumb:0.55}]},
+    bullpup: {r:[ 0.000, 0.000, 0.025,  0.000,-0.020,-0.120, -1.30, {index:0.95,middle:0.95,ring:0.90,pinky:0.85,thumb:0.45}],
+              l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.160, -1.30, {index:1.10,middle:1.10,ring:1.05,pinky:1.00,thumb:0.55}]},
+    dmr:     {r:[ 0.000, 0.000, 0.025,  0.000,-0.020,-0.120, -1.30, {index:0.95,middle:0.95,ring:0.90,pinky:0.85,thumb:0.45}],
+              l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.170, -1.30, {index:1.10,middle:1.10,ring:1.05,pinky:1.00,thumb:0.55}]},
+    lmg:     {r:[ 0.000, 0.000, 0.025,  0.000,-0.020,-0.110, -1.30, {index:0.95,middle:0.95,ring:0.90,pinky:0.85,thumb:0.45}],
+              l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.140, -1.30, {index:1.10,middle:1.10,ring:1.05,pinky:1.00,thumb:0.55}]},
+    shotgun: {r:[ 0.000, 0.000, 0.025,  0.000,-0.020,-0.110, -1.30, {index:0.95,middle:0.95,ring:0.90,pinky:0.85,thumb:0.45}],
+              l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.140, -1.30, {index:1.10,middle:1.10,ring:1.05,pinky:1.00,thumb:0.55}]},
+    sniper:  {r:[ 0.000, 0.000, 0.025,  0.000,-0.020,-0.120, -1.30, {index:0.95,middle:0.95,ring:0.90,pinky:0.85,thumb:0.45}],
+              l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.170, -1.30, {index:1.10,middle:1.10,ring:1.05,pinky:1.00,thumb:0.55}]},
+    _default:{r:[ 0.000, 0.000, 0.025,  0.000,-0.020,-0.110, -1.30, {index:0.95,middle:0.95,ring:0.90,pinky:0.85,thumb:0.45}],
+              l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.140, -1.30, {index:1.10,middle:1.10,ring:1.05,pinky:1.00,thumb:0.55}]}
+  };
+  /* Per-joint curl angle (radians) at curl=1.0 */
+  const FP_CURL_PROFILE={
+    Index: [0.55, 1.05, 0.95, 0.55],
+    Middle:[0.60, 1.10, 1.00, 0.60],
+    Ring:  [0.55, 1.00, 0.90, 0.55],
+    Pinky: [0.50, 0.85, 0.80, 0.50],
+    Thumb: [0.30, 0.55, 0.40, 0.25]
+  };
+  const FP_CURL_SIGN=1;   // set to -1 if fingers curl outward
+  const _fpQX=new THREE.Quaternion(),_fpQY=new THREE.Quaternion();
+  const _fpXA=new THREE.Vector3(1,0,0),_fpYA=new THREE.Vector3(0,1,0);
+  const _iA=new THREE.Vector3(),_iE=new THREE.Vector3(),_iW=new THREE.Vector3(),
+        _iT=new THREE.Vector3(),_iPv=new THREE.Vector3(),_iEL=new THREE.Vector3(),
+        _iEND=new THREE.Vector3(),_iD=new THREE.Vector3(),
+        _iV1=new THREE.Vector3(),_iV2=new THREE.Vector3(),_iV3=new THREE.Vector3(),
+        _iQ1=new THREE.Quaternion(),_iQ2=new THREE.Quaternion(),_iQ3=new THREE.Quaternion();
+  function ikFP(a,t,l1,l2,pole,elbow,end){
+    _iD.subVectors(t,a);let dist=_iD.length();
+    const mx=l1+l2-0.003;if(dist>mx)dist=mx;if(dist<0.04)dist=0.04;
+    _iD.normalize();
+    const a1=(l1*l1-l2*l2+dist*dist)/(2*dist);
+    const h=Math.sqrt(Math.max(0,l1*l1-a1*a1));
+    _iPv.copy(pole).addScaledVector(_iD,-pole.dot(_iD));
+    if(_iPv.lengthSq()<1e-6)_iPv.set(0,-1,0);
+    _iPv.normalize();
+    elbow.copy(a).addScaledVector(_iD,a1).addScaledVector(_iPv,h);
+    end.copy(a).addScaledVector(_iD,dist);
+  }
+  function aimFP(bone,child,target){
+    if(!bone||!child)return;
+    bone.updateWorldMatrix(true,true);
+    bone.getWorldPosition(_iV1);child.getWorldPosition(_iV2);
+    _iV2.sub(_iV1).normalize();_iV3.copy(target).sub(_iV1).normalize();
+    _iQ3.setFromUnitVectors(_iV2,_iV3);
+    bone.parent.getWorldQuaternion(_iQ1);
+    bone.getWorldQuaternion(_iQ2);
+    _iQ2.premultiply(_iQ3);
+    bone.quaternion.copy(_iQ1.invert().multiply(_iQ2));
+    bone.updateWorldMatrix(false,true);
+  }
+  function applyFingerCurl(handBone, side, curlAmt){
+    if(!handBone||!curlAmt)return;
+    const prefix=side==='r'?'Right':'Left';
+    for(const fname in FP_CURL_PROFILE){
+      const amt=curlAmt[fname.toLowerCase()];
+      if(!amt)continue;
+      const prof=FP_CURL_PROFILE[fname];
+      for(let i=1;i<=4;i++){
+        const b=handBone.getObjectByName('mixamorig'+prefix+'Hand'+fname+i);
+        if(!b)continue;
+        _fpQX.setFromAxisAngle(_fpXA, prof[i-1]*amt*FP_CURL_SIGN);
+        b.quaternion.multiply(_fpQX);
+      }
+    }
+    const t1=handBone.getObjectByName('mixamorig'+prefix+'HandThumb1');
+    if(t1){
+      _fpQY.setFromAxisAngle(_fpYA, 0.45*(side==='r'?1:-1));
+      t1.quaternion.multiply(_fpQY);
+    }
+    handBone.updateWorldMatrix(false,true);
+  }
+  function setGLB(glb){
+    if(!glb||!glb.scene)return;
+    if(!THREE.SkeletonUtils||!THREE.SkeletonUtils.clone){console.warn('[VM] SkeletonUtils missing, FP GLB disabled');return;}
+    try{
+      const clone=THREE.SkeletonUtils.clone(glb.scene);
+      clone.rotation.y=Math.PI;
+      clone.position.set(0,-1.65,-0.12);
+
+      const armBoneNames=[
+        'LeftShoulder','RightShoulder','LeftArm','RightArm',
+        'LeftForeArm','RightForeArm','LeftHand','RightHand',
+        'LeftHandIndex1','LeftHandIndex2','LeftHandIndex3','LeftHandIndex4',
+        'LeftHandMiddle1','LeftHandMiddle2','LeftHandMiddle3','LeftHandMiddle4',
+        'LeftHandPinky1','LeftHandPinky2','LeftHandPinky3','LeftHandPinky4',
+        'LeftHandRing1','LeftHandRing2','LeftHandRing3','LeftHandRing4',
+        'LeftHandThumb1','LeftHandThumb2','LeftHandThumb3','LeftHandThumb4',
+        'RightHandIndex1','RightHandIndex2','RightHandIndex3','RightHandIndex4',
+        'RightHandMiddle1','RightHandMiddle2','RightHandMiddle3','RightHandMiddle4',
+        'RightHandPinky1','RightHandPinky2','RightHandPinky3','RightHandPinky4',
+        'RightHandRing1','RightHandRing2','RightHandRing3','RightHandRing4',
+        'RightHandThumb1','RightHandThumb2','RightHandThumb3','RightHandThumb4'
+      ];
+      clone.traverse(o=>{
+        if(o.isSkinnedMesh){
+          o.castShadow=false;o.receiveShadow=false;o.frustumCulled=false;
+          if(o.material){
+            o.material=o.material.clone();
+            o.material.envMap=GX.env();
+            o.material.envMapIntensity=0.7;
+            const sk=o.skeleton;
+            const armIdx=[];
+            armBoneNames.forEach(n=>{
+              const b=sk.bones.find(x=>x.name==='mixamorig'+n||x.name===n);
+              if(b)armIdx.push(sk.bones.indexOf(b));
+            });
+            const conds=armIdx.map(v=>`if(abs(vBone-${v}.0)<0.5) keep=true;`).join('\n');
+            o.material.onBeforeCompile=(shader)=>{
+              shader.vertexShader='varying float vBone;\n'+shader.vertexShader.replace(
+                '#include <begin_vertex>',
+                `#include <begin_vertex>
+                 float mW=0.0; float mI=-1.0;
+                 if(skinWeight.x>mW){mW=skinWeight.x;mI=skinIndex.x;}
+                 if(skinWeight.y>mW){mW=skinWeight.y;mI=skinIndex.y;}
+                 if(skinWeight.z>mW){mW=skinWeight.z;mI=skinIndex.z;}
+                 if(skinWeight.w>mW){mW=skinWeight.w;mI=skinIndex.w;}
+                 vBone=mI;`
+              );
+              shader.fragmentShader='varying float vBone;\n'+shader.fragmentShader.replace(
+                'void main() {',
+                `void main() {
+                  bool keep=false;
+                  ${conds}
+                  if(!keep) discard;`
+              );
+            };
+            o.material.needsUpdate=true;
+          }
+        }else if(o.isMesh){o.visible=false;}
+      });
+      viewScene.add(clone);
+      let mixer=null;
+      if(glb.animations&&glb.animations.length){
+        mixer=new THREE.AnimationMixer(clone);
+        const ic=glb.animations.find(c=>c.name==='Idle');
+        if(ic){const a=mixer.clipAction(ic);a.play();}
+      }
+      const B=n=>clone.getObjectByName('mixamorig'+n);
+      const bones={rA:B('RightArm'),rF:B('RightForeArm'),rH:B('RightHand'),
+                   lA:B('LeftArm'),lF:B('LeftForeArm'),lH:B('LeftHand')};
+      fp.clone=clone;fp.bones=bones;fp.mixer=mixer;fp.ready=true;
+      console.log('[VM] FP GLB arms active (discarded head/torso/legs)');
+    }catch(e){console.warn('[VM] FP GLB setup failed:',e);}
+  }
   function update(dt,S){
     const r=rig[S.cur],A=r.A,g=r.g,U=g.userData,rk=r.rk,kind=r.kind;
     if(S.cur!==active)setActive(S.cur);
@@ -863,13 +1023,10 @@ const VM=(function(){
 
       /* ---- Right arm ---- */
       if(bn.rA&&bn.rF&&bn.rH){
-        // 1. Wrist target = actual gun grip point + per-gun offset
-        _iW.set(A.rGrip[0]+tune.r[0], A.rGrip[1]+tune.r[1], A.rGrip[2]+tune.r[2]);
+        _iW.set(Rpos[0]+tune.r[0], Rpos[1]+tune.r[1], Rpos[2]+tune.r[2]);
         g.localToWorld(_iW);
-        // 2. Finger-aim target = where fingers should point
-        _iT.set(A.rGrip[0]+tune.r[3], A.rGrip[1]+tune.r[4], A.rGrip[2]+tune.r[5]);
+        _iT.set(Rpos[0]+tune.r[3], Rpos[1]+tune.r[4], Rpos[2]+tune.r[5]);
         g.localToWorld(_iT);
-
         bn.rA.getWorldPosition(_iA);
         bn.rF.getWorldPosition(_iE);
         bn.rH.getWorldPosition(_iEND);
@@ -877,23 +1034,25 @@ const VM=(function(){
         ikFP(_iA,_iW,l1,l2,new THREE.Vector3(0.55,-1,0.35),_iEL,_iEND);
         aimFP(bn.rA,bn.rF,_iEL);
         aimFP(bn.rF,bn.rH,_iEND);
-        // 3. Aim the hand forward and roll so palm wraps the grip
         let kid=null;
         for(const c of bn.rH.children){if(c.isBone&&/Index|Middle|Ring|Pinky/i.test(c.name)){kid=c;break;}}
         if(!kid&&bn.rH.children.length)kid=bn.rH.children[0];
         if(kid)aimFP(bn.rH,kid,_iT);
-        // 4. Roll the palm around the finger direction
         bn.rH.rotateY(tune.r[6]||0);
         bn.rH.updateWorldMatrix(false,true);
+        const rc={};
+        const rp=tune.r[7];
+        rc.index=rp.index*Rg; rc.middle=rp.middle*Rg;
+        rc.ring=rp.ring*Rg;   rc.pinky=rp.pinky*Rg; rc.thumb=rp.thumb*Rg;
+        applyFingerCurl(bn.rH,'r',rc);
       }
 
       /* ---- Left arm ---- */
       if(bn.lA&&bn.lF&&bn.lH){
-        _iW.set(A.lHold[0]+tune.l[0], A.lHold[1]+tune.l[1], A.lHold[2]+tune.l[2]);
+        _iW.set(lp[0]+tune.l[0], lp[1]+tune.l[1], lp[2]+tune.l[2]);
         g.localToWorld(_iW);
-        _iT.set(A.lHold[0]+tune.l[3], A.lHold[1]+tune.l[4], A.lHold[2]+tune.l[5]);
+        _iT.set(lp[0]+tune.l[3], lp[1]+tune.l[4], lp[2]+tune.l[5]);
         g.localToWorld(_iT);
-
         bn.lA.getWorldPosition(_iA);
         bn.lF.getWorldPosition(_iE);
         bn.lH.getWorldPosition(_iEND);
@@ -907,139 +1066,16 @@ const VM=(function(){
         if(kid)aimFP(bn.lH,kid,_iT);
         bn.lH.rotateY(tune.l[6]||0);
         bn.lH.updateWorldMatrix(false,true);
+        const lc={};
+        const lpp=tune.l[7];
+        lc.index=lpp.index*Lg; lc.middle=lpp.middle*Lg;
+        lc.ring=lpp.ring*Lg;   lc.pinky=lpp.pinky*Lg; lc.thumb=lpp.thumb*Lg;
+        applyFingerCurl(bn.lH,'l',lc);
       }
     }
     return r;
   }
-    const tcache={};function tracks(kind,A){return tcache[kind]||(tcache[kind]=reloadFor(kind,A));}
-
-  /* === First-person GLB arms === */
-    /* === First-person GLB arms === */
-  const fp={ready:false,clone:null,bones:null,mixer:null};
-  /* Per-weapon FP hand tuning.
-     r/l = [wristX, wristY, wristZ,  aimX, aimY, aimZ]
-     All values are in GUN-LOCAL space, added on top of A.rGrip / A.lHold.
-     First 3 = where the wrist joint goes.
-     Last 3  = the point the fingers should point toward (grip curve).
-     Tweak these numbers if a specific gun looks off. */
-  const FP_HAND={
-    pistol:  {r:[-0.015, 0.010, 0.035,  0.000,-0.030,-0.080, -1.20], l:[-0.020, 0.010,-0.020,  0.010,-0.020,-0.070, -1.20]},
-    smg:     {r:[ 0.000, 0.000, 0.025,  0.000,-0.020,-0.100, -1.30], l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.140, -1.30]},
-    rifle:   {r:[ 0.000, 0.000, 0.025,  0.000,-0.020,-0.120, -1.30], l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.160, -1.30]},
-    bullpup: {r:[ 0.000, 0.000, 0.025,  0.000,-0.020,-0.120, -1.30], l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.160, -1.30]},
-    dmr:     {r:[ 0.000, 0.000, 0.025,  0.000,-0.020,-0.120, -1.30], l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.170, -1.30]},
-    lmg:     {r:[ 0.000, 0.000, 0.025,  0.000,-0.020,-0.110, -1.30], l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.140, -1.30]},
-    shotgun: {r:[ 0.000, 0.000, 0.025,  0.000,-0.020,-0.110, -1.30], l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.140, -1.30]},
-    sniper:  {r:[ 0.000, 0.000, 0.025,  0.000,-0.020,-0.120, -1.30], l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.170, -1.30]},
-    _default:{r:[ 0.000, 0.000, 0.025,  0.000,-0.020,-0.110, -1.30], l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.140, -1.30]}
-  };
-  const _iA=new THREE.Vector3(),_iE=new THREE.Vector3(),_iW=new THREE.Vector3(),
-        _iT=new THREE.Vector3(),_iP=new THREE.Vector3(),_iEL=new THREE.Vector3(),
-        _iEND=new THREE.Vector3(),_iD=new THREE.Vector3(),_iPv=new THREE.Vector3(),
-        _iV1=new THREE.Vector3(),_iV2=new THREE.Vector3(),_iV3=new THREE.Vector3(),
-        _iQ1=new THREE.Quaternion(),_iQ2=new THREE.Quaternion(),_iQ3=new THREE.Quaternion();
-  function ikFP(a,t,l1,l2,pole,elbow,end){
-    _iD.subVectors(t,a);let dist=_iD.length();
-    const mx=l1+l2-0.003;if(dist>mx)dist=mx;if(dist<0.04)dist=0.04;
-    _iD.normalize();
-    const a1=(l1*l1-l2*l2+dist*dist)/(2*dist);
-    const h=Math.sqrt(Math.max(0,l1*l1-a1*a1));
-    _iPv.copy(pole).addScaledVector(_iD,-pole.dot(_iD));
-    if(_iPv.lengthSq()<1e-6)_iPv.set(0,-1,0);
-    _iPv.normalize();
-    elbow.copy(a).addScaledVector(_iD,a1).addScaledVector(_iPv,h);
-    end.copy(a).addScaledVector(_iD,dist);
-  }
-  function aimFP(bone,child,target){
-    if(!bone||!child)return;
-    bone.updateWorldMatrix(true,true);
-    bone.getWorldPosition(_iV1);child.getWorldPosition(_iV2);
-    _iV2.sub(_iV1).normalize();_iV3.copy(target).sub(_iV1).normalize();
-    _iQ3.setFromUnitVectors(_iV2,_iV3);
-    bone.parent.getWorldQuaternion(_iQ1);
-    bone.getWorldQuaternion(_iQ2);
-    _iQ2.premultiply(_iQ3);
-    bone.quaternion.copy(_iQ1.invert().multiply(_iQ2));
-    bone.updateWorldMatrix(false,true);
-  }
-  function setGLB(glb){
-    if(!glb||!glb.scene)return;
-    if(!THREE.SkeletonUtils||!THREE.SkeletonUtils.clone){console.warn('[VM] SkeletonUtils missing, FP GLB disabled');return;}
-    try{
-      const clone=THREE.SkeletonUtils.clone(glb.scene);
-      clone.rotation.y=Math.PI;
-      clone.position.set(0,-1.65,-0.12);
-
-      const armBoneNames=[
-        'LeftShoulder','RightShoulder','LeftArm','RightArm',
-        'LeftForeArm','RightForeArm','LeftHand','RightHand',
-        'LeftHandIndex1','LeftHandIndex2','LeftHandIndex3','LeftHandIndex4',
-        'LeftHandMiddle1','LeftHandMiddle2','LeftHandMiddle3','LeftHandMiddle4',
-        'LeftHandPinky1','LeftHandPinky2','LeftHandPinky3','LeftHandPinky4',
-        'LeftHandRing1','LeftHandRing2','LeftHandRing3','LeftHandRing4',
-        'LeftHandThumb1','LeftHandThumb2','LeftHandThumb3','LeftHandThumb4',
-        'RightHandIndex1','RightHandIndex2','RightHandIndex3','RightHandIndex4',
-        'RightHandMiddle1','RightHandMiddle2','RightHandMiddle3','RightHandMiddle4',
-        'RightHandPinky1','RightHandPinky2','RightHandPinky3','RightHandPinky4',
-        'RightHandRing1','RightHandRing2','RightHandRing3','RightHandRing4',
-        'RightHandThumb1','RightHandThumb2','RightHandThumb3','RightHandThumb4'
-      ];
-
-      clone.traverse(o=>{
-        if(o.isSkinnedMesh){
-          o.castShadow=false;o.receiveShadow=false;o.frustumCulled=false;
-          if(o.material){
-            o.material=o.material.clone();
-            o.material.envMap=GX.env();
-            o.material.envMapIntensity=0.7;
-
-            const sk=o.skeleton;
-            const armIdx=[];
-            armBoneNames.forEach(n=>{
-              const b=sk.bones.find(x=>x.name==='mixamorig'+n||x.name===n);
-              if(b)armIdx.push(sk.bones.indexOf(b));
-            });
-            const conds=armIdx.map(v=>`if(abs(vBone-${v}.0)<0.5) keep=true;`).join('\n');
-
-            o.material.onBeforeCompile=(shader)=>{
-              shader.vertexShader='varying float vBone;\n'+shader.vertexShader.replace(
-                '#include <begin_vertex>',
-                `#include <begin_vertex>
-                 float mW=0.0; float mI=-1.0;
-                 if(skinWeight.x>mW){mW=skinWeight.x;mI=skinIndex.x;}
-                 if(skinWeight.y>mW){mW=skinWeight.y;mI=skinIndex.y;}
-                 if(skinWeight.z>mW){mW=skinWeight.z;mI=skinIndex.z;}
-                 if(skinWeight.w>mW){mW=skinWeight.w;mI=skinIndex.w;}
-                 vBone=mI;`
-              );
-              shader.fragmentShader='varying float vBone;\n'+shader.fragmentShader.replace(
-                'void main() {',
-                `void main() {
-                  bool keep=false;
-                  ${conds}
-                  if(!keep) discard;`
-              );
-            };
-            o.material.needsUpdate=true;
-          }
-        }else if(o.isMesh){o.visible=false;}
-      });
-
-      viewScene.add(clone);
-
-      let mixer=null;
-      if(glb.animations&&glb.animations.length){
-        mixer=new THREE.AnimationMixer(clone);
-        const ic=glb.animations.find(c=>c.name==='Idle');
-        if(ic){const a=mixer.clipAction(ic);a.play();}
-      }
-      const B=n=>clone.getObjectByName('mixamorig'+n);
-      const bones={rA:B('RightArm'),rF:B('RightForeArm'),rH:B('RightHand'),
-                   lA:B('LeftArm'),lF:B('LeftForeArm'),lH:B('LeftHand')};
-      fp.clone=clone;fp.bones=bones;fp.mixer=mixer;fp.ready=true;
-      console.log('[VM] FP GLB arms active (discarded head/torso/legs)');
-    }catch(e){console.warn('[VM] FP GLB setup failed:',e);}
-  }
+  const tcache={};function tracks(kind,A){return tcache[kind]||(tcache[kind]=reloadFor(kind,A));}
   return {init,update,fire,setActive,rig,muzzle,KINDS,samp,stepv,tracks,setGLB,get active(){return rig[active];}};
 })();
 
@@ -1061,7 +1097,7 @@ const CH=(function(){
     palette.texture=makeSkinTexture(seed,palette);skinCache.set(name,palette);return palette;}
 
   const MODEL={ready:false,scene:null,animations:null};
-  const TINTS=[0xffffff,0xc2cca8,0xa9b6c8,0x8c9878,0xd0bfa4,0x9a9a9a];
+  const TINTS=[0xffffff,0xd8d4cc,0xc8c4bc,0xb8b4ac,0xa8a4a0,0x909090];
   const _q1=new THREE.Quaternion(),_q2=new THREE.Quaternion(),_q3=new THREE.Quaternion();
   const _v1=new THREE.Vector3(),_v2=new THREE.Vector3(),_v3=new THREE.Vector3();
   const _S=new THREE.Vector3(),_E=new THREE.Vector3(),_W=new THREE.Vector3(),_T=new THREE.Vector3(),_P=new THREE.Vector3(),_EL=new THREE.Vector3(),_END=new THREE.Vector3(),_ax=new THREE.Vector3(),_rq=new THREE.Quaternion();
@@ -1076,7 +1112,7 @@ const CH=(function(){
     const rg=f.rig,g=f.mesh;
     const cloneFn=THREE.SkeletonUtils?THREE.SkeletonUtils.clone:(o)=>o.clone(true);
     const clone=cloneFn(MODEL.scene);
-    const mw=new THREE.Group();mw.rotation.y=0;mw.position.y=-0.02;mw.add(clone);g.add(mw);
+    const mw=new THREE.Group();mw.rotation.y=Math.PI;mw.position.y=-0.02;mw.add(clone);g.add(mw);
     const tint=new THREE.Color(TINTS[hashStr(f.name)%TINTS.length]);
     clone.traverse(o=>{if(o.isMesh||o.isSkinnedMesh){o.castShadow=true;o.receiveShadow=true;o.frustumCulled=false;o.material=o.material.clone();if(o.material.color)o.material.color.multiply(tint);o.material.envMap=GX.env();o.material.envMapIntensity=0.5;o.material.needsUpdate=true;}});
     const mixer=new THREE.AnimationMixer(clone),acts={};
@@ -1578,9 +1614,39 @@ function syncMeshes(dt){
       if(dt>0)CH.animate(b,dt,T,normSpeed,air,sprinting,b.pitchS);
       if(b.landT>0)b.landT=Math.max(0,b.landT-dt*4);
       const d=Math.hypot(b.x-camera.position.x,b.z-camera.position.z);b.label.visible=d<60&&!b.remote;}
-    else{b.deathT+=dt;const t=Math.min(1,b.deathT*2.4),e=1-(1-t)*(1-t),s=b.deathSign||-1;
-      m.rotation.x=s*e*1.55;m.rotation.z=(b.name.length%2?1:-1)*e*0.28;
-      b.label.visible=false;if(b.rig&&b.rig.fl)b.rig.fl.visible=false;if(b.deathT>5)m.visible=false;}}}
+    else{
+      if(b.deathT===0 && b.rig && b.rig.model){
+        const M=b.rig.model;
+        if(M.mixer)M.mixer.stopAllAction();
+        M.clone.traverse(o=>{ if(o.isBone) o.quaternion.identity(); });
+        M.clone.updateMatrixWorld(true);
+      }
+      b.deathT+=dt;
+      const t=Math.min(1, b.deathT/0.85);
+      const e=1-Math.pow(1-t,3);
+      const s=b.deathSign||-1;
+      const side=(b.name.charCodeAt(0)%2)?1:-1;
+      m.rotation.x = s * e * 1.50;
+      m.rotation.z = side * e * 0.22;
+      m.position.y = b.y - e * 0.10;
+      if(b.rig && b.rig.model && b.rig.model.bones){
+        const bn=b.rig.model.bones;
+        if(bn.spine)  bn.spine.rotation.x  = e * 0.35 * s;
+        if(bn.spine1) bn.spine1.rotation.x = e * 0.25 * s;
+        if(bn.spine2) bn.spine2.rotation.x = e * 0.20 * s;
+        if(bn.head){ bn.head.rotation.x = e * 0.45 * s; bn.head.rotation.z = side * e * 0.35; }
+        if(bn.rA){ bn.rA.rotation.z = -e * 0.85; bn.rA.rotation.x = e * 0.30; }
+        if(bn.lA){ bn.lA.rotation.z =  e * 0.85; bn.lA.rotation.x = e * 0.30; }
+        if(bn.rF) bn.rF.rotation.x = -e * 0.55;
+        if(bn.lF) bn.lF.rotation.x = -e * 0.55;
+        if(bn.hips) bn.hips.rotation.x = e * 0.15;
+      }
+      b.label.visible=false;
+      if(b.rig && b.rig.fl) b.rig.fl.visible=false;
+      if(b.deathT>5) m.visible=false;
+    }
+  }
+}
 
 /* Medkits */
 (function(){const white=lam(0xf2f4f5),red=lam(0xd8342c);medSpots.forEach(function(s){const g=new THREE.Group(),y0=s[2]||0;
@@ -1843,6 +1909,15 @@ function spawn(f){
   f.x=best[0];f.z=best[1];f.y=0;f.vx=f.vy=f.vz=0;f.hp=100;f.alive=true;f.invuln=2.5;f.yaw=rnd(0,TAU);
   f.target=null;f.deathT=0;f.onGround=true;f.px=f.x;f.pz=f.z;f.stuckT=0;f.reactT=0;f.nextShot=T+0.5;
   f.peakY=0;f.stepOff=0;f.climb=null;f.mantle=null;f.deathSign=-1;f._mem=null;
+  if(f.rig && f.rig.model && f.rig.model.mixer){
+    const M=f.rig.model;
+    ['idle','walk','run'].forEach(n=>{
+      if(!M.acts[n])return;
+      M.acts[n].reset();
+      M.acts[n].play();
+      M.acts[n].setEffectiveWeight(n==='idle'?1:0);
+    });
+  }
   if(f.isBot){const pick=BOT_WEAPON_POOL[(Math.random()*BOT_WEAPON_POOL.length)|0];setFighterWeapon(f,pick);}
   if(f.mesh){f.mesh.visible=true;f.mesh.rotation.set(0,0,0);}
   if(f.isPlayer){yaw=f.yaw;pitch=0;deadT=0;camera.rotation.z=0;P.lastHitAt=T;P.landDip=0;P.streak=0;}
@@ -1896,7 +1971,7 @@ player.alive=false;renderBoard();requestAnimationFrame(frame);
 const TOUCH_SENS=0.0042;
 if(isMobile)document.body.classList.add('touch');
 
-/* Adaptive Keys/Touch tab — same tab, contents switch by device */
+/* Adaptive Keys/Touch tab */
 (function(){
   const keysTabBtn=document.querySelector('.tab-btn[data-tab="keys"]');
   const pc=document.getElementById('keysPcContent'),tc=document.getElementById('keysTouchContent');
