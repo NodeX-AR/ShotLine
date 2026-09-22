@@ -849,12 +849,100 @@ const VM=(function(){
     HandLib.pose(Lh,Lg,Lg,Lg);
     rootG.updateMatrixWorld(true);
     const arm=(h,sx)=>{_a.set(0,0.004,0.104);h.root.localToWorld(_a);_b.set(sx,-0.85,0.60);_c.copy(_a).sub(_b).normalize();h.sleeve.position.copy(_a);h.sleeve.lookAt(_a.x+ -_c.x,_a.y+ -_c.y,_a.z+ -_c.z);h.sleeve.scale.set(1,1,0.5);h.cuff.position.copy(_a);h.cuff.quaternion.copy(h.sleeve.quaternion);};
-    arm(Rh,0.55);arm(Lh,-0.45);
+        arm(Rh,0.55);arm(Lh,-0.45);
     muzzle.set(A.muzzle[0],A.muzzle[1],A.muzzle[2]);g.localToWorld(muzzle);
+
+    if(fp.ready){
+      /* Hide HandLib hands + sleeves — the GLB provides the visible arms */
+      r.R.root.visible=false;r.Lh.root.visible=false;
+      r.R.sleeve.visible=false;r.R.cuff.visible=false;
+      r.Lh.sleeve.visible=false;r.Lh.cuff.visible=false;
+      if(fp.mixer)fp.mixer.update(dt);
+      const bn=fp.bones;
+      /* Right arm: target = wrist behind grip, so palm wraps the grip */
+      if(bn.rA&&bn.rF&&bn.rH){
+        Rh.root.getWorldPosition(_iT);
+        _iT.z+=0.06;
+        bn.rA.getWorldPosition(_iA);bn.rF.getWorldPosition(_iE);bn.rH.getWorldPosition(_iW);
+        const l1=_iA.distanceTo(_iE),l2=_iE.distanceTo(_iW);
+        ikFP(_iA,_iT,l1,l2,new THREE.Vector3(0.6,-1,0),_iEL,_iEND);
+        aimFP(bn.rA,bn.rF,_iEL);aimFP(bn.rF,bn.rH,_iEND);
+      }
+      /* Left arm */
+      if(bn.lA&&bn.lF&&bn.lH){
+        Lh.root.getWorldPosition(_iT);
+        _iT.z+=0.06;
+        bn.lA.getWorldPosition(_iA);bn.lF.getWorldPosition(_iE);bn.lH.getWorldPosition(_iW);
+        const l1=_iA.distanceTo(_iE),l2=_iE.distanceTo(_iW);
+        ikFP(_iA,_iT,l1,l2,new THREE.Vector3(-0.6,-1,0),_iEL,_iEND);
+        aimFP(bn.lA,bn.lF,_iEL);aimFP(bn.lF,bn.lH,_iEND);
+      }
+    }
     return r;
   }
-  const tcache={};function tracks(kind,A){return tcache[kind]||(tcache[kind]=reloadFor(kind,A));}
-  return {init,update,fire,setActive,rig,muzzle,KINDS,samp,stepv,tracks,get active(){return rig[active];}};
+    const tcache={};function tracks(kind,A){return tcache[kind]||(tcache[kind]=reloadFor(kind,A));}
+
+  /* === First-person GLB arms === */
+  const fp={ready:false,clone:null,bones:null,mixer:null};
+  const _iA=new THREE.Vector3(),_iE=new THREE.Vector3(),_iW=new THREE.Vector3(),
+        _iT=new THREE.Vector3(),_iP=new THREE.Vector3(),_iEL=new THREE.Vector3(),
+        _iEND=new THREE.Vector3(),_iD=new THREE.Vector3(),_iPv=new THREE.Vector3(),
+        _iV1=new THREE.Vector3(),_iV2=new THREE.Vector3(),_iV3=new THREE.Vector3(),
+        _iQ1=new THREE.Quaternion(),_iQ2=new THREE.Quaternion(),_iQ3=new THREE.Quaternion();
+  function ikFP(a,t,l1,l2,pole,elbow,end){
+    _iD.subVectors(t,a);let dist=_iD.length();
+    const mx=l1+l2-0.003;if(dist>mx)dist=mx;if(dist<0.04)dist=0.04;
+    _iD.normalize();
+    const a1=(l1*l1-l2*l2+dist*dist)/(2*dist);
+    const h=Math.sqrt(Math.max(0,l1*l1-a1*a1));
+    _iPv.copy(pole).addScaledVector(_iD,-pole.dot(_iD));
+    if(_iPv.lengthSq()<1e-6)_iPv.set(0,-1,0);
+    _iPv.normalize();
+    elbow.copy(a).addScaledVector(_iD,a1).addScaledVector(_iPv,h);
+    end.copy(a).addScaledVector(_iD,dist);
+  }
+  function aimFP(bone,child,target){
+    if(!bone||!child)return;
+    bone.updateWorldMatrix(true,true);
+    bone.getWorldPosition(_iV1);child.getWorldPosition(_iV2);
+    _iV2.sub(_iV1).normalize();_iV3.copy(target).sub(_iV1).normalize();
+    _iQ3.setFromUnitVectors(_iV2,_iV3);
+    bone.parent.getWorldQuaternion(_iQ1);
+    bone.getWorldQuaternion(_iQ2);
+    _iQ2.premultiply(_iQ3);
+    bone.quaternion.copy(_iQ1.invert().multiply(_iQ2));
+    bone.updateWorldMatrix(false,true);
+  }
+  function setGLB(glb){
+    if(!glb||!glb.scene)return;
+    if(!THREE.SkeletonUtils||!THREE.SkeletonUtils.clone){console.warn('[VM] SkeletonUtils missing, FP GLB disabled');return;}
+    try{
+      const clone=THREE.SkeletonUtils.clone(glb.scene);
+      // Face -Z (view direction). Position shoulders just in front of camera.
+      clone.rotation.y=0;
+      clone.position.set(0,-1.30,-0.05);
+      clone.traverse(o=>{
+        if(o.isMesh||o.isSkinnedMesh){
+          o.castShadow=false;o.receiveShadow=false;o.frustumCulled=false;
+          if(o.material){o.material=o.material.clone();o.material.envMap=GX.env();o.material.envMapIntensity=0.6;o.material.needsUpdate=true;}
+        }
+      });
+      viewScene.add(clone);
+      let mixer=null;
+      if(glb.animations&&glb.animations.length){
+        mixer=new THREE.AnimationMixer(clone);
+        const ic=glb.animations.find(c=>c.name==='Idle');
+        if(ic){const a=mixer.clipAction(ic);a.play();}
+      }
+      const B=n=>clone.getObjectByName('mixamorig'+n);
+      const bones={rA:B('RightArm'),rF:B('RightForeArm'),rH:B('RightHand'),
+                   lA:B('LeftArm'),lF:B('LeftForeArm'),lH:B('LeftHand')};
+      fp.clone=clone;fp.bones=bones;fp.mixer=mixer;fp.ready=true;
+      console.log('[VM] FP GLB arms active');
+    }catch(e){console.warn('[VM] FP GLB setup failed:',e);}
+  }
+
+  return {init,update,fire,setActive,rig,muzzle,KINDS,samp,stepv,tracks,setGLB,get active(){return rig[active];}};
 })();
 
 /* ============ CH ============ */
@@ -890,7 +978,7 @@ const CH=(function(){
     const rg=f.rig,g=f.mesh;
     const cloneFn=THREE.SkeletonUtils?THREE.SkeletonUtils.clone:(o)=>o.clone(true);
     const clone=cloneFn(MODEL.scene);
-    const mw=new THREE.Group();mw.rotation.y=Math.PI;mw.position.y=-0.02;mw.add(clone);g.add(mw);
+    const mw=new THREE.Group();mw.rotation.y=0;mw.position.y=-0.02;mw.add(clone);g.add(mw);
     const tint=new THREE.Color(TINTS[hashStr(f.name)%TINTS.length]);
     clone.traverse(o=>{if(o.isMesh||o.isSkinnedMesh){o.castShadow=true;o.receiveShadow=true;o.frustumCulled=false;o.material=o.material.clone();if(o.material.color)o.material.color.multiply(tint);o.material.envMap=GX.env();o.material.envMapIntensity=0.5;o.material.needsUpdate=true;}});
     const mixer=new THREE.AnimationMixer(clone),acts={};
@@ -1083,7 +1171,7 @@ const CH=(function(){
       console.log('[CH] GLB bytes',buf.byteLength);
       if(typeof THREE.GLTFLoader!=='function')throw new Error('THREE.GLTFLoader undefined');
       new THREE.GLTFLoader().parse(buf,'',
-        g=>{CH.loadModelFromGen({scene:g.scene,animations:g.animations});console.log('[CH] Soldier.glb loaded');},
+        g=>{CH.loadModelFromGen({scene:g.scene,animations:g.animations});VM.setGLB({scene:g.scene,animations:g.animations});console.log('[CH] Soldier.glb loaded');},
         e=>{console.error('[CH] GLB parse failed:',e);tryGen();});
     })
     .catch(err=>{console.error('[CH] GLB load failed:',err);tryGen();});
