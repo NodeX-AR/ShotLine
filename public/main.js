@@ -1087,7 +1087,7 @@ const CH=(function(){
         e=>{console.error('[CH] GLB parse failed:',e);tryGen();});
     })
     .catch(err=>{console.error('[CH] GLB load failed:',err);tryGen();});
-
+})();
 /* Player + bots */
 function makePlayerMesh(f){const g=CH.build(f);f.label=makeLabel(f.name);g.add(f.label);g.visible=false;scene.add(g);f.mesh=g;CH.setGun(f,f.weaponKind||'rifle');}
 function setFighterWeapon(f,kind){if(!kind)kind='rifle';if(f.weaponKind===kind&&f.mesh)return;f.weaponKind=kind;if(!f.mesh){makePlayerMesh(f);return;}CH.setGun(f,kind);f.ammo=undefined;f.rlT=0;}
@@ -1794,4 +1794,4 @@ const _origSetGun=setGun;setGun=function(i){_origSetGun(i);refreshWeaponButtons(
 setInterval(()=>{if(!isMobile)return;const show=(state==='playing')&&!chatOpen&&$('adminPrompt').classList.contains('hidden');
   $('mobileHud').classList.toggle('hidden',!show);
   if(!show){lookId=null;endJoy();mSprintLatched=false;}},120);
-})()});
+})();
