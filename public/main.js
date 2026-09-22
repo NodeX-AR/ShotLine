@@ -1806,4 +1806,4 @@ const _origSetGun=setGun;setGun=function(i){_origSetGun(i);refreshWeaponButtons(
 setInterval(()=>{if(!isMobile)return;const show=(state==='playing')&&!chatOpen&&$('adminPrompt').classList.contains('hidden');
   $('mobileHud').classList.toggle('hidden',!show);
   if(!show){lookId=null;endJoy();mSprintLatched=false;}},120);
-})();
+})()});
