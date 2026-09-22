@@ -861,12 +861,12 @@ const VM=(function(){
       const bn=fp.bones;
       const tune=(FP_HAND[r.kind]||FP_HAND._default);
 
-      /* ---- Right arm: wrist goes to A.rGrip, fingers wrap forward ---- */
+      /* ---- Right arm ---- */
       if(bn.rA&&bn.rF&&bn.rH){
-        /* Wrist target = gun-local grip + per-gun offset, converted to world */
+        // 1. Wrist target = actual gun grip point + per-gun offset
         _iW.set(A.rGrip[0]+tune.r[0], A.rGrip[1]+tune.r[1], A.rGrip[2]+tune.r[2]);
         g.localToWorld(_iW);
-        /* Aim target = point in front of the grip where fingers should point */
+        // 2. Finger-aim target = where fingers should point
         _iT.set(A.rGrip[0]+tune.r[3], A.rGrip[1]+tune.r[4], A.rGrip[2]+tune.r[5]);
         g.localToWorld(_iT);
 
@@ -877,11 +877,14 @@ const VM=(function(){
         ikFP(_iA,_iW,l1,l2,new THREE.Vector3(0.55,-1,0.35),_iEL,_iEND);
         aimFP(bn.rA,bn.rF,_iEL);
         aimFP(bn.rF,bn.rH,_iEND);
-        /* Aim the hand mesh so the palm curls around the grip */
+        // 3. Aim the hand forward and roll so palm wraps the grip
         let kid=null;
         for(const c of bn.rH.children){if(c.isBone&&/Index|Middle|Ring|Pinky/i.test(c.name)){kid=c;break;}}
         if(!kid&&bn.rH.children.length)kid=bn.rH.children[0];
         if(kid)aimFP(bn.rH,kid,_iT);
+        // 4. Roll the palm around the finger direction
+        bn.rH.rotateY(tune.r[6]||0);
+        bn.rH.updateWorldMatrix(false,true);
       }
 
       /* ---- Left arm ---- */
@@ -902,6 +905,8 @@ const VM=(function(){
         for(const c of bn.lH.children){if(c.isBone&&/Index|Middle|Ring|Pinky/i.test(c.name)){kid=c;break;}}
         if(!kid&&bn.lH.children.length)kid=bn.lH.children[0];
         if(kid)aimFP(bn.lH,kid,_iT);
+        bn.lH.rotateY(tune.l[6]||0);
+        bn.lH.updateWorldMatrix(false,true);
       }
     }
     return r;
@@ -918,15 +923,15 @@ const VM=(function(){
      Last 3  = the point the fingers should point toward (grip curve).
      Tweak these numbers if a specific gun looks off. */
   const FP_HAND={
-    pistol:  {r:[ 0.000, 0.005, 0.010,  0.000,-0.025,-0.100], l:[-0.020, 0.010,-0.020,  0.015,-0.020,-0.070]},
-    smg:     {r:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.120], l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.120]},
-    rifle:   {r:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.140], l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.140]},
-    bullpup: {r:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.140], l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.140]},
-    dmr:     {r:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.140], l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.140]},
-    lmg:     {r:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.120], l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.120]},
-    shotgun: {r:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.120], l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.120]},
-    sniper:  {r:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.140], l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.140]},
-    _default:{r:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.120], l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.120]}
+    pistol:  {r:[-0.015, 0.010, 0.035,  0.000,-0.030,-0.080, -1.20], l:[-0.020, 0.010,-0.020,  0.010,-0.020,-0.070, -1.20]},
+    smg:     {r:[ 0.000, 0.000, 0.025,  0.000,-0.020,-0.100, -1.30], l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.140, -1.30]},
+    rifle:   {r:[ 0.000, 0.000, 0.025,  0.000,-0.020,-0.120, -1.30], l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.160, -1.30]},
+    bullpup: {r:[ 0.000, 0.000, 0.025,  0.000,-0.020,-0.120, -1.30], l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.160, -1.30]},
+    dmr:     {r:[ 0.000, 0.000, 0.025,  0.000,-0.020,-0.120, -1.30], l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.170, -1.30]},
+    lmg:     {r:[ 0.000, 0.000, 0.025,  0.000,-0.020,-0.110, -1.30], l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.140, -1.30]},
+    shotgun: {r:[ 0.000, 0.000, 0.025,  0.000,-0.020,-0.110, -1.30], l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.140, -1.30]},
+    sniper:  {r:[ 0.000, 0.000, 0.025,  0.000,-0.020,-0.120, -1.30], l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.170, -1.30]},
+    _default:{r:[ 0.000, 0.000, 0.025,  0.000,-0.020,-0.110, -1.30], l:[ 0.000, 0.000, 0.000,  0.000,-0.020,-0.140, -1.30]}
   };
   const _iA=new THREE.Vector3(),_iE=new THREE.Vector3(),_iW=new THREE.Vector3(),
         _iT=new THREE.Vector3(),_iP=new THREE.Vector3(),_iEL=new THREE.Vector3(),
