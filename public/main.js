@@ -860,8 +860,8 @@ const VM=(function(){
       if(fp.mixer)fp.mixer.update(dt);
       const bn=fp.bones;
       /* Right arm: target = wrist behind grip, so palm wraps the grip */
-      if(bn.rA&&bn.rF&&bn.rH){
-        Rh.root.getWorldPosition(_iT);
+        if(bn.rA&&bn.rF&&bn.rH){
+        Lh.root.getWorldPosition(_iT);
         _iT.z+=0.06;
         bn.rA.getWorldPosition(_iA);bn.rF.getWorldPosition(_iE);bn.rH.getWorldPosition(_iW);
         const l1=_iA.distanceTo(_iE),l2=_iE.distanceTo(_iW);
@@ -870,7 +870,7 @@ const VM=(function(){
       }
       /* Left arm */
       if(bn.lA&&bn.lF&&bn.lH){
-        Lh.root.getWorldPosition(_iT);
+        Rh.root.getWorldPosition(_iT);
         _iT.z+=0.06;
         bn.lA.getWorldPosition(_iA);bn.lF.getWorldPosition(_iE);bn.lH.getWorldPosition(_iW);
         const l1=_iA.distanceTo(_iE),l2=_iE.distanceTo(_iW);
@@ -918,16 +918,66 @@ const VM=(function(){
     if(!THREE.SkeletonUtils||!THREE.SkeletonUtils.clone){console.warn('[VM] SkeletonUtils missing, FP GLB disabled');return;}
     try{
       const clone=THREE.SkeletonUtils.clone(glb.scene);
-      // Face -Z (view direction). Position shoulders just in front of camera.
-      clone.rotation.y=0;
-      clone.position.set(0,-1.30,-0.05);
+      clone.rotation.y=Math.PI;
+      clone.position.set(0,-1.65,-0.12);
+
+      const armBoneNames=[
+        'LeftShoulder','RightShoulder','LeftArm','RightArm',
+        'LeftForeArm','RightForeArm','LeftHand','RightHand',
+        'LeftHandIndex1','LeftHandIndex2','LeftHandIndex3','LeftHandIndex4',
+        'LeftHandMiddle1','LeftHandMiddle2','LeftHandMiddle3','LeftHandMiddle4',
+        'LeftHandPinky1','LeftHandPinky2','LeftHandPinky3','LeftHandPinky4',
+        'LeftHandRing1','LeftHandRing2','LeftHandRing3','LeftHandRing4',
+        'LeftHandThumb1','LeftHandThumb2','LeftHandThumb3','LeftHandThumb4',
+        'RightHandIndex1','RightHandIndex2','RightHandIndex3','RightHandIndex4',
+        'RightHandMiddle1','RightHandMiddle2','RightHandMiddle3','RightHandMiddle4',
+        'RightHandPinky1','RightHandPinky2','RightHandPinky3','RightHandPinky4',
+        'RightHandRing1','RightHandRing2','RightHandRing3','RightHandRing4',
+        'RightHandThumb1','RightHandThumb2','RightHandThumb3','RightHandThumb4'
+      ];
+
       clone.traverse(o=>{
-        if(o.isMesh||o.isSkinnedMesh){
+        if(o.isSkinnedMesh){
           o.castShadow=false;o.receiveShadow=false;o.frustumCulled=false;
-          if(o.material){o.material=o.material.clone();o.material.envMap=GX.env();o.material.envMapIntensity=0.6;o.material.needsUpdate=true;}
-        }
+          if(o.material){
+            o.material=o.material.clone();
+            o.material.envMap=GX.env();
+            o.material.envMapIntensity=0.7;
+
+            const sk=o.skeleton;
+            const armIdx=[];
+            armBoneNames.forEach(n=>{
+              const b=sk.bones.find(x=>x.name==='mixamorig'+n||x.name===n);
+              if(b)armIdx.push(sk.bones.indexOf(b));
+            });
+            const conds=armIdx.map(v=>`if(abs(vBone-${v}.0)<0.5) keep=true;`).join('\n');
+
+            o.material.onBeforeCompile=(shader)=>{
+              shader.vertexShader='varying float vBone;\n'+shader.vertexShader.replace(
+                '#include <begin_vertex>',
+                `#include <begin_vertex>
+                 float mW=0.0; float mI=-1.0;
+                 if(skinWeight.x>mW){mW=skinWeight.x;mI=skinIndex.x;}
+                 if(skinWeight.y>mW){mW=skinWeight.y;mI=skinIndex.y;}
+                 if(skinWeight.z>mW){mW=skinWeight.z;mI=skinIndex.z;}
+                 if(skinWeight.w>mW){mW=skinWeight.w;mI=skinIndex.w;}
+                 vBone=mI;`
+              );
+              shader.fragmentShader='varying float vBone;\n'+shader.fragmentShader.replace(
+                'void main() {',
+                `void main() {
+                  bool keep=false;
+                  ${conds}
+                  if(!keep) discard;`
+              );
+            };
+            o.material.needsUpdate=true;
+          }
+        }else if(o.isMesh){o.visible=false;}
       });
+
       viewScene.add(clone);
+
       let mixer=null;
       if(glb.animations&&glb.animations.length){
         mixer=new THREE.AnimationMixer(clone);
@@ -938,10 +988,9 @@ const VM=(function(){
       const bones={rA:B('RightArm'),rF:B('RightForeArm'),rH:B('RightHand'),
                    lA:B('LeftArm'),lF:B('LeftForeArm'),lH:B('LeftHand')};
       fp.clone=clone;fp.bones=bones;fp.mixer=mixer;fp.ready=true;
-      console.log('[VM] FP GLB arms active');
+      console.log('[VM] FP GLB arms active (discarded head/torso/legs)');
     }catch(e){console.warn('[VM] FP GLB setup failed:',e);}
   }
-
   return {init,update,fire,setActive,rig,muzzle,KINDS,samp,stepv,tracks,setGLB,get active(){return rig[active];}};
 })();
 
