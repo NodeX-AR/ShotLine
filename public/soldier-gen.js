@@ -42,9 +42,71 @@ function build(pal){
     for(let i=0;i<=frames;i++){const pose=fn(i/frames);for(const bn in pose){const v=pose[bn];if(v.isQuaternion){(qT[bn]||(qT[bn]=[])).push(v.x,v.y,v.z,v.w);}else if(v.isVector3){(pT[bn]||(pT[bn]=[])).push(v.x,v.y,v.z);}}}
     const tracks=[];for(const bn in qT)tracks.push(new THREE.QuaternionKeyframeTrack('mixamorig'+bn+'.quaternion',times.slice(),qT[bn]));for(const bn in pT)tracks.push(new THREE.VectorKeyframeTrack('mixamorig'+bn+'.position',times.slice(),pT[bn]));return new THREE.AnimationClip(name,dur,tracks);}
   const _e=new THREE.Euler(),_q=new THREE.Quaternion();const q=(x,y,z)=>{_e.set(x||0,y||0,z||0,'XYZ');return _q.setFromEuler(_e).clone();};
-  const idle=sampleClip('Idle',2.4,30,(t)=>{const br=Math.sin(t*Math.PI*2);return {Spine2:q(br*0.012,0,0),Head:q(-br*0.015,Math.sin(t*Math.PI)*0.04,0),RightArm:q(0,0,-0.08),LeftArm:q(0,0,0.08)};});
-  const walk=sampleClip('Walk',1.1,44,(t)=>{const ph=t*Math.PI*2;const swingL=Math.sin(ph)*0.55,swingR=Math.sin(ph+Math.PI)*0.55;const bendL=Math.max(0,Math.sin(ph+Math.PI))*0.85,bendR=Math.max(0,Math.sin(ph))*0.85;const armR=-Math.sin(ph)*0.42,armL=-Math.sin(ph+Math.PI)*0.42;const bob=0.93+Math.abs(Math.sin(ph))*0.02;return {LeftUpLeg:q(-swingL,0,0),LeftLeg:q(bendL,0,0),RightUpLeg:q(-swingR,0,0),RightLeg:q(bendR,0,0),RightArm:q(armR,0,-0.10),LeftArm:q(armL,0,0.10),Hips:new THREE.Vector3(0,bob,0),Spine1:q(0,swingL*0.08,0)};});
-  const run=sampleClip('Run',0.72,38,(t)=>{const ph=t*Math.PI*2;const swingL=Math.sin(ph)*0.85,swingR=Math.sin(ph+Math.PI)*0.85;const bendL=Math.max(0,Math.sin(ph+Math.PI))*1.35,bendR=Math.max(0,Math.sin(ph))*1.35;const armR=-Math.sin(ph)*0.9,armL=-Math.sin(ph+Math.PI)*0.9;const bob=0.93+Math.abs(Math.sin(ph))*0.035;return {LeftUpLeg:q(-swingL,0,0),LeftLeg:q(bendL,0,0),RightUpLeg:q(-swingR,0,0),RightLeg:q(bendR,0,0),RightArm:q(armR,0,-0.15),LeftArm:q(armL,0,0.15),Hips:new THREE.Vector3(0,bob,0),Spine:q(0.12,0,0),Spine1:q(0,swingL*0.14,0)};});
+  // Idle: slow breathing, gentle weight-shift sway, subtle head drift, relaxed knee micro-bend
+  const idle=sampleClip('Idle',4.8,60,(t)=>{
+    const br=Math.sin(t*Math.PI*2/2.4);            // breathing cycle (~2.4s)
+    const sw=Math.sin(t*Math.PI*2/4.8);             // slow weight-shift cycle (~4.8s, full clip length)
+    const micro=Math.sin(t*Math.PI*2/3.1);          // desynced secondary sway for organic feel
+    return {
+      Spine2:q(br*0.014,sw*0.02,sw*0.018),
+      Spine1:q(br*0.006,sw*0.012,sw*0.010),
+      Neck:q(-br*0.008,micro*0.03,0),
+      Head:q(-br*0.012,micro*0.05+sw*0.02,sw*0.01),
+      RightArm:q(0,0,-0.09+sw*0.015),
+      LeftArm:q(0,0,0.09-sw*0.015),
+      RightForeArm:q(0.10,0,0),
+      LeftForeArm:q(0.10,0,0),
+      LeftUpLeg:q(0,0,sw*0.03),
+      RightUpLeg:q(0,0,-sw*0.03),
+      LeftLeg:q(Math.max(0,sw)*0.05,0,0),
+      RightLeg:q(Math.max(0,-sw)*0.05,0,0),
+      Hips:new THREE.Vector3(sw*0.006,0.93+br*0.003,0)
+    };
+  });
+  // Walk: natural contralateral gait - leg swing/bend, opposing arm swing with elbow bend,
+  // hip twist countered by upper-spine stabilization, head held steady, vertical bob on foot-strike
+  const walk=sampleClip('Walk',1.1,44,(t)=>{
+    const ph=t*Math.PI*2;
+    const swingL=Math.sin(ph)*0.55,swingR=Math.sin(ph+Math.PI)*0.55;
+    const bendL=Math.max(0,Math.sin(ph+Math.PI))*0.85,bendR=Math.max(0,Math.sin(ph))*0.85;
+    const armR=-Math.sin(ph)*0.42,armL=-Math.sin(ph+Math.PI)*0.42;
+    const elbowR=0.28+Math.max(0,armR)*0.55,elbowL=0.28+Math.max(0,armL)*0.55;
+    const bob=0.93+Math.abs(Math.sin(ph))*0.02;
+    const hipTwist=swingL*0.08;
+    return {
+      LeftUpLeg:q(-swingL,0,0),LeftLeg:q(bendL,0,0),
+      RightUpLeg:q(-swingR,0,0),RightLeg:q(bendR,0,0),
+      RightArm:q(armR,0,-0.10),LeftArm:q(armL,0,0.10),
+      RightForeArm:q(elbowR,0,0),LeftForeArm:q(elbowL,0,0),
+      Hips:new THREE.Vector3(0,bob,0),
+      Spine1:q(0,hipTwist,0),
+      Spine2:q(0.02,-hipTwist*0.6,0),
+      Neck:q(0,-hipTwist*0.3,0),
+      Head:q(0,-hipTwist*0.15,0)
+    };
+  });
+  // Run: bigger stride, forward lean, bent elbows pumping, stronger hip/shoulder counter-rotation, head stabilized
+  const run=sampleClip('Run',0.72,38,(t)=>{
+    const ph=t*Math.PI*2;
+    const swingL=Math.sin(ph)*0.85,swingR=Math.sin(ph+Math.PI)*0.85;
+    const bendL=Math.max(0,Math.sin(ph+Math.PI))*1.35,bendR=Math.max(0,Math.sin(ph))*1.35;
+    const armR=-Math.sin(ph)*0.9,armL=-Math.sin(ph+Math.PI)*0.9;
+    const elbowR=1.1+Math.max(0,armR)*0.4,elbowL=1.1+Math.max(0,armL)*0.4;
+    const bob=0.93+Math.abs(Math.sin(ph))*0.035;
+    const hipTwist=swingL*0.14;
+    return {
+      LeftUpLeg:q(-swingL,0,0),LeftLeg:q(bendL,0,0),
+      RightUpLeg:q(-swingR,0,0),RightLeg:q(bendR,0,0),
+      RightArm:q(armR,0,-0.15),LeftArm:q(armL,0,0.15),
+      RightForeArm:q(elbowR,0,0),LeftForeArm:q(elbowL,0,0),
+      Hips:new THREE.Vector3(0,bob,0),
+      Spine:q(0.12,0,0),
+      Spine1:q(0,hipTwist,0),
+      Spine2:q(0.04,-hipTwist*0.7,0),
+      Neck:q(-0.05,-hipTwist*0.25,0),
+      Head:q(-0.03,-hipTwist*0.12,0)
+    };
+  });
   return {scene:root,animations:[idle,walk,run]};
 }
 return {build};
