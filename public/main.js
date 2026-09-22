@@ -1709,7 +1709,6 @@ player.alive=false;renderBoard();requestAnimationFrame(frame);
 /* ============ MOBILE ============ */
 const TOUCH_SENS=0.0042;
 if(isMobile)document.body.classList.add('touch');
-
 /* Mobile HUD scale + layout */
 const mobileSettingsGroup=$('mobileSettingsGroup');
 if(mobileSettingsGroup && ('ontouchstart' in window || navigator.maxTouchPoints>0)) mobileSettingsGroup.style.display='flex';
