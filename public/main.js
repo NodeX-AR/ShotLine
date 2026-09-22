@@ -256,67 +256,55 @@ function lamp(x,z){G(cylGeo,x,2.75,z,0.07,5.5,0.07,0,0x3b3f44);B(x+0.5,5.4,z,1.1
 function car(x,z,alongX,col,burnt){const lx=alongX?4.2:1.85,lz=alongX?1.85:4.2,cl=alongX?2.2:1.7,cd=alongX?1.7:2.2;B(x,0.28,z,lx,0.7,lz,burnt?0x1c1a18:col,'flat');B(x-(alongX?0.1:0),0.98,z-(alongX?0:0.1),cl,0.55,cd,burnt?0x141210:shade(col,0.75),'flat');B(x-(alongX?0.1:0),1.08,z-(alongX?0:0.1),cl+0.03,0.32,cd+0.03,0x1b2733,'flat',NC);for(const a of[-1,1])for(const b of[-1,1]){if(burnt&&rand()<0.3)continue;const wx=x+(alongX?a*1.3:b*0.95),wz=z+(alongX?b*0.95:a*1.3);B(wx,0,wz,alongX?0.75:0.3,0.6,alongX?0.3:0.75,0x111111,'flat',NC);}occupy(x-lx/2,x+lx/2,z-lz/2,z+lz/2,0.3);}
 function bus(x,z,alongX,col){
   const lx=alongX?10.8:2.55,lz=alongX?2.55:10.8;
-  const skirt=shade(col,0.55),body=col,band=shade(col,0.85),roofC=shade(col,0.7);
-  // Chassis + skirt (dark under-band)
+  const skirt=shade(col,0.5),band=shade(col,0.85),roofC=shade(col,0.7);
   B(x,0.35,z,lx,0.45,lz,0x1b1d21,'flat');
-  // Main body (windows band sits on this)
-  B(x,0.85,z,lx,0.75,lz,body,'flat');
-  // Window band (glass wraparound via dark strip + reflective top rail)
+  B(x,0.85,z,lx,0.75,lz,col,'flat');
   B(x,1.55,z,lx,0.72,lz,0x2a3a48,'flat');
-  B(x,1.92,z,lx,0.10,lz,shade(col,0.9),'flat');
-  // Roof cap + AC units + vents
+  B(x,1.92,z,lx,0.10,lz,band,'flat');
   B(x,2.02,z,lx-0.15,0.14,lz-0.15,roofC,'metal');
   B(x-1.6,2.22,z,0.85,0.28,1.05,0x8a8a86,'metal');
   B(x+1.9,2.16,z,0.55,0.16,0.7,0x6a6a66,'metal');
-  // Horizontal accent stripes along the sides
   if(alongX){
-    B(x,1.05,z-lz/2+0.01,lx-0.2,0.14,0.02,shade(col,0.55),'flat',NC);
-    B(x,1.05,z+lz/2-0.01,lx-0.2,0.14,0.02,shade(col,0.55),'flat',NC);
+    B(x,1.05,z-lz/2+0.01,lx-0.2,0.14,0.02,skirt,'flat',NC);
+    B(x,1.05,z+lz/2-0.01,lx-0.2,0.14,0.02,skirt,'flat',NC);
   }else{
-    B(x-lx/2+0.01,1.05,z,0.02,0.14,lz-0.2,shade(col,0.55),'flat',NC);
-    B(x+lx/2-0.01,1.05,z,0.02,0.14,lz-0.2,shade(col,0.55),'flat',NC);
+    B(x-lx/2+0.01,1.05,z,0.02,0.14,lz-0.2,skirt,'flat',NC);
+    B(x+lx/2-0.01,1.05,z,0.02,0.14,lz-0.2,skirt,'flat',NC);
   }
-  // Window pillars + mullions (7 windows per side, split by pillars)
   for(let i=0;i<7;i++){
     const u=-lx/2+0.7+i*((lx-1.4)/6);
     if(alongX){
-      B(x+u,1.55,z-lz/2+0.02,0.12,0.72,0.05,body,'flat',NC);
-      B(x+u,1.55,z+lz/2-0.02,0.12,0.72,0.05,body,'flat',NC);
+      B(x+u,1.55,z-lz/2+0.02,0.12,0.72,0.05,col,'flat',NC);
+      B(x+u,1.55,z+lz/2-0.02,0.12,0.72,0.05,col,'flat',NC);
     }else{
-      B(x-lx/2+0.02,1.55,z+u,0.05,0.72,0.12,body,'flat',NC);
-      B(x+lx/2-0.02,1.55,z+u,0.05,0.72,0.12,body,'flat',NC);
+      B(x-lx/2+0.02,1.55,z+u,0.05,0.72,0.12,col,'flat',NC);
+      B(x+lx/2-0.02,1.55,z+u,0.05,0.72,0.12,col,'flat',NC);
     }
   }
-  // Front + rear windshields (dark glass)
   if(alongX){
     B(x-lx/2+0.02,1.55,z,0.05,0.72,lz-0.35,0x1c2b38,'flat',NC);
     B(x+lx/2-0.02,1.55,z,0.05,0.72,lz-0.35,0x1c2b38,'flat',NC);
-    // Headlights (front) + taillights (back)
     B(x-lx/2-0.01,0.7,z-0.65,0.06,0.22,0.42,0xfff2c0,'flat',NC);
     B(x-lx/2-0.01,0.7,z+0.65,0.06,0.22,0.42,0xfff2c0,'flat',NC);
     B(x+lx/2+0.01,0.75,z-0.65,0.06,0.18,0.38,0xc0392b,'flat',NC);
     B(x+lx/2+0.01,0.75,z+0.65,0.06,0.18,0.38,0xc0392b,'flat',NC);
-    // Front destination sign
     B(x-lx/2+0.05,2.05,z,0.06,0.22,0.9,0x1a1a18,'flat',NC);
-    // Door (front right)
-    B(x-lx/2+1.35,0.95,z+lz/2+0.005,0.9,1.85,0.03,shade(col,0.6),'flat',NC);
-    // Mirrors
+    B(x-lx/2+1.35,0.95,z+lz/2+0.005,0.9,1.85,0.03,skirt,'flat',NC);
     B(x-lx/2+0.1,1.7,z+lz/2+0.25,0.06,0.22,0.32,0x101418,'flat',NC);
     B(x-lx/2+0.1,1.7,z-lz/2-0.25,0.06,0.22,0.32,0x101418,'flat',NC);
-    // 4 wheels (double rear = thicker)
-    for(const [wx,wz,r] of [[-lx/2+1.8,-lz/2+0.1,0.42],[-lx/2+1.8,lz/2-0.1,0.42],[lx/2-1.6,-lz/2+0.1,0.42],[lx/2-1.6,lz/2-0.1,0.42]]){
-      B(x+wx,0,wz,0.75,r*2,0.24,0x0e1014,'flat',NC);
-      B(x+wx,0,wz,0.32,r*2,0.26,0x2a2c30,'flat',NC);
+    for(const [wx,wz] of [[-lx/2+1.8,-lz/2+0.1],[-lx/2+1.8,lz/2-0.1],[lx/2-1.6,-lz/2+0.1],[lx/2-1.6,lz/2-0.1]]){
+      B(x+wx,0,wz,0.75,0.84,0.24,0x0e1014,'flat',NC);
+      B(x+wx,0,wz,0.32,0.84,0.26,0x2a2c30,'flat',NC);
     }
   }else{
-    B(x,1.55,z-lz/2+0.02,0.05+lx-0.35,0.72,0.05,0x1c2b38,'flat',NC);
-    B(x,1.55,z+lz/2-0.02,0.05+lx-0.35,0.72,0.05,0x1c2b38,'flat',NC);
+    B(x,1.55,z-lz/2+0.02,lx-0.35,0.72,0.05,0x1c2b38,'flat',NC);
+    B(x,1.55,z+lz/2-0.02,lx-0.35,0.72,0.05,0x1c2b38,'flat',NC);
     B(x-0.65,0.7,z-lz/2-0.01,0.42,0.22,0.06,0xfff2c0,'flat',NC);
     B(x+0.65,0.7,z-lz/2-0.01,0.42,0.22,0.06,0xfff2c0,'flat',NC);
     B(x-0.65,0.75,z+lz/2+0.01,0.38,0.18,0.06,0xc0392b,'flat',NC);
     B(x+0.65,0.75,z+lz/2+0.01,0.38,0.18,0.06,0xc0392b,'flat',NC);
     B(x,2.05,z-lz/2+0.05,0.9,0.22,0.06,0x1a1a18,'flat',NC);
-    B(x,0.95,z-lz/2+1.35,lz+0.005-0.2,1.85,0.9,shade(col,0.6),'flat',NC);
+    B(x,0.95,z+lz/2-1.35,0.9,1.85,0.03,skirt,'flat',NC);
     B(x+0.25,1.7,z-lz/2+0.1,0.32,0.22,0.06,0x101418,'flat',NC);
     B(x-0.25,1.7,z-lz/2+0.1,0.32,0.22,0.06,0x101418,'flat',NC);
     for(const [wx,wz] of [[-lx/2+0.1,-lz/2+1.8],[-lx/2+0.1,lz/2-1.6],[lx/2-0.1,-lz/2+1.8],[lx/2-0.1,lz/2-1.6]]){
