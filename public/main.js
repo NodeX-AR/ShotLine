@@ -844,9 +844,6 @@ const VM=(function(){
     Thumb: [0.30, 0.55, 0.40, 0.25]
   };
   const FP_CURL_SIGN=1;
-  /* Mixamo's left hand mirrors the right: same +X local axis but the
-     fingers bend the opposite way around it, so we flip the curl sign. */
-  const FP_CURL_SIGN_L=-1;
 
   const _fpQX=new THREE.Quaternion(),_fpQX2=new THREE.Quaternion();
   const _fpXA=new THREE.Vector3(1,0,0);
@@ -857,28 +854,26 @@ const VM=(function(){
   function applyFingerCurl(handBone, side, curls){
     if(!handBone||!curls)return;
     const prefix=side==='r'?'Right':'Left';
-    const sign=side==='l'?FP_CURL_SIGN_L:FP_CURL_SIGN;
     for(const fname in FP_CURL_PROFILE){
       const amt=curls[fname.toLowerCase()];
       if(amt===undefined)continue;
       const prof=FP_CURL_PROFILE[fname];
       for(let i=1;i<=4;i++){
-        const b=handBone.getObjectByName('mixamorig'+prefix+'Hand'+fname+i);
+        const b=handBone.getObjectByName('mixamorig:'+prefix+'Hand'+fname+i)
+             || handBone.getObjectByName('mixamorig'+prefix+'Hand'+fname+i);
         if(!b)continue;
         const bind=fp.bindPose[b.name];
         if(bind)b.quaternion.copy(bind);
-        _fpQX.setFromAxisAngle(_fpXA, prof[i-1]*amt*sign);
+        _fpQX.setFromAxisAngle(_fpXA, prof[i-1]*amt*FP_CURL_SIGN);
         b.quaternion.multiply(_fpQX);
       }
     }
     handBone.updateWorldMatrix(false,true);
   }
 
-  function orientHand(handBone, wrist, fTarget, pTarget, roll, isLeft){
+  function orientHand(handBone, wrist, fTarget, pTarget, roll){
     _fpV1.copy(fTarget).sub(wrist); if(_fpV1.lengthSq()<1e-8)_fpV1.set(0,0,-1); _fpV1.normalize();
     _fpV2.copy(pTarget).sub(wrist); if(_fpV2.lengthSq()<1e-8)_fpV2.set(-1,0,0); _fpV2.normalize();
-    /* Left hand is mirrored — flip the palm-normal so it faces the correct side */
-    if(isLeft) _fpV2.negate();
     _fpV3.crossVectors(_fpV2,_fpV1);
     if(_fpV3.lengthSq()<1e-8)_fpV3.set(1,0,0);
     _fpV3.normalize();
@@ -957,7 +952,7 @@ const VM=(function(){
             const sk=o.skeleton;
             const armIdx=[];
             armBoneNames.forEach(n=>{
-              const b=sk.bones.find(x=>x.name==='mixamorig'+n||x.name===n);
+              const b=sk.bones.find(x=>x.name==='mixamorig:'+n||x.name===n);
               if(b)armIdx.push(sk.bones.indexOf(b));
             });
             const conds=armIdx.map(v=>`if(abs(vBone-${v}.0)<0.5) keep=true;`).join('\n');
@@ -985,14 +980,19 @@ const VM=(function(){
         } else if(o.isMesh){o.visible=false;}
       });
       viewScene.add(clone);
-      let mixer=null;
-      const B=n=>clone.getObjectByName('mixamorig'+n);
-/* clone is rotated 180° about Y (model faces -Z), so the model's Right*
-   bones render on the screen's LEFT and Left* bones on the screen's RIGHT.
-   Label them by what the player sees so the rest of the code stays valid. */
-      const bones={rA:B('LeftArm'),rF:B('LeftForeArm'),rH:B('LeftHand'),
-        lA:B('RightArm'),lF:B('RightForeArm'),lH:B('RightHand')};
-      fp.clone=clone;fp.bones=bones;fp.mixer=mixer;fp.ready=true;
+      let mixer=null,acts={};
+      if(glb.animations&&glb.animations.length){
+        mixer=new THREE.AnimationMixer(clone);
+        for(const c of glb.animations){if(c.name==='Idle'||c.name==='Walk'||c.name==='Run')acts[c.name.toLowerCase()]=mixer.clipAction(c);}
+        if(acts.idle)acts.idle.play();
+        if(acts.walk){acts.walk.play();acts.walk.setEffectiveWeight(0);}
+        if(acts.run){acts.run.play();acts.run.setEffectiveWeight(0);}
+      }
+      const B=n=>clone.getObjectByName('mixamorig:'+n);
+      const bones={rA:B('RightArm'),rF:B('RightForeArm'),rH:B('RightHand'),
+                   lA:B('LeftArm'),lF:B('LeftForeArm'),lH:B('LeftHand')};
+      fp.clone=clone;fp.bones=bones;fp.mixer=mixer;fp.acts=acts;fp.w={idle:1,walk:0,run:0};fp.ready=true;
+      console.log('[VM] bone check',Object.entries(bones).map(([k,v])=>k+':'+(v?'OK':'MISSING')).join(' '));
       console.log('[VM] FP GLB arms active');
     }catch(e){console.warn('[VM] FP GLB setup failed:',e);}
   }
@@ -1070,66 +1070,80 @@ const VM=(function(){
       r.R.sleeve.visible=false;r.R.cuff.visible=false;
       r.Lh.sleeve.visible=false;r.Lh.cuff.visible=false;
       if(S.frozen)return r;
-      // if(fp.mixer)fp.mixer.update(dt);
+      if(fp.mixer&&fp.acts){
+        const spdK=S.moveK||0,sprintK=S.sprintK||0;
+        const wt=(spdK<0.06)?'idle':(sprintK>0.4?'run':'walk');
+        const tw={idle:wt==='idle'?1:0,walk:wt==='walk'?1:0,run:wt==='run'?1:0};
+        for(const k in tw){if(!fp.acts[k])continue;fp.w[k]+=(tw[k]-fp.w[k])*Math.min(1,dt*9);fp.acts[k].setEffectiveWeight(Math.max(0.0001,fp.w[k]));}
+        if(fp.acts.walk)fp.acts.walk.setEffectiveTimeScale(Math.max(0.7,Math.min(1.6,0.6+spdK*1.2)));
+        if(fp.acts.run)fp.acts.run.setEffectiveTimeScale(Math.max(0.8,Math.min(1.6,0.8+sprintK*0.8)));
+        fp.mixer.update(dt);
+      }
       const bn=fp.bones;
       const tune=(FP_HAND[r.kind]||FP_HAND._default);
       const reloading=S.reload01>0;
       const oneHanded=!!tune.oh;
       const lp=LposO||A.lHold;
 
-      /* ---- RIGHT ARM = shooting hand (screen right) ---- */
-      if(bn.rA&&bn.rF&&bn.rH){
+      /* The FP model is rotated 180° (faces the camera), so Mixamo's
+         RightArm ends up on the SCREEN'S LEFT and Mixamo's LeftArm on
+         the SCREEN'S RIGHT. So Mixamo-Left solves the shooting hand
+         (A.rGrip) and Mixamo-Right solves the support hand (A.lHold). */
+
+      /* ---- MIXAMO LEFT ARM = shooting hand (screen right) ---- */
+      if(bn.lA&&bn.lF&&bn.lH){
         const cfg=tune.r;
         const wristLocal=new THREE.Vector3(Rpos[0]+cfg.w[0],Rpos[1]+cfg.w[1],Rpos[2]+cfg.w[2]);
         const fLocal   =new THREE.Vector3(Rpos[0]+cfg.f[0],Rpos[1]+cfg.f[1],Rpos[2]+cfg.f[2]);
         const pLocal   =new THREE.Vector3(Rpos[0]+cfg.p[0],Rpos[1]+cfg.p[1],Rpos[2]+cfg.p[2]);
         g.localToWorld(wristLocal); g.localToWorld(fLocal); g.localToWorld(pLocal);
 
-        bn.rA.getWorldPosition(_fpV1);
-        bn.rF.getWorldPosition(_fpV2);
-        bn.rH.getWorldPosition(_fpV3);
+        bn.lA.getWorldPosition(_fpV1);
+        bn.lF.getWorldPosition(_fpV2);
+        bn.lH.getWorldPosition(_fpV3);
         const l1=_fpV1.distanceTo(_fpV2), l2=_fpV2.distanceTo(_fpV3);
         ikFP(_fpV1,wristLocal,l1,l2,new THREE.Vector3(-0.55,-1,0.35),_fpV4,_fpV5);
-        aimBone(bn.rA,bn.rF,_fpV4);
-        aimBone(bn.rF,bn.rH,_fpV5);
+        aimBone(bn.lA,bn.lF,_fpV4);
+        aimBone(bn.lF,bn.lH,_fpV5);
         if(!reloading){
-          orientHand(bn.rH,wristLocal,fLocal,pLocal,cfg.roll||0,true);
+          orientHand(bn.lH,wristLocal,fLocal,pLocal,cfg.roll||0);
         }
         const rc={};
         const rp=cfg.curl;
         rc.index=rp.index*Rg; rc.middle=rp.middle*Rg; rc.ring=rp.ring*Rg; rc.pinky=rp.pinky*Rg; rc.thumb=rp.thumb*Rg;
-        applyFingerCurl(bn.rH,'l',rc);
+        applyFingerCurl(bn.lH,'l',rc);
       }
 
-      /* ---- LEFT ARM = support hand (screen left) ---- */
-      if(bn.lA&&bn.lF&&bn.lH){
+      /* ---- MIXAMO RIGHT ARM = support hand (screen left) ---- */
+      if(bn.rA&&bn.rF&&bn.rH){
         const cfg=tune.l;
         let wristLocal,fLocal,pLocal;
         if(oneHanded&&!reloading){
-          wristLocal=new THREE.Vector3(0.55,-0.80,0.05);
-          fLocal    =new THREE.Vector3(0.55,-1.00,-0.10);
-          pLocal    =new THREE.Vector3(0.30,-0.85,0.00);
+          /* Park the support hand off-screen (below-right of view) */
+          wristLocal=new THREE.Vector3(0.42,-0.62,0.02);
+          fLocal    =new THREE.Vector3(0.42,-0.82,-0.10);
+          pLocal    =new THREE.Vector3(0.16,-0.66,-0.02);
         } else {
           wristLocal=new THREE.Vector3(lp[0]+cfg.w[0],lp[1]+cfg.w[1],lp[2]+cfg.w[2]);
           fLocal    =new THREE.Vector3(lp[0]+cfg.f[0],lp[1]+cfg.f[1],lp[2]+cfg.f[2]);
           pLocal    =new THREE.Vector3(lp[0]+cfg.p[0],lp[1]+cfg.p[1],lp[2]+cfg.p[2]);
           g.localToWorld(wristLocal); g.localToWorld(fLocal); g.localToWorld(pLocal);
         }
-        bn.lA.getWorldPosition(_fpV1);
-        bn.lF.getWorldPosition(_fpV2);
-        bn.lH.getWorldPosition(_fpV3);
+        bn.rA.getWorldPosition(_fpV1);
+        bn.rF.getWorldPosition(_fpV2);
+        bn.rH.getWorldPosition(_fpV3);
         const l1=_fpV1.distanceTo(_fpV2), l2=_fpV2.distanceTo(_fpV3);
         ikFP(_fpV1,wristLocal,l1,l2,new THREE.Vector3(0.55,-1,0.35),_fpV4,_fpV5);
-        aimBone(bn.lA,bn.lF,_fpV4);
-        aimBone(bn.lF,bn.lH,_fpV5);
+        aimBone(bn.rA,bn.rF,_fpV4);
+        aimBone(bn.rF,bn.rH,_fpV5);
         if(!reloading){
-          orientHand(bn.lH,wristLocal,fLocal,pLocal,cfg.roll||0,false);
+          orientHand(bn.rH,wristLocal,fLocal,pLocal,cfg.roll||0);
         }
         if(!oneHanded||reloading){
           const lc={};
           const lpp=cfg.curl;
           lc.index=lpp.index*Lg; lc.middle=lpp.middle*Lg; lc.ring=lpp.ring*Lg; lc.pinky=lpp.pinky*Lg; lc.thumb=lpp.thumb*Lg;
-          applyFingerCurl(bn.lH,'r',lc);
+          applyFingerCurl(bn.rH,'r',lc);
         }
       }
     }
@@ -1180,7 +1194,7 @@ const CH=(function(){
     if(acts.idle)acts.idle.play();
     if(acts.walk){acts.walk.play();acts.walk.setEffectiveWeight(0);}
     if(acts.run){acts.run.play();acts.run.setEffectiveWeight(0);}
-    const B=n=>clone.getObjectByName('mixamorig'+n);
+    const B=n=>clone.getObjectByName('mixamorig:'+n);
     const bones={hips:B('Hips'),spine:B('Spine'),spine1:B('Spine1'),spine2:B('Spine2'),neck:B('Neck'),head:B('Head'),rA:B('RightArm'),rF:B('RightForeArm'),rH:B('RightHand'),lA:B('LeftArm'),lF:B('LeftForeArm'),lH:B('LeftHand')};
     for(const child of rg.body.children.slice()){if(child!==rg.gp)child.visible=false;}
     for(const k in rg.bones)if(rg.bones[k])rg.bones[k].visible=false;
