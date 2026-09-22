@@ -1079,49 +1079,14 @@ const VM=(function(){
       const oneHanded=!!tune.oh;
       const lp=LposO||A.lHold;
 
-      /* The FP model is rotated 180° (faces the camera), so Mixamo's
-         RightArm ends up on the SCREEN'S LEFT and Mixamo's LeftArm on
-         the SCREEN'S RIGHT. So Mixamo-Left solves the shooting hand
-         (A.rGrip) and Mixamo-Right solves the support hand (A.lHold). */
-
-      /* ---- MIXAMO LEFT ARM = shooting hand (screen right) ---- */
-      if(bn.lA&&bn.lF&&bn.lH){
+      /* ---- RIGHT ARM = shooting hand (screen right) ---- */
+      if(bn.rA&&bn.rF&&bn.rH){
         const cfg=tune.r;
         const wristLocal=new THREE.Vector3(Rpos[0]+cfg.w[0],Rpos[1]+cfg.w[1],Rpos[2]+cfg.w[2]);
         const fLocal   =new THREE.Vector3(Rpos[0]+cfg.f[0],Rpos[1]+cfg.f[1],Rpos[2]+cfg.f[2]);
         const pLocal   =new THREE.Vector3(Rpos[0]+cfg.p[0],Rpos[1]+cfg.p[1],Rpos[2]+cfg.p[2]);
         g.localToWorld(wristLocal); g.localToWorld(fLocal); g.localToWorld(pLocal);
 
-        bn.lA.getWorldPosition(_fpV1);
-        bn.lF.getWorldPosition(_fpV2);
-        bn.lH.getWorldPosition(_fpV3);
-        const l1=_fpV1.distanceTo(_fpV2), l2=_fpV2.distanceTo(_fpV3);
-        ikFP(_fpV1,wristLocal,l1,l2,new THREE.Vector3(-0.55,-1,0.35),_fpV4,_fpV5);
-        aimBone(bn.lA,bn.lF,_fpV4);
-        aimBone(bn.lF,bn.lH,_fpV5);
-        if(!reloading){
-          orientHand(bn.lH,wristLocal,fLocal,pLocal,cfg.roll||0,true);
-        }
-        const rc={};
-        const rp=cfg.curl;
-        rc.index=rp.index*Rg; rc.middle=rp.middle*Rg; rc.ring=rp.ring*Rg; rc.pinky=rp.pinky*Rg; rc.thumb=rp.thumb*Rg;
-        applyFingerCurl(bn.lH,'l',rc);
-      }
-
-      /* ---- MIXAMO RIGHT ARM = support hand (screen left) ---- */
-      if(bn.rA&&bn.rF&&bn.rH){
-        const cfg=tune.l;
-        let wristLocal,fLocal,pLocal;
-        if(oneHanded&&!reloading){
-          wristLocal=new THREE.Vector3(0.55,-0.80,0.05);
-          fLocal    =new THREE.Vector3(0.55,-1.00,-0.10);
-          pLocal    =new THREE.Vector3(0.30,-0.85,0.00);
-        }else {
-          wristLocal=new THREE.Vector3(lp[0]+cfg.w[0],lp[1]+cfg.w[1],lp[2]+cfg.w[2]);
-          fLocal    =new THREE.Vector3(lp[0]+cfg.f[0],lp[1]+cfg.f[1],lp[2]+cfg.f[2]);
-          pLocal    =new THREE.Vector3(lp[0]+cfg.p[0],lp[1]+cfg.p[1],lp[2]+cfg.p[2]);
-          g.localToWorld(wristLocal); g.localToWorld(fLocal); g.localToWorld(pLocal);
-        }
         bn.rA.getWorldPosition(_fpV1);
         bn.rF.getWorldPosition(_fpV2);
         bn.rH.getWorldPosition(_fpV3);
@@ -1132,11 +1097,41 @@ const VM=(function(){
         if(!reloading){
           orientHand(bn.rH,wristLocal,fLocal,pLocal,cfg.roll||0,false);
         }
+        const rc={};
+        const rp=cfg.curl;
+        rc.index=rp.index*Rg; rc.middle=rp.middle*Rg; rc.ring=rp.ring*Rg; rc.pinky=rp.pinky*Rg; rc.thumb=rp.thumb*Rg;
+        applyFingerCurl(bn.rH,'r',rc);
+      }
+
+      /* ---- LEFT ARM = support hand (screen left) ---- */
+      if(bn.lA&&bn.lF&&bn.lH){
+        const cfg=tune.l;
+        let wristLocal,fLocal,pLocal;
+        if(oneHanded&&!reloading){
+          wristLocal=new THREE.Vector3(0.55,-0.80,0.05);
+          fLocal    =new THREE.Vector3(0.55,-1.00,-0.10);
+          pLocal    =new THREE.Vector3(0.30,-0.85,0.00);
+        } else {
+          wristLocal=new THREE.Vector3(lp[0]+cfg.w[0],lp[1]+cfg.w[1],lp[2]+cfg.w[2]);
+          fLocal    =new THREE.Vector3(lp[0]+cfg.f[0],lp[1]+cfg.f[1],lp[2]+cfg.f[2]);
+          pLocal    =new THREE.Vector3(lp[0]+cfg.p[0],lp[1]+cfg.p[1],lp[2]+cfg.p[2]);
+          g.localToWorld(wristLocal); g.localToWorld(fLocal); g.localToWorld(pLocal);
+        }
+        bn.lA.getWorldPosition(_fpV1);
+        bn.lF.getWorldPosition(_fpV2);
+        bn.lH.getWorldPosition(_fpV3);
+        const l1=_fpV1.distanceTo(_fpV2), l2=_fpV2.distanceTo(_fpV3);
+        ikFP(_fpV1,wristLocal,l1,l2,new THREE.Vector3(-0.55,-1,0.35),_fpV4,_fpV5);
+        aimBone(bn.lA,bn.lF,_fpV4);
+        aimBone(bn.lF,bn.lH,_fpV5);
+        if(!reloading){
+          orientHand(bn.lH,wristLocal,fLocal,pLocal,cfg.roll||0,true);
+        }
         if(!oneHanded||reloading){
           const lc={};
           const lpp=cfg.curl;
           lc.index=lpp.index*Lg; lc.middle=lpp.middle*Lg; lc.ring=lpp.ring*Lg; lc.pinky=lpp.pinky*Lg; lc.thumb=lpp.thumb*Lg;
-          applyFingerCurl(bn.rH,'r',lc);
+          applyFingerCurl(bn.lH,'l',lc);
         }
       }
     }
