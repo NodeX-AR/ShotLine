@@ -873,17 +873,15 @@ const VM=(function(){
     handBone.updateWorldMatrix(false,true);
   }
 
-  function orientHand(handBone, wrist, fTarget, pTarget, roll, xSign){
+ function orientHand(handBone, wrist, fTarget, pTarget, roll){
     _fpV1.copy(fTarget).sub(wrist); if(_fpV1.lengthSq()<1e-8)_fpV1.set(0,0,-1); _fpV1.normalize();
-    _fpV2.copy(pTarget).sub(wrist); if(_fpV2.lengthSq()<1e-8)_fpV2.set(0,-1,0); _fpV2.normalize();
-    _fpV3.copy(_fpV2).multiplyScalar(-(xSign||1));
-    _fpV3.addScaledVector(_fpV1,-_fpV3.dot(_fpV1));
-    if(_fpV3.lengthSq()<1e-6)_fpV3.set(1,0,0);
+    _fpV2.copy(pTarget).sub(wrist); if(_fpV2.lengthSq()<1e-8)_fpV2.set(-1,0,0); _fpV2.normalize();
+    _fpV3.crossVectors(_fpV2,_fpV1);
+    if(_fpV3.lengthSq()<1e-8)_fpV3.set(1,0,0);
     _fpV3.normalize();
-    _fpV4.crossVectors(_fpV3,_fpV1);
-    if(_fpV4.lengthSq()<1e-6)_fpV4.set(0,0,1);
-    _fpV4.normalize();
-    _fpM4.makeBasis(_fpV3,_fpV1,_fpV4);
+    _fpV4.crossVectors(_fpV1,_fpV3).normalize();
+    _fpV5.copy(_fpV4).negate();
+    _fpM4.makeBasis(_fpV3,_fpV1,_fpV5);
     _fpQX.setFromRotationMatrix(_fpM4);
     if(roll){ _fpQX2.setFromAxisAngle(_fpV1,roll); _fpQX.premultiply(_fpQX2); }
     if(handBone.parent){
@@ -893,25 +891,7 @@ const VM=(function(){
       handBone.quaternion.copy(_fpQX);
     }
     handBone.updateWorldMatrix(false,true);
-  }
-
-  const HAND_DBG={roll:0,xSign:1};
-  (function(){
-    const el=document.createElement('div');
-    el.id='handDbgHud';
-    el.style.cssText='position:fixed;top:8px;left:8px;z-index:99999;background:rgba(0,0,0,0.6);color:#0f0;font:12px monospace;padding:6px 10px;border-radius:4px;pointer-events:none;white-space:pre;';
-    el.textContent='hand tune: roll=0.0deg xSign=1  ([ ]=roll, ;=flip, \'=reset)';
-    document.addEventListener('DOMContentLoaded',()=>document.body.appendChild(el));
-    if(document.body)document.body.appendChild(el);
-    function refresh(){el.textContent='hand tune: roll='+(HAND_DBG.roll*180/Math.PI).toFixed(1)+'deg xSign='+HAND_DBG.xSign+"  ([ ]=roll, ;=flip, '=reset)";}
-    window.addEventListener('keydown',(e)=>{
-      if(e.code==='BracketLeft'){HAND_DBG.roll-=5*Math.PI/180;refresh();}
-      else if(e.code==='BracketRight'){HAND_DBG.roll+=5*Math.PI/180;refresh();}
-      else if(e.code==='Semicolon'){HAND_DBG.xSign*=-1;refresh();}
-      else if(e.code==='Quote'){HAND_DBG.roll=0;HAND_DBG.xSign=1;refresh();}
-      else return;
-      console.log('[HAND_DBG]',JSON.stringify(HAND_DBG));
-    });
+}
   })();
 
   function ikFP(a,t,l1,l2,pole,elbow,end){
