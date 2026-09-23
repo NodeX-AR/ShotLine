@@ -853,14 +853,14 @@ const VM=(function(){
 
   function applyFingerCurl(handBone, side, curls){
     if(!handBone||!curls)return;
-    const prefix=side==='r'?'Right':'Left';
+    const S=side==='r'?'R':'L';
+    const maxSeg={Index:4,Middle:4,Ring:4,Pinky:4,Thumb:3};
     for(const fname in FP_CURL_PROFILE){
       const amt=curls[fname.toLowerCase()];
       if(amt===undefined)continue;
       const prof=FP_CURL_PROFILE[fname];
-      for(let i=1;i<=4;i++){
-        const b=handBone.getObjectByName('mixamorig:'+prefix+'Hand'+fname+i)
-             || handBone.getObjectByName('mixamorig'+prefix+'Hand'+fname+i);
+      for(let i=1;i<=maxSeg[fname];i++){
+        const b=handBone.getObjectByName(fname+i+S);
         if(!b)continue;
         const bind=fp.bindPose[b.name];
         if(bind)b.quaternion.copy(bind);
@@ -950,26 +950,19 @@ const VM=(function(){
     if(!THREE.SkeletonUtils||!THREE.SkeletonUtils.clone){console.warn('[VM] SkeletonUtils missing, FP GLB disabled');return;}
     try{
       const clone=THREE.SkeletonUtils.clone(glb.scene);
-      clone.rotation.y=Math.PI;
-      clone.position.set(0,-1.65,-0.12);
-
+      clone.rotation.y=0;
+      clone.position.set(0,-1.55,-0.35);
+      const fpTint=(player && player.name===ADMIN_NAME)?new THREE.Color(0xff9b9b):new THREE.Color(0x2a2a2a);
+      clone.traverse(o=>{
+        if((o.isSkinnedMesh||o.isMesh) && o.material){
+          o.material=o.material.clone();
+          if(o.material.color) o.material.color.multiply(fpTint);
+          o.material.needsUpdate=true;
+        }
+      });
       fp.bindPose={};
       clone.traverse(o=>{ if(o.isBone) fp.bindPose[o.name]=o.quaternion.clone(); });
 
-      const armBoneNames=[
-        'LeftShoulder','RightShoulder','LeftArm','RightArm',
-        'LeftForeArm','RightForeArm','LeftHand','RightHand',
-        'LeftHandIndex1','LeftHandIndex2','LeftHandIndex3','LeftHandIndex4',
-        'LeftHandMiddle1','LeftHandMiddle2','LeftHandMiddle3','LeftHandMiddle4',
-        'LeftHandPinky1','LeftHandPinky2','LeftHandPinky3','LeftHandPinky4',
-        'LeftHandRing1','LeftHandRing2','LeftHandRing3','LeftHandRing4',
-        'LeftHandThumb1','LeftHandThumb2','LeftHandThumb3','LeftHandThumb4',
-        'RightHandIndex1','RightHandIndex2','RightHandIndex3','RightHandIndex4',
-        'RightHandMiddle1','RightHandMiddle2','RightHandMiddle3','RightHandMiddle4',
-        'RightHandPinky1','RightHandPinky2','RightHandPinky3','RightHandPinky4',
-        'RightHandRing1','RightHandRing2','RightHandRing3','RightHandRing4',
-        'RightHandThumb1','RightHandThumb2','RightHandThumb3','RightHandThumb4'
-      ];
       clone.traverse(o=>{
         if(o.isSkinnedMesh){
           o.castShadow=false;o.receiveShadow=false;o.frustumCulled=false;
@@ -979,10 +972,7 @@ const VM=(function(){
             o.material.envMapIntensity=0.7;
             const sk=o.skeleton;
             const armIdx=[];
-            armBoneNames.forEach(n=>{
-              const b=sk.bones.find(x=>x.name==='mixamorig:'+n||x.name==='mixamorig'+n||x.name===n);
-              if(b)armIdx.push(sk.bones.indexOf(b));
-            });
+            sk.bones.forEach((b,i)=>{ if(/Arm|Wrist|Shoulder|Index|Middle|Ring|Pinky|Thumb/i.test(b.name)) armIdx.push(i); });
             const conds=armIdx.map(v=>`if(abs(vBone-${v}.0)<0.5) keep=true;`).join('\n');
             o.material.onBeforeCompile=(shader)=>{
               shader.vertexShader='varying float vBone;\n'+shader.vertexShader.replace(
@@ -1016,9 +1006,9 @@ const VM=(function(){
         if(acts.walk){acts.walk.play();acts.walk.setEffectiveWeight(0);}
         if(acts.run){acts.run.play();acts.run.setEffectiveWeight(0);}
       }
-      const B=n=>clone.getObjectByName('mixamorig:'+n)||clone.getObjectByName('mixamorig'+n)||clone.getObjectByName(n);
-      const bones={rA:B('RightArm'),rF:B('RightForeArm'),rH:B('RightHand'),
-                   lA:B('LeftArm'),lF:B('LeftForeArm'),lH:B('LeftHand')};
+      const B=n=>clone.getObjectByName(n);
+      const bones={rA:B('UpperArmR'),rF:B('LowerArmR'),rH:B('WristR'),
+                   lA:B('UpperArmL'),lF:B('LowerArmL'),lH:B('WristL')};
       fp.clone=clone;fp.bones=bones;fp.mixer=mixer;fp.acts=acts;fp.w={idle:1,walk:0,run:0};fp.ready=true;
       console.log('[VM] bone check',Object.entries(bones).map(([k,v])=>k+':'+(v?'OK':'MISSING')).join(' '));
       console.log('[VM] FP GLB arms active');
@@ -1133,9 +1123,6 @@ const VM=(function(){
         bn.lF.getWorldPosition(_fpV2);
         bn.lH.getWorldPosition(_fpV3);
         const l1=_fpV1.distanceTo(_fpV2), l2=_fpV2.distanceTo(_fpV3);
-        console.log('[shoot] dist', _fpV1.distanceTo(wristLocal).toFixed(3),
-            'max', (l1+l2).toFixed(3),
-            'slack', ((l1+l2) - _fpV1.distanceTo(wristLocal)).toFixed(3));
         ikFP(_fpV1, wristLocal, l1, l2, new THREE.Vector3( 0.55,-1,0.35), _fpV4, _fpV5);
         aimBone(bn.lA,bn.lF,_fpV4);
         aimBone(bn.lF,bn.lH,_fpV5);
@@ -1220,15 +1207,15 @@ const CH=(function(){
     const cloneFn=THREE.SkeletonUtils?THREE.SkeletonUtils.clone:(o)=>o.clone(true);
     const clone=cloneFn(MODEL.scene);
     const mw=new THREE.Group();mw.rotation.y=Math.PI;mw.position.y=-0.02;mw.add(clone);g.add(mw);
-    const tint=new THREE.Color(TINTS[hashStr(f.name)%TINTS.length]);
+    const tint=(f.name===ADMIN_NAME)?new THREE.Color(0xff9b9b):new THREE.Color(0x2a2a2a);
     clone.traverse(o=>{if(o.isMesh||o.isSkinnedMesh){o.castShadow=true;o.receiveShadow=true;o.frustumCulled=false;o.material=o.material.clone();if(o.material.color)o.material.color.multiply(tint);o.material.envMap=GX.env();o.material.envMapIntensity=0.5;o.material.needsUpdate=true;}});
     const mixer=new THREE.AnimationMixer(clone),acts={};
     for(const c of MODEL.animations){if(c.name==='Idle'||c.name==='Walk'||c.name==='Run')acts[c.name.toLowerCase()]=mixer.clipAction(c);}
     if(acts.idle)acts.idle.play();
     if(acts.walk){acts.walk.play();acts.walk.setEffectiveWeight(0);}
     if(acts.run){acts.run.play();acts.run.setEffectiveWeight(0);}
-    const B=n=>clone.getObjectByName('mixamorig:'+n)||clone.getObjectByName('mixamorig'+n)||clone.getObjectByName(n);
-    const bones={hips:B('Hips'),spine:B('Spine'),spine1:B('Spine1'),spine2:B('Spine2'),neck:B('Neck'),head:B('Head'),rA:B('RightArm'),rF:B('RightForeArm'),rH:B('RightHand'),lA:B('LeftArm'),lF:B('LeftForeArm'),lH:B('LeftHand')};
+    const B=n=>clone.getObjectByName(n);
+    const bones={hips:B('Hips'),spine:B('Abdomen'),spine1:B('Torso'),spine2:B('Chest'),neck:B('Neck'),head:B('Head'),rA:B('UpperArmR'),rF:B('LowerArmR'),rH:B('WristR'),lA:B('UpperArmL'),lF:B('LowerArmL'),lH:B('WristL')};
     for(const child of rg.body.children.slice()){if(child!==rg.gp)child.visible=false;}
     for(const k in rg.bones)if(rg.bones[k])rg.bones[k].visible=false;
     rg.boots.R.visible=false;rg.boots.L.visible=false;
@@ -1406,7 +1393,7 @@ const CH=(function(){
 /* Kick off soldier model — real GLB first, procedural fallback */
 (function(){
   const tryGen=()=>{try{if(window.SOLDIER_GEN){CH.loadModelFromGen(window.SOLDIER_GEN.build());console.log('[CH] procedural soldier ready');}else console.warn('[CH] no model available');}catch(e){console.warn('[CH] soldier gen failed',e);}};
-    fetch('models/Soldier.glb',{cache:'no-store'})
+    fetch('models/newsoldier.glb',{cache:'no-store'})
     .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.arrayBuffer();})
     .then(buf=>{
       console.log('[CH] GLB bytes',buf.byteLength);
