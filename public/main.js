@@ -27,7 +27,7 @@ $('optSfx').addEventListener('change',()=>{try{localStorage.setItem('shotline.sf
 $('optChat').addEventListener('change',()=>{try{localStorage.setItem('shotline.botchat',$('optChat').checked?'1':'0');}catch(e){}});
 
 /* ============ CONSTANTS ============ */
-const MAP=480,NUM_BOTS=17,MP_MAX=20,ADMIN_NAME='NoDeX';
+const MAP=220,NUM_BOTS=12,MP_MAX=16,ADMIN_NAME='NoDeX';
 const EYE=1.65,R=0.4,H=1.8,STEP=0.55,GRAV=24,BASE_FOV=80,TAU=Math.PI*2;
 const SPRINT_LOCKOUT=0.4;
 const isMobile=('ontouchstart' in window)||navigator.maxTouchPoints>0||(window.matchMedia&&window.matchMedia('(pointer:coarse)').matches);
@@ -57,7 +57,7 @@ const BotChat=(function(){
     pFall:{chill:['lmao fall damage','he jumped off','gravity wins','rip {p}'],toxic:['{p} jumped lol','free kill from the sky','skill issue'],friendly:['oh no {p}','ouch that was a long drop'],tryhard:['{p} took the fall','never drop from the tall ones'],quiet:['oof','']},
     streak:{chill:['{p} is on a run','ok {p} is cracked'],toxic:['someone stop {p}','{p} is smurfing'],friendly:['{p} is on fire!','go {p}'],tryhard:['focus {p}','{p} is the threat here'],quiet:['wow','']},
     respawn:{chill:['back','ok again','round 2'],toxic:['back and angry','ok now im serious'],friendly:['hi again','lets go'],tryhard:['rotating','new plan'],quiet:['']},
-    idle:['anyone know where the medkits are','the towers are a pain','stairs in the grey buildings are so long','dont jump off the tall roofs','someone is sniping from a tower','there is a medkit on a roof near me','heard shots north','ladders are slow but worth it','watch the edges','this border is tight','where is everyone','anything happening','im on a roof','anyone up top','i keep hearing footsteps','thought i saw someone','any snipers up','who is winning','roofs are the way','ground level is a death trap','ladders are op','anyone else lagging?','the border is closing in','watch mid','south side quiet','holding an angle','anyone need backup'],
+    idle:['anyone know where the medkits are','the towers are a pain','stairs in the grey buildings are so long','dont jump off the tall roofs','someone is sniping from a tower','there is a medkit on a roof near me','heard shots north','ladders are slow but worth it','watch the edges','where is everyone','anything happening','im on a roof','anyone up top','i keep hearing footsteps','thought i saw someone','any snipers up','who is winning','roofs are the way','ground level is a death trap','ladders are op','anyone else lagging?','watch mid','south side quiet','holding an angle','anyone need backup'],
     greet:['hey','hi all','o/','yo','sup','back for a few rounds','ready'],
     hi:['yo','hey {p}','sup','o/','hello','hey'],
     gg:['gg','wp','gg wp','ty','gg {p}'],
@@ -1436,35 +1436,12 @@ VM.rig.forEach(r=>{r.g.add(viewMuzzle);});
 WEAPONS.forEach((w,i)=>{w.flashZ=VM.rig[i].A.muzzle[2];});
 gunRoot.add(flash);gunRoot.visible=false;
 
-/* Border */
+/* Border - removed: map is small enough now that a shrinking play-zone isn't needed.
+   Kept as a disabled no-op (instead of deleting every call site) so nothing else breaks. */
 const BORDER_CX=0,BORDER_CZ=0,BORDER_MAX=260,BORDER_MIN=70;
-function borderRadiusForCount(count){if(count<=1)return BORDER_MIN;if(count===2)return 100;if(count===3)return 130;if(count===4)return 165;if(count===5)return 200;if(count===6)return 230;return BORDER_MAX;}
-const borderMat=new THREE.ShaderMaterial({side:THREE.DoubleSide,transparent:true,depthWrite:false,fog:false,uniforms:{uTime:{value:0},uColor:{value:L(0x3fbaff)},uAlpha:{value:0.9}},
-  vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
-  fragmentShader:['uniform float uTime;uniform vec3 uColor;uniform float uAlpha;varying vec2 vUv;','void main(){','  float y=vUv.y;','  float stripes=sin(vUv.x*140.0+uTime*3.2)*0.5+0.5;','  float scan=sin(vUv.x*8.0-uTime*0.9)*0.5+0.5;','  float strength=0.07+stripes*0.10+(1.0-y)*0.14+scan*0.06;','  vec3 col=uColor*(0.55+stripes*0.7+(1.0-y)*0.5);','  gl_FragColor=vec4(col,strength*uAlpha);','}'].join('\n')});
-const borderMesh=new THREE.Mesh(new THREE.CylinderGeometry(1,1,1,72,1,true),borderMat);
-borderMesh.position.set(BORDER_CX,22,BORDER_CZ);borderMesh.scale.set(BORDER_MIN,44,BORDER_MIN);
-borderMesh.renderOrder=50;borderMesh.frustumCulled=false;borderMesh.visible=false;scene.add(borderMesh);
+const borderMesh={visible:false};
 const borderState={targetRadius:BORDER_MAX,currentRadius:BORDER_MAX,active:false,lastOutT:-99,nextDamageT:0,lastCount:0};
-function updateBorder(dt){
-  let count;if(mode==='multi')count=1+remotes.size;else count=1+NUM_BOTS;
-  const target=borderRadiusForCount(count);const wasActive=borderState.active;
-  borderState.active=target<BORDER_MAX-1;borderState.targetRadius=target;
-  const speed=borderState.currentRadius>target?30:60;
-  if(Math.abs(borderState.currentRadius-target)>0.05){borderState.currentRadius+=clamp(target-borderState.currentRadius,-speed*dt,speed*dt);}else borderState.currentRadius=target;
-  borderMesh.visible=borderState.active && state!=='menu';
-  if(borderMesh.visible){borderMesh.scale.set(borderState.currentRadius,44,borderState.currentRadius);borderMat.uniforms.uTime.value=T;}
-  if(count!==borderState.lastCount && borderState.active && wasActive){sfxBorder();
-    for(const f of fighters){if(!f.alive)continue;const dx=f.x-BORDER_CX,dz=f.z-BORDER_CZ;const d=Math.hypot(dx,dz);
-      if(d>borderState.currentRadius-1){const nx=f.x*0.001+dx/Math.max(d,0.001),nz=dz/Math.max(d,0.001);const r=Math.max(1,borderState.currentRadius-6);f.x=BORDER_CX+nx*r;f.z=BORDER_CZ+nz*r;f.vx=f.vz=0;if(f.isPlayer)toast('Teleported to border','warn');}}}
-  borderState.lastCount=count;
-  if(borderState.active && state==='playing' && player.alive){const d=Math.hypot(player.x-BORDER_CX,player.z-BORDER_CZ);const out=d>borderState.currentRadius-0.6;
-    $('borderWarn').classList.toggle('show',out);
-    if(out){if(T>borderState.nextDamageT){borderState.nextDamageT=T+0.5;player.hp=Math.max(1,player.hp-3);P.lastHitAt=T;P.dmgT=0.4;}}}
-  else $('borderWarn').classList.remove('show');
-  if(borderState.active){for(const b of botPool){if(!b.alive)continue;const d=Math.hypot(b.x-BORDER_CX,b.z-BORDER_CZ);const R=borderState.currentRadius;
-    if(d>R-10){const ux=(b.x-BORDER_CX)/Math.max(d,0.001);const uz=(b.z-BORDER_CZ)/Math.max(d,0.001);const tx=BORDER_CX-ux*(R-25);const tz=BORDER_CZ-uz*(R-25);if(b._mem)b._mem.wanderPath=[{x:tx,z:tz}];b.tx=tx;b.tz=tz;}}}
-}
+function updateBorder(dt){ $('borderWarn').classList.remove('show'); }
 
 /* Game state */
 let state='menu';let T=0,matchActive=false;let mode='menu';
@@ -1547,10 +1524,11 @@ let chatTickT=0;
 function chatTick(dt){chatTickT-=dt;if(chatTickT>0||chatOpen)return;chatTickT=0.5;const now=performance.now();let vis=0;const cap=isMobile?3:8;
     for(let i=chatHist.length-1;i>=0;i--){const h=chatHist[i],old=(now-h.ts>9000)||vis>=cap;if(!old)vis++;h.el.classList.toggle('faded',old);}};
 const chatHist=[];
-const rctx=$('radar').getContext('2d');const RS=150,RR=80,RK=RS/2/RR;
+const rctx=$('radar').getContext('2d');const RS=150,RR=60,RK=RS/2/RR;
 function drawRadar(){const g=rctx;g.clearRect(0,0,RS,RS);g.save();g.beginPath();g.arc(RS/2,RS/2,RS/2-1,0,TAU);g.clip();g.fillStyle='rgba(14,24,32,.88)';g.fillRect(0,0,RS,RS);g.translate(RS/2,RS/2);g.rotate(yaw);g.scale(RK,RK);g.translate(-player.x,-player.z);
   g.fillStyle='rgba(255,255,255,.06)';g.fillRect(-6,-MAP,12,MAP*2);g.fillRect(-MAP,-6,MAP*2,12);
-  const cand=queryGrid(player.x,player.z,RR);g.fillStyle='rgba(170,190,205,.5)';for(const b of cand){if(b.y0>1||b.y1<1.2)continue;g.fillRect(b.x0,b.z0,b.x1-b.x0,b.z1-b.z0);}
+  const cand=queryGrid(player.x,player.z,RR);g.fillStyle='rgba(170,190,205,.55)';for(const b of cand){if(b.ray===false||b.y0>2.5)continue;g.fillRect(b.x0,b.z0,b.x1-b.x0,b.z1-b.z0);}
+  const edge=MAP-0.8;g.strokeStyle='rgba(255,90,90,.9)';g.lineWidth=1.5/RK;g.strokeRect(-edge,-edge,edge*2,edge*2);
   g.fillStyle='#43e0a0';for(const m of medkits){if(m.active&&Math.hypot(m.x-player.x,m.z-player.z)<RR){g.beginPath();g.arc(m.x,m.z,2.2/RK*1.6,0,TAU);g.fill();}}
   g.fillStyle='#ff4d4d';for(const f of fighters){if(f===player||!f.alive)continue;if(f.id!==undefined&&f.id===net.selfId)continue;if(f.remote&&f.name&&player.name&&f.name.toLowerCase()===player.name.toLowerCase())continue;const d=Math.hypot(f.x-player.x,f.z-player.z);if(d<40||(T-f.lastFire<2&&d<RR)){g.beginPath();g.arc(f.x,f.z,3.2/RK,0,TAU);g.fill();}}
   g.restore();g.fillStyle='#6fe3ff';g.beginPath();g.moveTo(RS/2,RS/2-8);g.lineTo(RS/2+6,RS/2+6);g.lineTo(RS/2-6,RS/2+6);g.closePath();g.fill();}
@@ -1788,7 +1766,7 @@ function startGame(m){
   $('menumsg').textContent='';$('menu').classList.add('hidden');$('hud').classList.remove('hidden');
   $('board').classList.add('hidden');$('bfoot').classList.remove('hidden');$('death').classList.add('hidden');clearChat();
   $('btitle').textContent='Live leaderboard';
-  $('bsub').textContent=m==='multi'?'Endless online match · border shrinks with player count':'Endless practice · 17 bots';
+  $('bsub').textContent=m==='multi'?'Endless online match':'Endless practice · '+NUM_BOTS+' bots';
   $('goal').textContent=m==='multi'?'Fallen City · Tab · Enter to chat':'Fallen City · Tab';
   gunRoot.visible=true;state='playing';mouseL=mouseR=false;
   requestLock(true);syncPause();
