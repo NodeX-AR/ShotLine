@@ -892,7 +892,6 @@ const VM=(function(){
     }
     handBone.updateWorldMatrix(false,true);
 }
-  })();
 
   function ikFP(a,t,l1,l2,pole,elbow,end){
     _fpV1.subVectors(t,a); let dist=_fpV1.length();
@@ -1105,7 +1104,9 @@ const VM=(function(){
         ikFP(_fpV1, wristLocal, l1, l2, new THREE.Vector3( 0.55,-1,0.35), _fpV4, _fpV5);
         aimBone(bn.rA,bn.rF,_fpV4);
         aimBone(bn.rF,bn.rH,_fpV5);
-        orientHand(bn.rH,wristLocal,fLocal,pLocal,(cfg.roll||0)+HAND_DBG.roll,HAND_DBG.xSign);
+        if(!reloading){
+  orientHand(bn.rH,wristLocal,fLocal,pLocal,cfg.roll||0);
+}
         const rc={};
         const rp=cfg.curl;
         rc.index=rp.index*Rg; rc.middle=rp.middle*Rg; rc.ring=rp.ring*Rg; rc.pinky=rp.pinky*Rg; rc.thumb=rp.thumb*Rg;
@@ -1136,7 +1137,9 @@ const VM=(function(){
         ikFP(_fpV1, wristLocal, l1, l2, new THREE.Vector3(-0.55,-1,0.35), _fpV4, _fpV5);
         aimBone(bn.lA,bn.lF,_fpV4);
         aimBone(bn.lF,bn.lH,_fpV5);
-        orientHand(bn.lH,wristLocal,fLocal,pLocal,cfg.roll||0);
+        if(!reloading){
+  orientHand(bn.lH,wristLocal,fLocal,pLocal,cfg.roll||0);
+}
         if(!oneHanded||reloading){
           const lc={};
           const lpp=cfg.curl;
