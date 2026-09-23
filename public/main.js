@@ -2140,3 +2140,231 @@ setInterval(()=>{if(!isMobile)return;const show=(state==='playing')&&!chatOpen&&
   $('mobileHud').classList.toggle('hidden',!show);
   if(!show){lookId=null;endJoy();mSprintLatched=false;}},120);
 })();
+/* ==========================================================================
+   SHOTLINE — SECOND-PERSON CAMERA  (complete drop-in module)
+   Paste AFTER the game's closing `})();`
+   Controls:  V  cycles  FIRST -> SECOND -> THIRD person
+   ========================================================================== */
+(function () {
+  'use strict';
+  if (!window.THREE) return;
+  var R = window.THREE.WebGLRenderer;
+  if (!R || !R.prototype || R.prototype.__shotlineCamPatched) return;
+  R.prototype.__shotlineCamPatched = true;
+  var origRender = R.prototype.render;
+
+  var MODES = ['first','second','third'];
+  var EYE_H = 1.65, HEAD_OUT = 0.80;
+  var MIN_BOT_D = 3.0, MAX_BOT_D = 90.0, IDEAL_D = 18.0;
+  var MOVE_EPS = 0.0009, BOT_FRESH = 40, RESCAN = 240;
+  var LASER_LEN = 45, CAM_LERP = 0.30, SNAP_DIST = 30;
+
+  var mode = 1;
+  try { var s = localStorage.getItem('shotline.cam'); if (s) { var i = MODES.indexOf(s); if (i >= 0) mode = i; } } catch (e) {}
+  function persistMode() { try { localStorage.setItem('shotline.cam', MODES[mode]); } catch (e) {} }
+
+  var svPos=new THREE.Vector3(), svQuat=new THREE.Quaternion();
+  var camPos=new THREE.Vector3(), camTgt=new THREE.Vector3();
+  var _look=new THREE.Vector3(), _tmp=new THREE.Vector3(), _fwd=new THREE.Vector3();
+  var _eul=new THREE.Euler(0,0,0,'YXZ');
+  var camReady=false;
+
+  var BOX=new THREE.BoxGeometry(1,1,1);
+  var MAT_SKIN=new THREE.MeshLambertMaterial({color:0xd8a878});
+  var MAT_SHIRT=new THREE.MeshLambertMaterial({color:0x2f5f8f});
+  var MAT_PANT=new THREE.MeshLambertMaterial({color:0x2a2f37});
+  var MAT_GUN=new THREE.MeshLambertMaterial({color:0x26262b});
+  var avatar=null, armPivot=null, laser=null, laserPos=null, built=false;
+
+  function mkPart(mat,sx,sy,sz,x,y,z,parent){var m=new THREE.Mesh(BOX,mat);m.scale.set(sx,sy,sz);m.position.set(x,y,z);m.castShadow=true;(parent||avatar).add(m);return m;}
+  function build(scene){
+    if (built) return; built = true;
+    avatar = new THREE.Group(); avatar.visible = false; scene.add(avatar);
+    mkPart(MAT_SHIRT,0.52,0.72,0.30, 0,1.16,0);
+    mkPart(MAT_SKIN ,0.26,0.28,0.26, 0,1.63,0);
+    mkPart(MAT_PANT ,0.20,0.82,0.22,-0.13,0.41,0);
+    mkPart(MAT_PANT ,0.20,0.82,0.22, 0.13,0.41,0);
+    armPivot = new THREE.Group(); armPivot.position.set(0,1.46,0); avatar.add(armPivot);
+    mkPart(MAT_SHIRT,0.17,0.58,0.17,-0.33,-0.29,0,armPivot);
+    mkPart(MAT_SHIRT,0.17,0.58,0.17, 0.33,-0.29,0,armPivot);
+    var gun = new THREE.Mesh(BOX,MAT_GUN); gun.scale.set(0.12,0.14,0.62); gun.position.set(0.30,-0.46,-0.30); armPivot.add(gun);
+    var g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+    laser = new THREE.Line(g, new THREE.LineBasicMaterial({color:0xff5555,transparent:true,opacity:0.45,depthWrite:false}));
+    laser.frustumCulled = false; laser.visible = false; scene.add(laser); laserPos = g.attributes.position;
+  }
+
+  var tracks=[], lastScan=-1e9, frameNo=0;
+  function scanScene(scene){
+    tracks.length=0;
+    var kids=scene.children;
+    for (var i=0;i<kids.length;i++){
+      var c=kids[i];
+      if (c===avatar||c===laser) continue;
+      if (c.isLight||c.isCamera) continue;
+      // Bots are scene-level Groups that move. Meshes/Points/Lines are FX.
+      if (!c.isGroup) continue;
+      tracks.push({o:c,lx:c.position.x,lz:c.position.z,t:-1e9});
+    }
+  }
+  function updateTracks(){
+    for (var i=0;i<tracks.length;i++){
+      var tr=tracks[i], o=tr.o;
+      if (!o.parent){ tr.t=-1e9; continue; }
+      var dx=o.position.x-tr.lx, dz=o.position.z-tr.lz;
+      if (dx*dx+dz*dz > MOVE_EPS){ tr.lx=o.position.x; tr.lz=o.position.z; tr.t=frameNo; }
+    }
+  }
+  function pickBotCam(px,pz){
+    var best=null, bs=Infinity;
+    for (var i=0;i<tracks.length;i++){
+      var tr=tracks[i];
+      if (frameNo-tr.t > BOT_FRESH) continue;
+      var o=tr.o;
+      var dx=o.position.x-px, dz=o.position.z-pz;
+      var d=Math.sqrt(dx*dx+dz*dz);
+      if (d<MIN_BOT_D||d>MAX_BOT_D) continue;
+      var sc=Math.abs(d-IDEAL_D);
+      if (sc<bs){ bs=sc; best=o; }
+    }
+    return best;
+  }
+
+  function hideViewModel(cam){
+    var hidden=null, ch=cam.children;
+    for (var i=0;i<ch.length;i++){
+      var c=ch[i];
+      if (c.isLight||c.isCamera) continue;
+      if (c.visible){ if (!hidden) hidden=[]; hidden.push(c); c.visible=false; }
+    }
+    return hidden;
+  }
+  function showViewModel(hidden){ if (!hidden) return; for (var i=0;i<hidden.length;i++) hidden[i].visible=true; }
+
+  function applyCam(cam,target,look){
+    var far = camPos.distanceToSquared(target) > SNAP_DIST*SNAP_DIST;
+    if (!camReady||far){ camPos.copy(target); camReady=true; }
+    else camPos.lerp(target, CAM_LERP);
+    cam.position.copy(camPos);
+    cam.lookAt(look);
+  }
+  function placeSecond(cam,px,py,pz){
+    var b = pickBotCam(px,pz);
+    if (b){
+      var dx=px-b.position.x, dz=pz-b.position.z;
+      var dl=Math.sqrt(dx*dx+dz*dz);
+      if (dl>0.001){ dx/=dl; dz/=dl; } else { dx=0; dz=1; }
+      camTgt.set(b.position.x+dx*HEAD_OUT, b.position.y+EYE_H+0.06, b.position.z+dz*HEAD_OUT);
+      _look.set(px, py-0.25, pz);
+      applyCam(cam,camTgt,_look);
+      return;
+    }
+    _eul.setFromQuaternion(cam.quaternion);
+    var yaw=_eul.y, fx=-Math.sin(yaw), fz=-Math.cos(yaw);
+    camTgt.set(px+fx*3.4, py+0.12, pz+fz*3.4);
+    _look.set(px, py-0.30, pz);
+    applyCam(cam,camTgt,_look);
+  }
+  function placeThird(cam,px,py,pz){
+    _eul.setFromQuaternion(cam.quaternion);
+    var yaw=_eul.y, fx=-Math.sin(yaw), fz=-Math.cos(yaw);
+    var rx=Math.cos(yaw), rz=-Math.sin(yaw);
+    camTgt.set(px-fx*4.5+rx*0.85, py+0.70, pz-fz*4.5+rz*0.85);
+    _look.set(px+fx*12, py-0.30, pz+fz*12);
+    applyCam(cam,camTgt,_look);
+  }
+
+  function updatePlayerRig(cam,px,py,pz){
+    _eul.setFromQuaternion(cam.quaternion);
+    avatar.position.set(px, py-EYE_H, pz);
+    avatar.rotation.set(0, _eul.y, 0);
+    armPivot.rotation.x = Math.PI*0.5 - 0.30 + _eul.x;
+  }
+  function updateLaser(cam,px,py,pz){
+    _fwd.set(0,0,-1).applyQuaternion(cam.quaternion);
+    var ox=px+_fwd.x*0.6, oy=py-0.25+_fwd.y*0.6, oz=pz+_fwd.z*0.6;
+    laserPos.setXYZ(0, ox, oy, oz);
+    laserPos.setXYZ(1, ox+_fwd.x*LASER_LEN, oy+_fwd.y*LASER_LEN, oz+_fwd.z*LASER_LEN);
+    laserPos.needsUpdate = true;
+  }
+
+  var crossEl=null, crossFound=false;
+  function setCrosshair(on){
+    if (!crossFound){ crossFound=true; crossEl = document.getElementById('crosshair')||document.getElementById('reticle'); }
+    if (crossEl) crossEl.style.visibility = on ? '' : 'hidden';
+  }
+
+  R.prototype.render = function (scene, camera) {
+    if (!scene || !camera || !camera.isCamera || !scene.isScene) return origRender.call(this, scene, camera);
+    if (!built) build(scene);
+
+    // Menu / drone view — don't second-person.
+    if (camera.position.y > 10) {
+      if (avatar) avatar.visible = false;
+      if (laser)  laser.visible  = false;
+      setCrosshair(true);
+      return origRender.call(this, scene, camera);
+    }
+
+    if (mode === 0) {
+      if (avatar) avatar.visible = false;
+      if (laser)  laser.visible  = false;
+      setCrosshair(true);
+      return origRender.call(this, scene, camera);
+    }
+
+    frameNo++;
+    if (frameNo - lastScan > RESCAN){ scanScene(scene); lastScan = frameNo; }
+    updateTracks();
+
+    svPos.copy(camera.position);
+    svQuat.copy(camera.quaternion);
+    var px=svPos.x, py=svPos.y, pz=svPos.z;
+
+    updatePlayerRig(camera, px, py, pz);
+    updateLaser(camera, px, py, pz);
+    avatar.visible = true;
+    laser.visible  = true;
+    setCrosshair(false);
+
+    var hidden = hideViewModel(camera);
+    if (mode === 1) placeSecond(camera, px, py, pz);
+    else            placeThird(camera, px, py, pz);
+
+    origRender.call(this, scene, camera);
+
+    camera.position.copy(svPos);
+    camera.quaternion.copy(svQuat);
+    camera.updateMatrixWorld(true);
+    showViewModel(hidden);
+  };
+
+  var toastEl=null, toastTimer=0;
+  function toast(msg){
+    if (!toastEl){
+      toastEl = document.createElement('div');
+      toastEl.style.cssText = 'position:fixed;left:50%;bottom:14%;transform:translateX(-50%);padding:8px 16px;border-radius:8px;background:rgba(0,0,0,.55);color:#fff;font:600 13px/1.2 system-ui,-apple-system,sans-serif;letter-spacing:.08em;pointer-events:none;z-index:99999;transition:opacity .3s;opacity:0;white-space:nowrap;';
+      document.body.appendChild(toastEl);
+    }
+    toastEl.textContent = msg; toastEl.style.opacity = '1';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ toastEl.style.opacity='0'; }, 1200);
+  }
+  function setMode(i){ mode = ((i%MODES.length)+MODES.length)%MODES.length; camReady=false; persistMode(); toast('CAMERA: '+MODES[mode].toUpperCase()+' PERSON'); }
+  window.addEventListener('keydown', function (e) {
+    if (e.repeat) return;
+    if (e.code !== 'KeyV') return;
+    var a = document.activeElement;
+    if (a && (a.tagName==='INPUT'||a.tagName==='TEXTAREA'||a.isContentEditable)) return;
+    setMode(mode+1);
+  }, false);
+
+  window.SHOTLINE_CAM = {
+    get mode(){ return MODES[mode]; },
+    set mode(v){ var i=MODES.indexOf(String(v).toLowerCase()); if (i>=0) setMode(i); },
+    cycle: function(){ setMode(mode+1); }
+  };
+
+  setTimeout(function(){ toast('CAMERA: '+MODES[mode].toUpperCase()+' PERSON  ·  V to change'); }, 400);
+})();
+/* ======================= END SECOND-PERSON CAMERA ======================= */
