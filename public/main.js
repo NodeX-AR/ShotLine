@@ -871,16 +871,10 @@ const VM=(function(){
     handBone.updateWorldMatrix(false,true);
   }
 
-  function orientHand(handBone, wrist, fTarget, pTarget, roll){
+  function orientHand(handBone, wrist, fTarget, pTarget, roll, xSign){
     _fpV1.copy(fTarget).sub(wrist); if(_fpV1.lengthSq()<1e-8)_fpV1.set(0,0,-1); _fpV1.normalize(); // Y = finger direction
     _fpV2.copy(pTarget).sub(wrist); if(_fpV2.lengthSq()<1e-8)_fpV2.set(0,-1,0); _fpV2.normalize();
-    /* X = dorsal-normal (back-of-hand direction, i.e. -palmDir) orthogonalized against Y.
-       Verified against the GLB's real bind pose: this single formula (no per-hand
-       mirroring) reproduces BOTH hands' true bind orientation exactly, because the
-       "back of hand faces away from palm target" relationship isn't itself mirrored
-       between hands - only the finger direction (Y) naturally differs, which is
-       already handled since it comes straight from the per-hand target vectors. */
-    _fpV3.copy(_fpV2).multiplyScalar(-1);
+    _fpV3.copy(_fpV2).multiplyScalar(-(xSign||1));
     _fpV3.addScaledVector(_fpV1,-_fpV3.dot(_fpV1));
     if(_fpV3.lengthSq()<1e-6)_fpV3.set(1,0,0);
     _fpV3.normalize();
@@ -898,6 +892,32 @@ const VM=(function(){
     }
     handBone.updateWorldMatrix(false,true);
   }
+
+  // --- LIVE HAND TUNING DEBUG (temporary) ---
+  // While this game's shooting-hand (screen-right) orientation is being dialed in,
+  // use this overlay to nudge it live and report back the numbers that look right:
+  //   [ / ]        : roll the hand -/+ 5 degrees
+  //   ; (semicolon): flip the hand's mirror axis (try this first if it looks
+  //                  fundamentally backwards rather than just rolled wrong)
+  //   ' (quote)    : reset roll to 0
+  const HAND_DBG={roll:0,xSign:1};
+  (function(){
+    const el=document.createElement('div');
+    el.id='handDbgHud';
+    el.style.cssText='position:fixed;top:8px;left:8px;z-index:99999;background:rgba(0,0,0,0.6);color:#0f0;font:12px monospace;padding:6px 10px;border-radius:4px;pointer-events:none;white-space:pre;';
+    el.textContent='hand tune: roll=0.0deg xSign=1  ([ ]=roll, ;=flip, \'=reset)';
+    document.addEventListener('DOMContentLoaded',()=>document.body.appendChild(el));
+    if(document.body)document.body.appendChild(el);
+    function refresh(){el.textContent='hand tune: roll='+(HAND_DBG.roll*180/Math.PI).toFixed(1)+'deg xSign='+HAND_DBG.xSign+"  ([ ]=roll, ;=flip, '=reset)";}
+    window.addEventListener('keydown',(e)=>{
+      if(e.code==='BracketLeft'){HAND_DBG.roll-=5*Math.PI/180;refresh();}
+      else if(e.code==='BracketRight'){HAND_DBG.roll+=5*Math.PI/180;refresh();}
+      else if(e.code==='Semicolon'){HAND_DBG.xSign*=-1;refresh();}
+      else if(e.code==='Quote'){HAND_DBG.roll=0;HAND_DBG.xSign=1;refresh();}
+      else return;
+      console.log('[HAND_DBG]',JSON.stringify(HAND_DBG));
+    });
+  })();
 
   function ikFP(a,t,l1,l2,pole,elbow,end){
     _fpV1.subVectors(t,a); let dist=_fpV1.length();
@@ -1116,9 +1136,7 @@ const VM=(function(){
         ikFP(_fpV1,wristLocal,l1,l2,new THREE.Vector3(-0.55,-1,0.35),_fpV4,_fpV5);
         aimBone(bn.lA,bn.lF,_fpV4);
         aimBone(bn.lF,bn.lH,_fpV5);
-        if(!reloading){
-          orientHand(bn.lH,wristLocal,fLocal,pLocal,cfg.roll||0);
-        }
+        orientHand(bn.lH,wristLocal,fLocal,pLocal,(cfg.roll||0)+HAND_DBG.roll,HAND_DBG.xSign);
         const rc={};
         const rp=cfg.curl;
         rc.index=rp.index*Rg; rc.middle=rp.middle*Rg; rc.ring=rp.ring*Rg; rc.pinky=rp.pinky*Rg; rc.thumb=rp.thumb*Rg;
@@ -1150,9 +1168,7 @@ const VM=(function(){
         ikFP(_fpV1,wristLocal,l1,l2,new THREE.Vector3(0.55,-1,0.35),_fpV4,_fpV5);
         aimBone(bn.rA,bn.rF,_fpV4);
         aimBone(bn.rF,bn.rH,_fpV5);
-        if(!reloading){
-          orientHand(bn.rH,wristLocal,fLocal,pLocal,cfg.roll||0);
-        }
+        orientHand(bn.rH,wristLocal,fLocal,pLocal,cfg.roll||0);
         if(!oneHanded||reloading){
           const lc={};
           const lpp=cfg.curl;
