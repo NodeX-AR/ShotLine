@@ -1103,6 +1103,9 @@ const VM=(function(){
         const pLocal   =new THREE.Vector3(Rpos[0]+cfg.p[0],Rpos[1]+cfg.p[1],Rpos[2]+cfg.p[2]);
         g.localToWorld(wristLocal); g.localToWorld(fLocal); g.localToWorld(pLocal);
 
+        if(fp.bindPose[bn.lA.name])bn.lA.quaternion.copy(fp.bindPose[bn.lA.name]);
+        if(fp.bindPose[bn.lF.name])bn.lF.quaternion.copy(fp.bindPose[bn.lF.name]);
+        bn.lA.updateMatrixWorld(true);
         bn.lA.getWorldPosition(_fpV1);
         bn.lF.getWorldPosition(_fpV2);
         bn.lH.getWorldPosition(_fpV3);
@@ -1134,6 +1137,9 @@ const VM=(function(){
           pLocal    =new THREE.Vector3(lp[0]+cfg.p[0],lp[1]+cfg.p[1],lp[2]+cfg.p[2]);
           g.localToWorld(wristLocal); g.localToWorld(fLocal); g.localToWorld(pLocal);
         }
+        if(fp.bindPose[bn.rA.name])bn.rA.quaternion.copy(fp.bindPose[bn.rA.name]);
+        if(fp.bindPose[bn.rF.name])bn.rF.quaternion.copy(fp.bindPose[bn.rF.name]);
+        bn.rA.updateMatrixWorld(true);
         bn.rA.getWorldPosition(_fpV1);
         bn.rF.getWorldPosition(_fpV2);
         bn.rH.getWorldPosition(_fpV3);
