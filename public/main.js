@@ -1133,6 +1133,9 @@ const VM=(function(){
         bn.lF.getWorldPosition(_fpV2);
         bn.lH.getWorldPosition(_fpV3);
         const l1=_fpV1.distanceTo(_fpV2), l2=_fpV2.distanceTo(_fpV3);
+        console.log('[shoot] dist', _fpV1.distanceTo(wristLocal).toFixed(3),
+            'max', (l1+l2).toFixed(3),
+            'slack', ((l1+l2) - _fpV1.distanceTo(wristLocal)).toFixed(3));
         ikFP(_fpV1, wristLocal, l1, l2, new THREE.Vector3( 0.55,-1,0.35), _fpV4, _fpV5);
         aimBone(bn.lA,bn.lF,_fpV4);
         aimBone(bn.lF,bn.lH,_fpV5);
