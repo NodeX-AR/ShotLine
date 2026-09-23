@@ -791,48 +791,50 @@ const VM=(function(){
 
   /* Per-weapon FP hand config. Offsets are in GUN-LOCAL space, added on top of
      the grip anchor (A.rGrip for right hand, A.lHold for left).
-       w    = wrist position
+       w    = wrist position (offset from grip anchor)
        f    = point the fingers aim toward (defines finger direction)
        p    = point the palm faces (defines palm normal)
        roll = rotation (radians) around the fingers axis after orientation
-       curl = per-finger curl (0=straight, ~1=closed fist) */
+       curl = per-finger curl (0=straight, ~1=closed fist)
+     Note: wrist offset is now pushed OUTWARD (right hand +X, left hand -X)
+     so the palm sits against the grip rather than inside the gun mesh. */
   const FP_HAND={
     pistol:{
-      r:{w:[-0.015, 0.010, 0.030], f:[ 0.000,-0.020,-0.090], p:[-0.070,-0.010,-0.010], roll: 0.15, curl:{index:0.30, middle:0.85, ring:0.90, pinky:0.85, thumb:0.45}},
-      l:{w:[-0.025, 0.010,-0.020], f:[ 0.020,-0.010,-0.080], p:[ 0.070, 0.010,-0.020], roll:-0.15, curl:{index:1.10, middle:1.15, ring:1.10, pinky:1.05, thumb:0.55}},
+      r:{w:[-0.008, 0.022, 0.045], f:[ 0.008,-0.040,-0.090], p:[-0.075, 0.010,-0.030], roll: 0.22, curl:{index:0.35, middle:0.95, ring:1.00, pinky:0.95, thumb:0.50}},
+      l:{w:[ 0.018, 0.030, 0.030], f:[ 0.000,-0.020,-0.060], p:[ 0.040, 0.030,-0.020], roll:-0.10, curl:{index:0.65, middle:0.70, ring:0.60, pinky:0.50, thumb:0.35}},
       oh:true
     },
     smg:{
-      r:{w:[ 0.000, 0.000, 0.020], f:[ 0.000,-0.020,-0.120], p:[-0.080, 0.000,-0.020], roll: 0.10, curl:{index:0.30, middle:0.95, ring:0.95, pinky:0.90, thumb:0.45}},
-      l:{w:[ 0.000, 0.000, 0.000], f:[ 0.000,-0.020,-0.150], p:[ 0.000, 0.050,-0.020], roll: 0.00, curl:{index:1.15, middle:1.15, ring:1.10, pinky:1.05, thumb:0.55}}
+      r:{w:[-0.015, 0.028, 0.030], f:[ 0.010,-0.045,-0.105], p:[-0.070, 0.015,-0.040], roll: 0.20, curl:{index:0.30, middle:0.95, ring:1.00, pinky:0.95, thumb:0.45}},
+      l:{w:[ 0.022, 0.028, 0.045], f:[ 0.000,-0.020,-0.100], p:[ 0.055, 0.035,-0.030], roll:-0.14, curl:{index:0.95, middle:1.00, ring:0.95, pinky:0.85, thumb:0.50}}
     },
     rifle:{
-      r:{w:[ 0.000, 0.000, 0.020], f:[ 0.000,-0.020,-0.120], p:[-0.080, 0.000,-0.020], roll: 0.10, curl:{index:0.30, middle:0.95, ring:0.95, pinky:0.90, thumb:0.45}},
-      l:{w:[ 0.000, 0.000, 0.000], f:[ 0.000,-0.020,-0.150], p:[ 0.000, 0.050,-0.020], roll: 0.00, curl:{index:1.15, middle:1.15, ring:1.10, pinky:1.05, thumb:0.55}}
+      r:{w:[-0.015, 0.028, 0.030], f:[ 0.010,-0.045,-0.105], p:[-0.070, 0.015,-0.040], roll: 0.20, curl:{index:0.30, middle:0.95, ring:1.00, pinky:0.95, thumb:0.45}},
+      l:{w:[ 0.022, 0.028, 0.045], f:[ 0.000,-0.020,-0.100], p:[ 0.055, 0.035,-0.030], roll:-0.14, curl:{index:0.95, middle:1.00, ring:0.95, pinky:0.85, thumb:0.50}}
     },
     bullpup:{
-      r:{w:[ 0.000, 0.000, 0.020], f:[ 0.000,-0.020,-0.120], p:[-0.080, 0.000,-0.020], roll: 0.10, curl:{index:0.30, middle:0.95, ring:0.95, pinky:0.90, thumb:0.45}},
-      l:{w:[ 0.000, 0.000, 0.000], f:[ 0.000,-0.020,-0.150], p:[ 0.000, 0.050,-0.020], roll: 0.00, curl:{index:1.15, middle:1.15, ring:1.10, pinky:1.05, thumb:0.55}}
+      r:{w:[-0.015, 0.028, 0.030], f:[ 0.010,-0.045,-0.105], p:[-0.070, 0.015,-0.040], roll: 0.20, curl:{index:0.30, middle:0.95, ring:1.00, pinky:0.95, thumb:0.45}},
+      l:{w:[ 0.022, 0.028, 0.045], f:[ 0.000,-0.020,-0.100], p:[ 0.055, 0.035,-0.030], roll:-0.14, curl:{index:0.95, middle:1.00, ring:0.95, pinky:0.85, thumb:0.50}}
     },
     dmr:{
-      r:{w:[ 0.000, 0.000, 0.020], f:[ 0.000,-0.020,-0.120], p:[-0.080, 0.000,-0.020], roll: 0.10, curl:{index:0.30, middle:0.95, ring:0.95, pinky:0.90, thumb:0.45}},
-      l:{w:[ 0.000, 0.000, 0.000], f:[ 0.000,-0.020,-0.160], p:[ 0.000, 0.050,-0.020], roll: 0.00, curl:{index:1.15, middle:1.15, ring:1.10, pinky:1.05, thumb:0.55}}
+      r:{w:[-0.015, 0.028, 0.030], f:[ 0.010,-0.045,-0.105], p:[-0.070, 0.015,-0.040], roll: 0.20, curl:{index:0.30, middle:0.95, ring:1.00, pinky:0.95, thumb:0.45}},
+      l:{w:[ 0.022, 0.028, 0.045], f:[ 0.000,-0.020,-0.100], p:[ 0.055, 0.035,-0.030], roll:-0.14, curl:{index:0.95, middle:1.00, ring:0.95, pinky:0.85, thumb:0.50}}
     },
     lmg:{
-      r:{w:[ 0.000, 0.000, 0.020], f:[ 0.000,-0.020,-0.120], p:[-0.080, 0.000,-0.020], roll: 0.10, curl:{index:0.30, middle:0.95, ring:0.95, pinky:0.90, thumb:0.45}},
-      l:{w:[ 0.000, 0.000, 0.000], f:[ 0.000,-0.020,-0.150], p:[ 0.000, 0.050,-0.020], roll: 0.00, curl:{index:1.15, middle:1.15, ring:1.10, pinky:1.05, thumb:0.55}}
+      r:{w:[-0.015, 0.028, 0.030], f:[ 0.010,-0.045,-0.105], p:[-0.070, 0.015,-0.040], roll: 0.20, curl:{index:0.30, middle:0.95, ring:1.00, pinky:0.95, thumb:0.45}},
+      l:{w:[ 0.022, 0.028, 0.045], f:[ 0.000,-0.020,-0.100], p:[ 0.055, 0.035,-0.030], roll:-0.14, curl:{index:0.95, middle:1.00, ring:0.95, pinky:0.85, thumb:0.50}}
     },
     shotgun:{
-      r:{w:[ 0.000, 0.000, 0.020], f:[ 0.000,-0.020,-0.120], p:[-0.080, 0.000,-0.020], roll: 0.10, curl:{index:0.30, middle:0.95, ring:0.95, pinky:0.90, thumb:0.45}},
-      l:{w:[ 0.000, 0.000, 0.000], f:[ 0.000,-0.020,-0.150], p:[ 0.000, 0.050,-0.020], roll: 0.00, curl:{index:1.15, middle:1.15, ring:1.10, pinky:1.05, thumb:0.55}}
+      r:{w:[-0.015, 0.028, 0.030], f:[ 0.010,-0.045,-0.105], p:[-0.070, 0.015,-0.040], roll: 0.20, curl:{index:0.30, middle:0.95, ring:1.00, pinky:0.95, thumb:0.45}},
+      l:{w:[ 0.022, 0.028, 0.045], f:[ 0.000,-0.020,-0.100], p:[ 0.055, 0.035,-0.030], roll:-0.14, curl:{index:0.95, middle:1.00, ring:0.95, pinky:0.85, thumb:0.50}}
     },
     sniper:{
-      r:{w:[ 0.000, 0.000, 0.020], f:[ 0.000,-0.020,-0.120], p:[-0.080, 0.000,-0.020], roll: 0.10, curl:{index:0.30, middle:0.95, ring:0.95, pinky:0.90, thumb:0.45}},
-      l:{w:[ 0.000, 0.000, 0.000], f:[ 0.000,-0.020,-0.160], p:[ 0.000, 0.050,-0.020], roll: 0.00, curl:{index:1.15, middle:1.15, ring:1.10, pinky:1.05, thumb:0.55}}
+      r:{w:[-0.015, 0.028, 0.030], f:[ 0.010,-0.045,-0.105], p:[-0.070, 0.015,-0.040], roll: 0.20, curl:{index:0.30, middle:0.95, ring:1.00, pinky:0.95, thumb:0.45}},
+      l:{w:[ 0.022, 0.028, 0.045], f:[ 0.000,-0.020,-0.100], p:[ 0.055, 0.035,-0.030], roll:-0.14, curl:{index:0.95, middle:1.00, ring:0.95, pinky:0.85, thumb:0.50}}
     },
     _default:{
-      r:{w:[ 0.000, 0.000, 0.020], f:[ 0.000,-0.020,-0.120], p:[-0.080, 0.000,-0.020], roll: 0.10, curl:{index:0.30, middle:0.95, ring:0.95, pinky:0.90, thumb:0.45}},
-      l:{w:[ 0.000, 0.000, 0.000], f:[ 0.000,-0.020,-0.140], p:[ 0.000, 0.050,-0.020], roll: 0.00, curl:{index:1.15, middle:1.15, ring:1.10, pinky:1.05, thumb:0.55}}
+      r:{w:[-0.015, 0.028, 0.030], f:[ 0.010,-0.045,-0.105], p:[-0.070, 0.015,-0.040], roll: 0.20, curl:{index:0.30, middle:0.95, ring:1.00, pinky:0.95, thumb:0.45}},
+      l:{w:[ 0.022, 0.028, 0.045], f:[ 0.000,-0.020,-0.100], p:[ 0.055, 0.035,-0.030], roll:-0.14, curl:{index:0.95, middle:1.00, ring:0.95, pinky:0.85, thumb:0.50}}
     }
   };
 
@@ -872,7 +874,7 @@ const VM=(function(){
   }
 
   function orientHand(handBone, wrist, fTarget, pTarget, roll, xSign){
-    _fpV1.copy(fTarget).sub(wrist); if(_fpV1.lengthSq()<1e-8)_fpV1.set(0,0,-1); _fpV1.normalize(); // Y = finger direction
+    _fpV1.copy(fTarget).sub(wrist); if(_fpV1.lengthSq()<1e-8)_fpV1.set(0,0,-1); _fpV1.normalize();
     _fpV2.copy(pTarget).sub(wrist); if(_fpV2.lengthSq()<1e-8)_fpV2.set(0,-1,0); _fpV2.normalize();
     _fpV3.copy(_fpV2).multiplyScalar(-(xSign||1));
     _fpV3.addScaledVector(_fpV1,-_fpV3.dot(_fpV1));
@@ -893,13 +895,6 @@ const VM=(function(){
     handBone.updateWorldMatrix(false,true);
   }
 
-  // --- LIVE HAND TUNING DEBUG (temporary) ---
-  // While this game's shooting-hand (screen-right) orientation is being dialed in,
-  // use this overlay to nudge it live and report back the numbers that look right:
-  //   [ / ]        : roll the hand -/+ 5 degrees
-  //   ; (semicolon): flip the hand's mirror axis (try this first if it looks
-  //                  fundamentally backwards rather than just rolled wrong)
-  //   ' (quote)    : reset roll to 0
   const HAND_DBG={roll:0,xSign:1};
   (function(){
     const el=document.createElement('div');
@@ -950,13 +945,17 @@ const VM=(function(){
     if(!THREE.SkeletonUtils||!THREE.SkeletonUtils.clone){console.warn('[VM] SkeletonUtils missing, FP GLB disabled');return;}
     try{
       const clone=THREE.SkeletonUtils.clone(glb.scene);
+      /* Quaternius faces +Z, so rotation.y=0 puts the model's front toward the camera.
+         Pushed back to z=-0.48 so the chest clears the pistol's line of sight. */
       clone.rotation.y=0;
-      clone.position.set(0,-1.55,-0.35);
+      clone.position.set(0,-1.55,-0.48);
       const fpTint=(player && player.name===ADMIN_NAME)?new THREE.Color(0xff9b9b):new THREE.Color(0x2a2a2a);
       clone.traverse(o=>{
         if((o.isSkinnedMesh||o.isMesh) && o.material){
           o.material=o.material.clone();
           if(o.material.color) o.material.color.multiply(fpTint);
+          o.material.depthWrite=false;
+          o.renderOrder=-1;
           o.material.needsUpdate=true;
         }
       });
@@ -970,9 +969,12 @@ const VM=(function(){
             o.material=o.material.clone();
             o.material.envMap=GX.env();
             o.material.envMapIntensity=0.7;
+            o.material.depthWrite=false;
+            o.renderOrder=-1;
             const sk=o.skeleton;
             const armIdx=[];
-            sk.bones.forEach((b,i)=>{ if(/Arm|Wrist|Shoulder|Index|Middle|Ring|Pinky|Thumb/i.test(b.name)) armIdx.push(i); });
+            /* Shoulder intentionally excluded — shoulder pads were blocking the pistol view. */
+            sk.bones.forEach((b,i)=>{ if(/Arm|Wrist|Index|Middle|Ring|Pinky|Thumb/i.test(b.name)) armIdx.push(i); });
             const conds=armIdx.map(v=>`if(abs(vBone-${v}.0)<0.5) keep=true;`).join('\n');
             o.material.onBeforeCompile=(shader)=>{
               shader.vertexShader='varying float vBone;\n'+shader.vertexShader.replace(
@@ -1103,51 +1105,16 @@ const VM=(function(){
       const oneHanded=!!tune.oh;
       const lp=LposO||A.lHold;
 
-      /* The FP model is rotated 180° (faces the camera), so Mixamo's
-         RightArm ends up on the SCREEN'S LEFT and Mixamo's LeftArm on
-         the SCREEN'S RIGHT. So Mixamo-Left solves the shooting hand
-         (A.rGrip) and Mixamo-Right solves the support hand (A.lHold). */
+      /* Quaternius rig after clone.rotation.y=0 has RightArm on +X (screen-right). */
 
-      /* ---- MIXAMO LEFT ARM = shooting hand (screen right) ---- */
-      if(bn.lA&&bn.lF&&bn.lH){
+      /* ---- RIGHT ARM = shooting hand (screen right) ---- */
+      if(bn.rA&&bn.rF&&bn.rH){
         const cfg=tune.r;
         const wristLocal=new THREE.Vector3(Rpos[0]+cfg.w[0],Rpos[1]+cfg.w[1],Rpos[2]+cfg.w[2]);
         const fLocal   =new THREE.Vector3(Rpos[0]+cfg.f[0],Rpos[1]+cfg.f[1],Rpos[2]+cfg.f[2]);
         const pLocal   =new THREE.Vector3(Rpos[0]+cfg.p[0],Rpos[1]+cfg.p[1],Rpos[2]+cfg.p[2]);
         g.localToWorld(wristLocal); g.localToWorld(fLocal); g.localToWorld(pLocal);
 
-        if(fp.bindPose[bn.lA.name])bn.lA.quaternion.copy(fp.bindPose[bn.lA.name]);
-        if(fp.bindPose[bn.lF.name])bn.lF.quaternion.copy(fp.bindPose[bn.lF.name]);
-        bn.lA.updateMatrixWorld(true);
-        bn.lA.getWorldPosition(_fpV1);
-        bn.lF.getWorldPosition(_fpV2);
-        bn.lH.getWorldPosition(_fpV3);
-        const l1=_fpV1.distanceTo(_fpV2), l2=_fpV2.distanceTo(_fpV3);
-        ikFP(_fpV1, wristLocal, l1, l2, new THREE.Vector3( 0.55,-1,0.35), _fpV4, _fpV5);
-        aimBone(bn.lA,bn.lF,_fpV4);
-        aimBone(bn.lF,bn.lH,_fpV5);
-        orientHand(bn.lH,wristLocal,fLocal,pLocal,(cfg.roll||0)+HAND_DBG.roll,HAND_DBG.xSign);
-        const rc={};
-        const rp=cfg.curl;
-        rc.index=rp.index*Rg; rc.middle=rp.middle*Rg; rc.ring=rp.ring*Rg; rc.pinky=rp.pinky*Rg; rc.thumb=rp.thumb*Rg;
-        applyFingerCurl(bn.lH,'l',rc);
-      }
-
-      /* ---- MIXAMO RIGHT ARM = support hand (screen left) ---- */
-      if(bn.rA&&bn.rF&&bn.rH){
-        const cfg=tune.l;
-        let wristLocal,fLocal,pLocal;
-        if(oneHanded&&!reloading){
-          /* Park the support hand off-screen (below-right of view) */
-          wristLocal=new THREE.Vector3(0.42,-0.62,0.02);
-          fLocal    =new THREE.Vector3(0.42,-0.82,-0.10);
-          pLocal    =new THREE.Vector3(0.16,-0.66,-0.02);
-        } else {
-          wristLocal=new THREE.Vector3(lp[0]+cfg.w[0],lp[1]+cfg.w[1],lp[2]+cfg.w[2]);
-          fLocal    =new THREE.Vector3(lp[0]+cfg.f[0],lp[1]+cfg.f[1],lp[2]+cfg.f[2]);
-          pLocal    =new THREE.Vector3(lp[0]+cfg.p[0],lp[1]+cfg.p[1],lp[2]+cfg.p[2]);
-          g.localToWorld(wristLocal); g.localToWorld(fLocal); g.localToWorld(pLocal);
-        }
         if(fp.bindPose[bn.rA.name])bn.rA.quaternion.copy(fp.bindPose[bn.rA.name]);
         if(fp.bindPose[bn.rF.name])bn.rF.quaternion.copy(fp.bindPose[bn.rF.name]);
         bn.rA.updateMatrixWorld(true);
@@ -1155,15 +1122,46 @@ const VM=(function(){
         bn.rF.getWorldPosition(_fpV2);
         bn.rH.getWorldPosition(_fpV3);
         const l1=_fpV1.distanceTo(_fpV2), l2=_fpV2.distanceTo(_fpV3);
-        ikFP(_fpV1, wristLocal, l1, l2, new THREE.Vector3(-0.55,-1,0.35), _fpV4, _fpV5);
+        ikFP(_fpV1, wristLocal, l1, l2, new THREE.Vector3( 0.55,-1,0.35), _fpV4, _fpV5);
         aimBone(bn.rA,bn.rF,_fpV4);
         aimBone(bn.rF,bn.rH,_fpV5);
-        orientHand(bn.rH,wristLocal,fLocal,pLocal,cfg.roll||0);
+        orientHand(bn.rH,wristLocal,fLocal,pLocal,(cfg.roll||0)+HAND_DBG.roll,HAND_DBG.xSign);
+        const rc={};
+        const rp=cfg.curl;
+        rc.index=rp.index*Rg; rc.middle=rp.middle*Rg; rc.ring=rp.ring*Rg; rc.pinky=rp.pinky*Rg; rc.thumb=rp.thumb*Rg;
+        applyFingerCurl(bn.rH,'r',rc);
+      }
+
+      /* ---- LEFT ARM = support hand (screen left) ---- */
+      if(bn.lA&&bn.lF&&bn.lH){
+        const cfg=tune.l;
+        let wristLocal,fLocal,pLocal;
+        if(oneHanded&&!reloading){
+          wristLocal=new THREE.Vector3(-0.42,-0.62,0.02);
+          fLocal    =new THREE.Vector3(-0.42,-0.82,-0.10);
+          pLocal    =new THREE.Vector3(-0.16,-0.66,-0.02);
+        } else {
+          wristLocal=new THREE.Vector3(lp[0]+cfg.w[0],lp[1]+cfg.w[1],lp[2]+cfg.w[2]);
+          fLocal    =new THREE.Vector3(lp[0]+cfg.f[0],lp[1]+cfg.f[1],lp[2]+cfg.f[2]);
+          pLocal    =new THREE.Vector3(lp[0]+cfg.p[0],lp[1]+cfg.p[1],lp[2]+cfg.p[2]);
+          g.localToWorld(wristLocal); g.localToWorld(fLocal); g.localToWorld(pLocal);
+        }
+        if(fp.bindPose[bn.lA.name])bn.lA.quaternion.copy(fp.bindPose[bn.lA.name]);
+        if(fp.bindPose[bn.lF.name])bn.lF.quaternion.copy(fp.bindPose[bn.lF.name]);
+        bn.lA.updateMatrixWorld(true);
+        bn.lA.getWorldPosition(_fpV1);
+        bn.lF.getWorldPosition(_fpV2);
+        bn.lH.getWorldPosition(_fpV3);
+        const l1=_fpV1.distanceTo(_fpV2), l2=_fpV2.distanceTo(_fpV3);
+        ikFP(_fpV1, wristLocal, l1, l2, new THREE.Vector3(-0.55,-1,0.35), _fpV4, _fpV5);
+        aimBone(bn.lA,bn.lF,_fpV4);
+        aimBone(bn.lF,bn.lH,_fpV5);
+        orientHand(bn.lH,wristLocal,fLocal,pLocal,cfg.roll||0);
         if(!oneHanded||reloading){
           const lc={};
           const lpp=cfg.curl;
           lc.index=lpp.index*Lg; lc.middle=lpp.middle*Lg; lc.ring=lpp.ring*Lg; lc.pinky=lpp.pinky*Lg; lc.thumb=lpp.thumb*Lg;
-          applyFingerCurl(bn.rH,'r',lc);
+          applyFingerCurl(bn.lH,'l',lc);
         }
       }
     }
@@ -1172,7 +1170,6 @@ const VM=(function(){
   const tcache={};function tracks(kind,A){return tcache[kind]||(tcache[kind]=reloadFor(kind,A));}
   return {init,update,fire,setActive,rig,muzzle,KINDS,samp,stepv,tracks,setGLB,get active(){return rig[active];}};
 })();
-
 /* ============ CH ============ */
 const CH=(function(){
   const R=GX.rbox,CVg=GX.cyV,CYl=GX.cy,SPH=GX.sph,PF=GX.prof;
