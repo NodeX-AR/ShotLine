@@ -13,7 +13,7 @@
     return;
   }
 
-  const MAP_FILE   = '(3).glb';
+  const MAP_FILE   = 'map.glb';
   const MAP_SCALE  = 0.01;       // the model's raw coords run to ~±10,000 for
                                   // the central district; this brings that
                                   // down to roughly match the ~200-unit play area
