@@ -28,7 +28,7 @@ if($('optLaser'))$('optLaser').addEventListener('change',()=>{laserOn=$('optLase
 $('optChat').addEventListener('change',()=>{try{localStorage.setItem('shotline.botchat',$('optChat').checked?'1':'0');}catch(e){}});
 
 /* ============ CONSTANTS ============ */
-const MAP=106,NUM_BOTS=10,MP_MAX=16,ADMIN_NAME='NoDeX'; // MAP=150 originally; smaller now → ~49% of the old play area, still a full 5x5 city block grid
+const MAP=52,NUM_BOTS=10,MP_MAX=16,ADMIN_NAME='NoDeX'; // shrunk to match the level5_zone1 cave map's own scale (~93x64 units) — only matters for the procedural-city fallback and world-edge clamp when the GLB is active
 const EYE=1.65,R=0.4,H=1.8,STEP=0.55,GRAV=24,BASE_FOV=80,TAU=Math.PI*2;
 const SPRINT_LOCKOUT=0.4;
 const isMobile=('ontouchstart' in window)||navigator.maxTouchPoints>0||(window.matchMedia&&window.matchMedia('(pointer:coarse)').matches);
@@ -236,24 +236,24 @@ const ground=new THREE.Mesh(groundGeo,groundMat);ground.rotation.x=-Math.PI/2;gr
 
 
 /* ============ GLB MAP LOAD ============ */
-// map.glb is a detailed low-poly city pack — but its meshes are single fused
-// surfaces (buildings welded straight into the ground plane), not separate
-// objects, so box colliders can't represent it correctly (confirmed by
-// testing connected-component splitting on it — everything comes back as one
-// giant blob). So it's used purely as a visual backdrop here. The procedural
-// city below still runs, invisibly, as the actual collidable/walkable layer
-// (real stairs, ladders, roof spots, hiding spots) — the GLB is just laid
-// over the top for looks, so it can look great even though it doesn't
-// physically block movement.
+// level5_zone1 is authored as genuinely separate objects (unlike the earlier
+// map.glb, whose meshes were single fused blobs), so map-loader.js can split
+// it into real per-object colliders — this map IS the real walkable/
+// collidable layer when it loads. The procedural city is now fallback-only,
+// for if the GLB fails to load.
 let glbMapOk = false;
 if (window.MAP_GLB_PROMISE) {
   try {
     const md = await window.MAP_GLB_PROMISE;
     if (md && md.scene) {
       scene.add(md.scene);
+      for (const b of (md.colliders || [])) {
+        boxes.push(b);
+        registerCollider(b);
+      }
       window.__GLB_SPAWNS = md.spawns || [];
       glbMapOk = true;
-      console.log('[main] GLB city visuals active (decorative only, no collision from it)');
+      console.log('[main] GLB map active ·', (md.colliders || []).length, 'colliders');
     }
   } catch (e) {
     console.warn('[main] GLB map load failed:', e);
@@ -362,11 +362,11 @@ function yard(cx,cz){for(let i=0;i<6;i++){const x=cx+wr(-9,9),z=cz+wr(-9,9);if(i
 // (stairs, ladders, roof spots, hiding spots) regardless of whether the GLB
 // city is shown on top of it. When the GLB loaded OK, its visuals replace
 // these on-screen (this group goes invisible below) but the colliders stay live.
-const cityGroup=new THREE.Group();scene.add(cityGroup);
+// City geometry only generates when the GLB map failed to load — it's the
+// fallback walkable/collidable layer, not needed when level5_zone1 (or any
+// GLB with real per-object colliders) is active.
 ground.visible=!glbMapOk;
-{
-const _sceneAdd=scene.add.bind(scene);
-if(glbMapOk)scene.add=(...o)=>{cityGroup.add(...o);return scene;};
+if(!glbMapOk){
 (function generateCity(){
   for(let i=-EXT-1;i<=EXT;i++){const s=(i+0.5)*STEP_B;occupy(s-3.2,s+3.2,-MAP,MAP,0);occupy(-MAP,MAP,s-3.2,s+3.2,0);}
   for(let ix=-EXT;ix<=EXT;ix++)for(let iz=-EXT;iz<=EXT;iz++){
@@ -407,9 +407,7 @@ if(glbMapOk)scene.add=(...o)=>{cityGroup.add(...o);return scene;};
   const geo=new THREE.PlaneGeometry(6.4,MAP*2+120);
   for(let i=-EXT-1;i<=EXT;i++){const s=(i+0.5)*STEP_B;const a=new THREE.Mesh(geo,rm);a.rotation.x=-Math.PI/2;a.position.set(s,0.02,0);a.receiveShadow=true;scene.add(a);const b=new THREE.Mesh(geo,rm);b.rotation.set(-Math.PI/2,0,Math.PI/2);b.position.set(0,0.02,s);b.receiveShadow=true;scene.add(b);}})();
 finalizeWorld();
-if(glbMapOk)scene.add=_sceneAdd;
 }
-cityGroup.visible=!glbMapOk;
 
 window.MAP_READY = true;  // tells the loading screen world is up
 /* Grass + mountains + medkits */
@@ -759,6 +757,22 @@ const HandLib=(function(){
   return {make,pose};
 })();
 
+/* Bone-name resolver: the rig code below was written against a simple
+   naming scheme (Hips/Torso/Chest/UpperArmR/LowerArmR/WristR/...), but a
+   GLB exported straight out of Mixamo (like models/player.glb) names its
+   bones "mixamorig:RightArm_033" etc. This tries the exact/simple names
+   first, then falls back to matching the equivalent mixamo token so the
+   same rig code works against either naming convention. */
+function findRigBone(root,tokens){
+  for(const tok of tokens){
+    const re=new RegExp('(^|[:_])'+tok+'(_\\d+)?$','i');
+    let found=null;
+    root.traverse(o=>{if(!found&&o.isBone&&re.test(o.name))found=o;});
+    if(found)return found;
+  }
+  return null;
+}
+
 /* ============ VM ============ */
 const VM=(function(){
   const KINDS=['pistol','smg','rifle','bullpup','dmr','lmg','shotgun','sniper'];
@@ -1012,7 +1026,7 @@ const VM=(function(){
             o.material.envMapIntensity=0.7;
             const sk=o.skeleton;
             const armIdx=[];
-            sk.bones.forEach((b,i)=>{ if(/Arm|Wrist|Shoulder|Index|Middle|Ring|Pinky|Thumb/i.test(b.name)) armIdx.push(i); });
+            sk.bones.forEach((b,i)=>{ if(/Arm|Wrist|Hand|Shoulder|Index|Middle|Ring|Pinky|Thumb/i.test(b.name)) armIdx.push(i); });
             const conds=armIdx.map(v=>`if(abs(vBone-${v}.0)<0.5) keep=true;`).join('\n');
             o.material.onBeforeCompile=(shader)=>{
               shader.vertexShader='varying float vBone;\n'+shader.vertexShader.replace(
@@ -1046,9 +1060,8 @@ const VM=(function(){
         if(acts.walk){acts.walk.play();acts.walk.setEffectiveWeight(0);}
         if(acts.run){acts.run.play();acts.run.setEffectiveWeight(0);}
       }
-      const B=n=>clone.getObjectByName(n);
-      const bones={rA:B('UpperArmR'),rF:B('LowerArmR'),rH:B('WristR'),
-                   lA:B('UpperArmL'),lF:B('LowerArmL'),lH:B('WristL')};
+      const bones={rA:findRigBone(clone,['UpperArmR','RightArm']),rF:findRigBone(clone,['LowerArmR','RightForeArm']),rH:findRigBone(clone,['WristR','RightHand']),
+                   lA:findRigBone(clone,['UpperArmL','LeftArm']),lF:findRigBone(clone,['LowerArmL','LeftForeArm']),lH:findRigBone(clone,['WristL','LeftHand'])};
       fp.clone=clone;fp.bones=bones;fp.mixer=mixer;fp.acts=acts;fp.w={idle:1,walk:0,run:0};fp.ready=true;
       console.log('[VM] bone check',Object.entries(bones).map(([k,v])=>k+':'+(v?'OK':'MISSING')).join(' '));
       console.log('[VM] FP GLB arms active');
@@ -1257,8 +1270,7 @@ const CH=(function(){
     if(acts.walk){acts.walk.play();acts.walk.setEffectiveWeight(0);}
     if(acts.run){acts.run.play();acts.run.setEffectiveWeight(0);}
     if(acts.run_shoot){acts.run_shoot.play();acts.run_shoot.setEffectiveWeight(0);}
-    const B=n=>clone.getObjectByName(n);
-    const bones={hips:B('Hips'),spine:B('Abdomen'),spine1:B('Torso'),spine2:B('Chest'),neck:B('Neck'),head:B('Head'),rA:B('UpperArmR'),rF:B('LowerArmR'),rH:B('WristR'),lA:B('UpperArmL'),lF:B('LowerArmL'),lH:B('WristL')};
+    const bones={hips:findRigBone(clone,['Hips']),spine:findRigBone(clone,['Abdomen','Spine']),spine1:findRigBone(clone,['Torso','Spine1']),spine2:findRigBone(clone,['Chest','Spine2']),neck:findRigBone(clone,['Neck']),head:findRigBone(clone,['Head']),rA:findRigBone(clone,['UpperArmR','RightArm']),rF:findRigBone(clone,['LowerArmR','RightForeArm']),rH:findRigBone(clone,['WristR','RightHand']),lA:findRigBone(clone,['UpperArmL','LeftArm']),lF:findRigBone(clone,['LowerArmL','LeftForeArm']),lH:findRigBone(clone,['WristL','LeftHand'])};
     for(const child of rg.body.children.slice()){if(child!==rg.gp)child.visible=false;}
     for(const k in rg.bones)if(rg.bones[k])rg.bones[k].visible=false;
     rg.boots.R.visible=false;rg.boots.L.visible=false;
@@ -1608,6 +1620,27 @@ function connectArena(n){if(net.ws){try{net.ws.close();}catch(e){}}net.arena=n;n
   ws.onmessage=(e)=>{let msg;try{msg=JSON.parse(e.data);}catch(err){return;}handleNetMessage(msg);};
   ws.onclose=()=>{net.status='idle';if(state==='playing'||state==='dead')toast('Disconnected','warn');};
   ws.onerror=()=>{net.status='idle';};}
+// Arena world-sharding: each "arena-N" is its own isolated Durable Object with
+// its own player list (already how the server was built — see src/index.js).
+// This just finds the first arena with room (server caps each at 20 joined
+// players) instead of always joining arena 1, so a 21st player lands in a
+// fresh parallel world instead of getting turned away. Checks a handful of
+// arenas up front (covers ~60 players / 3 worlds); if the probe itself fails
+// for any reason (older server without the /arena-count route deployed yet,
+// network hiccup, etc.) it falls back to plain arena 1 so multiplayer still
+// works exactly as before.
+async function pickArena(maxArenas){
+  maxArenas=maxArenas||6;
+  for(let n=1;n<=maxArenas;n++){
+    try{
+      const r=await fetch('/arena-count?arena='+n,{cache:'no-store'});
+      if(!r.ok)return 1;
+      const j=await r.json();
+      if((j.count|0)<(j.max||20))return n;
+    }catch(e){return 1;}
+  }
+  return maxArenas; // all probed arenas full — join the last one; server will reject with "Arena is full" if it's also full by the time we connect
+}
 function handleNetMessage(msg){switch(msg.t){
   case 'welcome':net.selfId=msg.id;break;
   case 'mapReady':net.mapReady=true;break;
@@ -1838,7 +1871,7 @@ function startGame(m){
   requestLock(true);syncPause();
   toast(m==='multi'?'Connecting…':'Fight!','warn');
   if(m==='single')announceBots();else sysLine('Connecting to the arena…');
-  if(m==='multi'){connectArena(1);const checkMap=setInterval(()=>{if(net.ws&&net.ws.readyState===1){clearInterval(checkMap);setTimeout(uploadMap,600);}if(!net.ws)clearInterval(checkMap);},200);}
+  if(m==='multi'){pickArena().then(n=>{connectArena(n);const checkMap=setInterval(()=>{if(net.ws&&net.ws.readyState===1){clearInterval(checkMap);setTimeout(uploadMap,600);}if(!net.ws)clearInterval(checkMap);},200);});}
 }
 function leaveMatch(msg){
   stopNet();BotChat.stop();mode='menu';state='menu';matchActive=false;manualPause=false;
@@ -2053,14 +2086,26 @@ function onPlayerDeath(a,head,cause){state='dead';deadT=0;P.reload=0;mouseL=fals
   $('death').classList.remove('hidden');$('shield').classList.add('hidden');$('interact').classList.add('hidden');gunRoot.visible=false;$('scope').classList.add('hidden');$('reddot').classList.add('hidden');$('borderWarn').classList.remove('show');
   if(document.pointerLockElement)document.exitPointerLock();fallback=false;starting=false;$('pause').classList.add('hidden');}
 function spawn(f){
-  let best=null,bs=-1;
-  for(let i=0;i<60;i++){const biasR=MAP*0.55;const ang=Math.random()*TAU;const r=Math.pow(Math.random(),0.65)*biasR;
-    const x=Math.cos(ang)*r;const z=Math.sin(ang)*r;
-    if(!spawnOK(x,z))continue;
-    let md=1e9;for(const o of fighters){if(o===f||!o.alive)continue;md=Math.min(md,Math.hypot(o.x-x,o.z-z));}
-    if(md>35){best=[x,z];break;}if(md>bs){bs=md;best=[x,z];}}
-  if(!best){const ang=Math.random()*TAU;const r=Math.random()*MAP*0.4;best=[Math.cos(ang)*r,Math.sin(ang)*r];}
-  f.x=best[0];f.z=best[1];f.y=0;f.vx=f.vy=f.vz=0;f.hp=100;f.alive=true;f.invuln=2.5;f.yaw=rnd(0,TAU);
+  const gs=window.__GLB_SPAWNS;
+  if(glbMapOk&&gs&&gs.length){
+    let best=null,bd=-1;
+    for(let tries=0;tries<gs.length*2;tries++){
+      const p=gs[(Math.random()*gs.length)|0];
+      let md=1e9;for(const o of fighters){if(o===f||!o.alive)continue;md=Math.min(md,Math.hypot(o.x-p[0],o.z-p[2]));}
+      if(md>10){best=p;break;}if(md>bd){bd=md;best=p;}
+    }
+    f.x=best[0];f.y=best[1];f.z=best[2];
+  }else{
+    let best=null,bs=-1;
+    for(let i=0;i<60;i++){const biasR=MAP*0.55;const ang=Math.random()*TAU;const r=Math.pow(Math.random(),0.65)*biasR;
+      const x=Math.cos(ang)*r;const z=Math.sin(ang)*r;
+      if(!spawnOK(x,z))continue;
+      let md=1e9;for(const o of fighters){if(o===f||!o.alive)continue;md=Math.min(md,Math.hypot(o.x-x,o.z-z));}
+      if(md>35){best=[x,z];break;}if(md>bs){bs=md;best=[x,z];}}
+    if(!best){const ang=Math.random()*TAU;const r=Math.random()*MAP*0.4;best=[Math.cos(ang)*r,Math.sin(ang)*r];}
+    f.x=best[0];f.z=best[1];f.y=0;
+  }
+  f.vx=f.vy=f.vz=0;f.hp=100;f.alive=true;f.invuln=2.5;f.yaw=rnd(0,TAU);
   f.target=null;f.deathT=0;f.onGround=true;f.px=f.x;f.pz=f.z;f.stuckT=0;f.reactT=0;f.nextShot=T+0.5;
   f.peakY=0;f.stepOff=0;f.climb=null;f.mantle=null;f.deathSign=-1;f._mem=null;
   if(f.rig && f.rig.model && f.rig.model.mixer){

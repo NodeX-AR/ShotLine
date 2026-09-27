@@ -30,6 +30,11 @@ export default {
       const stub = env.ARENA.getByName("arena-" + arena);
       return stub.fetch(request);
     }
+    if (url.pathname === "/arena-count") {
+      const arena = url.searchParams.get("arena") || "1";
+      const stub = env.ARENA.getByName("arena-" + arena);
+      return stub.fetch(new Request("https://do/count"));
+    }
     return env.ASSETS.fetch(request);
   },
 };
@@ -51,6 +56,13 @@ export class Arena extends DurableObject {
   }
 
   async fetch(request) {
+    const url = new URL(request.url);
+    if (url.pathname === "/count") {
+      const liveCount = [...this.sessions.values()].filter(o => o.joined).length;
+      return new Response(JSON.stringify({ count: liveCount, max: MAX_PLAYERS }), {
+        headers: { "content-type": "application/json" },
+      });
+    }
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
     this.ctx.acceptWebSocket(server);
