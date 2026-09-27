@@ -1,4 +1,4 @@
-/* map-loader.js — loads (3).glb purely as a visual backdrop for the world.
+/* map-loader.js — loads map.glb purely as a visual backdrop for the world.
    Its meshes are single fused surfaces (buildings welded into the ground
    plane), not separate objects, so real per-object box colliders can't be
    built from it — main.js keeps the procedural city as the actual walkable/
@@ -13,18 +13,26 @@
     return;
   }
 
-  const MAP_FILE   = 'models/map.glb';
-  const MAP_SCALE  = 0.01;       // the model's raw coords run to ~±10,000 for
-                                  // the central district; this brings that
-                                  // down to roughly match the ~200-unit play area
+  const MAP_FILE  = 'models/map.glb';
+  // IMPORTANT: this model's own "Modular_City_Ultra_Low_Poly_Assets" node
+  // already carries a baked-in 0.01 scale (visible in its own matrix), which
+  // GLTFLoader applies automatically when it builds the scene graph — before
+  // this script ever touches it. An earlier version of this file *also*
+  // multiplied the whole scene by 0.01 on top of that (0.01 x 0.01 = 0.0001),
+  // which is what shrank the whole map down to doll-house size. This MAP_SCALE
+  // is the ONLY extra multiplier applied, on top of whatever the file's own
+  // node transforms already produce — don't stack another one on here.
+  //
+  // The model's two big center-city meshes are already correctly centered on
+  // the origin (matching where players spawn) and come out to ~2000x2000
+  // world units once the file's own baked scale is applied. 0.1 brings that
+  // down to ~200x200, matching this game's ~212-unit-wide play area almost
+  // exactly. Its separate row of 8 "Block_base" district meshes sits off to
+  // one side (not centered) and lands right at/past the play-area edge at
+  // this scale — which is fine, that's the "outside the border" leftover part.
+  const MAP_SCALE  = 0.1;
   const MAP_ROT_Y  = 0;          // radians, in case the model faces the wrong way
   const MAP_OFFSET = [0, 0, 0];  // whole-map translation, world units
-
-  // Anything whose local (pre-scale) extent is bigger than this is the huge
-  // outlying sprawl surrounding the central district, not the district
-  // itself — skip it so only the "center part" (per the user's request) shows,
-  // and the oversized leftovers stay out of the (now much smaller) play area.
-  const MAX_LOCAL_EXTENT = 30000;
 
   window.MAP_GLB_PROMISE = fetch(MAP_FILE, { cache: 'no-store' })
     .then(r => {
@@ -35,21 +43,10 @@
       new THREE.GLTFLoader().parse(buf, '', gltf => {
         try {
           const scene = gltf.scene;
-          const box   = new THREE.Box3();
 
-          // Drop the oversized outlying meshes before applying the whole-map
-          // transform, using their untouched local-space extent.
-          const drop = [];
-          scene.traverse(o => {
-            if (!o.isMesh) return;
-            box.setFromObject(o); // local space here since scene has no transform yet
-            const sx = box.max.x - box.min.x, sy = box.max.y - box.min.y, sz = box.max.z - box.min.z;
-            if (sx > MAX_LOCAL_EXTENT || sy > MAX_LOCAL_EXTENT || sz > MAX_LOCAL_EXTENT) drop.push(o);
-          });
-          for (const o of drop) o.parent && o.parent.remove(o);
-
-          // Apply whole-map transform
-          scene.scale.setScalar(MAP_SCALE);
+          // Apply the one extra whole-map transform (on top of the model's
+          // own already-baked node transforms — see note above).
+          scene.scale.multiplyScalar(MAP_SCALE);
           scene.rotation.y = MAP_ROT_Y;
           scene.position.set(MAP_OFFSET[0], MAP_OFFSET[1], MAP_OFFSET[2]);
           scene.updateMatrixWorld(true);
@@ -72,7 +69,7 @@
             [cx,      top + 0.1, cz     ]
           );
 
-          console.log('[map-loader] ' + MAP_FILE + ' loaded (visual only) · dropped ' + drop.length + ' oversized mesh(es)');
+          console.log('[map-loader] ' + MAP_FILE + ' loaded (visual only) · world bbox', b0.min, b0.max);
           resolve({ scene, spawns });
         } catch (err) { reject(err); }
       }, reject);

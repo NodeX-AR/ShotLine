@@ -19,11 +19,12 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{btn.addEventListener('click'
     const cap=(ev)=>{ev.preventDefault();ev.stopPropagation();if(ev.type==='keydown'&&ev.key==='Escape'){cleanup();return;}let code=null;if(ev.type==='mousedown')code='Mouse'+ev.button;else if(ev.code)code=ev.code;if(!code)return;BINDS[listening.dataset.bind]=code;saveBinds();cleanup();};
     document.addEventListener('keydown',cap,true);document.addEventListener('mousedown',cap,true);});});
   const rb=$('resetBinds');if(rb)rb.addEventListener('click',()=>{BINDS=Object.assign({},DEFAULT_BINDS);saveBinds();refresh();});refresh();})();
-try{const s=localStorage.getItem('shotline.sens');if(s)$('sens').value=s;const g=localStorage.getItem('shotline.gfx');if(g)$('gfx').value=g;const sx=localStorage.getItem('shotline.sfx');if(sx!==null)$('optSfx').checked=sx==='1';const ch=localStorage.getItem('shotline.botchat');if(ch!==null)$('optChat').checked=ch==='1';}catch(e){}
-$('resetSettings').addEventListener('click',()=>{$('sens').value=5;$('gfx').value='high';$('optSfx').checked=true;$('optChat').checked=true;try{localStorage.setItem('shotline.sens','5');localStorage.setItem('shotline.gfx','high');localStorage.setItem('shotline.sfx','1');localStorage.setItem('shotline.botchat','1');}catch(e){}if(typeof applyGfx==='function')applyGfx('high');});
+try{const s=localStorage.getItem('shotline.sens');if(s)$('sens').value=s;const g=localStorage.getItem('shotline.gfx');if(g)$('gfx').value=g;const sx=localStorage.getItem('shotline.sfx');if(sx!==null)$('optSfx').checked=sx==='1';const ch=localStorage.getItem('shotline.botchat');if(ch!==null)$('optChat').checked=ch==='1';const lz=localStorage.getItem('shotline.laser');if(lz!==null&&$('optLaser'))$('optLaser').checked=lz==='1';}catch(e){}
+$('resetSettings').addEventListener('click',()=>{$('sens').value=5;$('gfx').value='high';$('optSfx').checked=true;$('optChat').checked=true;if($('optLaser'))$('optLaser').checked=true;try{localStorage.setItem('shotline.sens','5');localStorage.setItem('shotline.gfx','high');localStorage.setItem('shotline.sfx','1');localStorage.setItem('shotline.botchat','1');localStorage.setItem('shotline.laser','1');}catch(e){}if(typeof applyGfx==='function')applyGfx('high');if(typeof laserOn!=='undefined')laserOn=true;});
 $('sens').addEventListener('input',()=>{try{localStorage.setItem('shotline.sens',$('sens').value);}catch(e){}});
 $('gfx').addEventListener('change',()=>{try{localStorage.setItem('shotline.gfx',$('gfx').value);}catch(e){}});
 $('optSfx').addEventListener('change',()=>{try{localStorage.setItem('shotline.sfx',$('optSfx').checked?'1':'0');}catch(e){}});
+if($('optLaser'))$('optLaser').addEventListener('change',()=>{laserOn=$('optLaser').checked;try{localStorage.setItem('shotline.laser',laserOn?'1':'0');}catch(e){}});
 $('optChat').addEventListener('change',()=>{try{localStorage.setItem('shotline.botchat',$('optChat').checked?'1':'0');}catch(e){}});
 
 /* ============ CONSTANTS ============ */
@@ -112,7 +113,8 @@ function sfxShot(kind,vol){if(kind==='shotgun'){sfxNoise(vol*0.9,3200,180,0.32);
 const sfxHit=head=>sfxTone(head?1900:1250,0.06,0.16,'square');
 const sfxKill=()=>{sfxTone(880,0.09,0.18,'triangle');setTimeout(()=>sfxTone(1320,0.14,0.18,'triangle'),80);};
 const sfxHurt=()=>sfxNoise(0.3,600,120,0.18);
-const sfxReload=()=>{sfxTone(300,0.05,0.12,'square');setTimeout(()=>sfxTone(210,0.07,0.12,'square'),700);};
+const sfxReloadAt=(vol)=>{const v=vol===undefined?0.12:vol;if(v<0.01)return;sfxTone(300,0.05,v,'square');setTimeout(()=>sfxTone(210,0.07,v,'square'),700);};
+const sfxReload=()=>sfxReloadAt(0.12);
 const sfxThud=(v)=>{sfxNoise(0.25+0.3*v,500,60,0.25);sfxTone(70,0.25,0.3*v+0.1,'sine',40);};
 const sfxStep=(sp)=>sfxNoise(sp?0.1:0.07,900,300,0.06);
 const sfxClank=()=>sfxTone(720,0.05,0.08,'square',500);
@@ -234,7 +236,7 @@ const ground=new THREE.Mesh(groundGeo,groundMat);ground.rotation.x=-Math.PI/2;gr
 
 
 /* ============ GLB MAP LOAD ============ */
-// (3).glb is a detailed low-poly city pack — but its meshes are single fused
+// map.glb is a detailed low-poly city pack — but its meshes are single fused
 // surfaces (buildings welded straight into the ground plane), not separate
 // objects, so box colliders can't represent it correctly (confirmed by
 // testing connected-component splitting on it — everything comes back as one
@@ -1480,6 +1482,13 @@ const viewMuzzle=new THREE.PointLight(L(0xffb060),0,3,2);
 const flashTex=(function(){const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d');const gr=g.createRadialGradient(64,64,0,64,64,64);gr.addColorStop(0,'rgba(255,255,240,1)');gr.addColorStop(0.18,'rgba(255,210,120,0.95)');gr.addColorStop(0.5,'rgba(255,130,40,0.35)');gr.addColorStop(1,'rgba(255,90,0,0)');g.fillStyle=gr;g.fillRect(0,0,128,128);g.translate(64,64);g.fillStyle='rgba(255,220,150,0.9)';for(let i=0;i<8;i++){g.rotate(Math.PI/4);const len=i%2?34:60;g.beginPath();g.moveTo(0,-4);g.lineTo(len,0);g.lineTo(0,4);g.closePath();g.fill();}return new THREE.CanvasTexture(c);})();
 const flashMat=new THREE.MeshBasicMaterial({map:flashTex,color:L(0xffd090),transparent:true,blending:THREE.AdditiveBlending,depthTest:false,depthWrite:false,fog:false,side:THREE.DoubleSide});
 const flash=new THREE.Mesh(new THREE.PlaneGeometry(0.28,0.28),flashMat);flash.renderOrder=1100;flash.visible=false;
+// Laser sight — cosmetic hip-fire aid, toggleable in settings. Extends
+// forward (local -Z, the barrel direction every weapon model already uses)
+// from each gun's muzzle attach point.
+const laserMat=new THREE.MeshBasicMaterial({color:L(0xff3320),transparent:true,opacity:0.55,blending:THREE.AdditiveBlending,depthTest:false,depthWrite:false,fog:false});
+const LASER_LEN=5;
+const laser=new THREE.Mesh(boxGeo,laserMat);laser.scale.set(0.0018,0.0018,LASER_LEN);laser.renderOrder=1090;laser.visible=false;
+let laserOn=$('optLaser')?$('optLaser').checked:true;
 const RANGES=[120,120,220,240,320,200,34,400],ADSF=[66,62,56,52,24,60,68,12];
 WEAPONS.forEach((w,i)=>{w.range=RANGES[i];w.adsFov=ADSF[i];});
 VM.init(gunRoot,viewCamera);guns.push(...VM.rig.map(r=>r.g));
@@ -1501,13 +1510,19 @@ let mouseL=false,mouseR=false,mousePressed=false;
 let manualPause=false;
 const P={cur:0,ammo:WEAPONS.map(w=>w.mag),reload:0,reloadTotal:1,nextFire:0,heat:0,adsT:0,swap:0,kick:0,flash:0,bob:0,swayX:0,swayY:0,hitT:0,dmgT:0,dmgDirT:0,toastT:0,fovB:0,recoilX:0,recoilY:0,idleSway:0,lastShotTime:0,sprintSway:0,lastHitAt:-999,regenning:false,landDip:0,stepD:0,breath:4,gasp:0,swayYaw:0,swayPitch:0,cycle:0,streak:0,roll:0,zoom:0,climbT:0,nearLadder:false,slideBack:0,boltCycle:0,camShake:0,camShakeYaw:0,camShakePitch:0};
 const fx=[],feedItems=[],medkits=[];window.__dbg=null;let chatOpen=false;let adminPromptMode='admin';
+// Pool tracer/impact-puff meshes instead of allocating+adding a new Object3D
+// per shot — with several bots firing fast weapons at once this avoided a
+// steady stream of scene-graph churn and GC pressure.
+const fxPool=[];
+function fxAcquire(mat){let m=fxPool.pop();if(!m){m=new THREE.Mesh(boxGeo,mat);scene.add(m);}else{m.material=mat;m.visible=true;}return m;}
+function fxRelease(m){m.visible=false;fxPool.push(m);}
 const paused=()=>state==='playing' && !chatOpen && (manualPause || (!isMobile && !locked && !fallback && !starting));
 const isAds=()=>mouseR&&P.reload<=0&&state==='playing';
 const tracerMat=new THREE.MeshBasicMaterial({color:L(0xffdc90),fog:false,transparent:true,opacity:0.85,blending:THREE.AdditiveBlending,depthWrite:false});
-function tracer(ax,ay,az,bx,by,bz,w){let dx=bx-ax,dy=by-ay,dz=bz-az;const len=Math.hypot(dx,dy,dz);if(len<0.5)return;const use=Math.min(len,140);dx*=use/len;dy*=use/len;dz*=use/len;const m=new THREE.Mesh(boxGeo,tracerMat);m.position.set(ax+dx/2,ay+dy/2,az+dz/2);m.lookAt(ax+dx,ay+dy,az+dz);m.scale.set(w||0.03,w||0.03,use);scene.add(m);fx.push({mesh:m,life:0.05,max:0.05});}
+function tracer(ax,ay,az,bx,by,bz,w){let dx=bx-ax,dy=by-ay,dz=bz-az;const len=Math.hypot(dx,dy,dz);if(len<0.5)return;const use=Math.min(len,140);dx*=use/len;dy*=use/len;dz*=use/len;const m=fxAcquire(tracerMat);m.position.set(ax+dx/2,ay+dy/2,az+dz/2);m.lookAt(ax+dx,ay+dy,az+dz);m.scale.set(w||0.03,w||0.03,use);fx.push({mesh:m,life:0.05,max:0.05});}
 const puffMats={dust:new THREE.MeshBasicMaterial({color:L(0xdcd6c2)}),blood:new THREE.MeshBasicMaterial({color:L(0xc0392b)}),spark:new THREE.MeshBasicMaterial({color:L(0xffd070)}),smoke:new THREE.MeshBasicMaterial({color:L(0x8a8a86),transparent:true,opacity:0.55,depthWrite:false})};
-function puff(x,y,z,kind,n){const isSmoke=kind==='smoke';for(let i=0;i<(n||3);i++){const m=new THREE.Mesh(boxGeo,puffMats[kind]);const s=rnd(0.06,isSmoke?0.16:0.2);m.position.set(x+rnd(-0.12,0.12),y+rnd(-0.12,0.12),z+rnd(-0.12,0.12));m.scale.setScalar(s);scene.add(m);const life=isSmoke?rnd(0.55,0.9):0.28;fx.push({mesh:m,life,max:life,puff:true,s:s,vy:isSmoke?rnd(0.6,1.3):rnd(0.4,1.6),drift:isSmoke?rnd(-0.3,0.3):0,driftZ:isSmoke?rnd(-0.3,0.3):0});}}
-function updateFx(dt){for(let i=fx.length-1;i>=0;i--){const e=fx[i];e.life-=dt;if(e.life<=0){scene.remove(e.mesh);fx.splice(i,1);}else if(e.puff){e.mesh.scale.setScalar(Math.max(0.001,e.s*(e.life/e.max)));e.mesh.position.y+=dt*e.vy;e.mesh.position.x+=dt*(e.drift||0);e.mesh.position.z+=dt*(e.driftZ||0);}}}
+function puff(x,y,z,kind,n){const isSmoke=kind==='smoke';for(let i=0;i<(n||3);i++){const m=fxAcquire(puffMats[kind]);const s=rnd(0.06,isSmoke?0.16:0.2);m.position.set(x+rnd(-0.12,0.12),y+rnd(-0.12,0.12),z+rnd(-0.12,0.12));m.scale.setScalar(s);const life=isSmoke?rnd(0.55,0.9):0.28;fx.push({mesh:m,life,max:life,puff:true,s:s,vy:isSmoke?rnd(0.6,1.3):rnd(0.4,1.6),drift:isSmoke?rnd(-0.3,0.3):0,driftZ:isSmoke?rnd(-0.3,0.3):0});}}
+function updateFx(dt){for(let i=fx.length-1;i>=0;i--){const e=fx[i];e.life-=dt;if(e.life<=0){fxRelease(e.mesh);fx.splice(i,1);}else if(e.puff){e.mesh.scale.setScalar(Math.max(0.001,e.s*(e.life/e.max)));e.mesh.position.y+=dt*e.vy;e.mesh.position.x+=dt*(e.drift||0);e.mesh.position.z+=dt*(e.driftZ||0);}}}
 
 /* Motes + holes + casings */
 const MN=240,moteGeo=new THREE.BufferGeometry(),motePos=new Float32Array(MN*3),moteVel=new Float32Array(MN*3);
@@ -1534,7 +1549,7 @@ function bulletHole(px,py,pz,dx,dy,dz){let n=null,bd=0.12;const cand=queryGrid(p
 const casings=[];
 const casingGeo=new THREE.CylinderGeometry(0.0075,0.0085,0.021,6);
 const casingMatBrass=lam(0xc9a54a),casingMatTarnish=lam(0x8a7020);
-function ejectCasing(px,py,pz,rightX,rightZ,backX,backZ){if(casings.length>48){const o=casings.shift();scene.remove(o.mesh);}const m=new THREE.Mesh(casingGeo,Math.random()<0.6?casingMatBrass:casingMatTarnish);m.position.set(px,py,pz);m.rotation.set(rnd(0,TAU),rnd(0,TAU),rnd(0,TAU));scene.add(m);casings.push({mesh:m,vx:rightX*rnd(1.6,3.2)-backX*rnd(0.3,1.1)+rnd(-0.3,0.3),vy:rnd(2.4,4.2),vz:rightZ*rnd(1.6,3.2)-backZ*rnd(0.3,1.1)+rnd(-0.3,0.3),rx:rnd(-16,16),ry:rnd(-16,16),rz:rnd(-16,16),life:4.5,bounces:0});}
+function ejectCasing(px,py,pz,rightX,rightZ,backX,backZ){let m;if(casings.length>48){const o=casings.shift();m=o.mesh;m.material=Math.random()<0.6?casingMatBrass:casingMatTarnish;}else{m=new THREE.Mesh(casingGeo,Math.random()<0.6?casingMatBrass:casingMatTarnish);scene.add(m);}m.position.set(px,py,pz);m.rotation.set(rnd(0,TAU),rnd(0,TAU),rnd(0,TAU));casings.push({mesh:m,vx:rightX*rnd(1.6,3.2)-backX*rnd(0.3,1.1)+rnd(-0.3,0.3),vy:rnd(2.4,4.2),vz:rightZ*rnd(1.6,3.2)-backZ*rnd(0.3,1.1)+rnd(-0.3,0.3),rx:rnd(-16,16),ry:rnd(-16,16),rz:rnd(-16,16),life:4.5,bounces:0});}
 const debris=[];
 function vmEvent(name,r){
   if(name==='magOut'){sfxTone(240,0.05,0.13,'square',170);sfxNoise(0.12,1600,300,0.06,'bandpass');}
@@ -1648,7 +1663,8 @@ function acquire(b){const pref=botPref(b);let best=null,bd=1e9;
     if(best){const vis=!losBlocked(b.x,b.y+1.55,b.z,best.x,best.y+1.1,best.z);b.reactT=(vis?rnd(0.06,0.20):rnd(0.35,0.75))/b.skill*(pref._reactMul||1);if(vis&&Math.random()<0.45)BotChat.event('spotted',{bot:b});}}}
 function botFire(b,t){const pref=botPref(b);const w=WEAPONS.find(x=>x.key===b.weaponKind)||WEAPONS[2];
   if(b.rlT>0)return;if(b.ammo===undefined)b.ammo=w.mag;
-  if(--b.ammo<=0){b.ammo=w.mag;b.rlT=b.rlTotal=Math.min(2.4,w.reload*0.75);BotChat.event('reload',{bot:b});}
+  if(--b.ammo<=0){b.ammo=w.mag;b.rlT=b.rlTotal=Math.min(2.4,w.reload*0.75);BotChat.event('reload',{bot:b});
+    const rd=Math.hypot(b.x-camera.position.x,b.z-camera.position.z);if(rd<45)sfxReloadAt(0.5*clamp(1-rd/45,0,1));}
   b.lastFire=T;
   const ox=b.x,oy=b.y+1.45,oz=b.z;const dist=Math.hypot(t.x-ox,t.z-oz)||0.01;
   if(t._pvx===undefined){t._pvx=0;t._pvz=0;t._px=t.x;t._pz=t.z;}
@@ -1878,7 +1894,7 @@ function doRespawn(){spawn(player);P.ammo=WEAPONS.map(w=>w.mag);P.reload=0;P.hea
   if(camera.fov!==BASE_FOV){camera.fov=BASE_FOV;camera.updateProjectionMatrix();}
   setGun(0);state='playing';$('death').classList.add('hidden');gunRoot.visible=true;requestLock(false);
   if(mode==='multi'&&net.ws&&net.ws.readyState===1)net.ws.send(JSON.stringify({t:'spawn'}));}
-function setGun(i){i=clamp(i,0,WEAPONS.length-1);P.cur=i;const vr=VM.setActive(i);vr.g.add(flash);flash.position.set(vr.A.muzzle[0],vr.A.muzzle[1],vr.A.muzzle[2]-0.03);viewMuzzle.position.set(vr.A.muzzle[0],vr.A.muzzle[1]+0.02,vr.A.muzzle[2]+0.12);setText('wname',WEAPONS[i].name);document.querySelectorAll('#wslots span').forEach((s,k)=>s.classList.toggle('on',k===i));P.swap=1;P.reload=0;}
+function setGun(i){i=clamp(i,0,WEAPONS.length-1);P.cur=i;const vr=VM.setActive(i);vr.g.add(flash);flash.position.set(vr.A.muzzle[0],vr.A.muzzle[1],vr.A.muzzle[2]-0.03);viewMuzzle.position.set(vr.A.muzzle[0],vr.A.muzzle[1]+0.02,vr.A.muzzle[2]+0.12);vr.g.add(laser);laser.position.set(vr.A.muzzle[0],vr.A.muzzle[1],vr.A.muzzle[2]-LASER_LEN/2);setText('wname',WEAPONS[i].name);document.querySelectorAll('#wslots span').forEach((s,k)=>s.classList.toggle('on',k===i));P.swap=1;P.reload=0;}
 function startReload(){const w=WEAPONS[P.cur];if(P.reload>0||P.ammo[P.cur]>=w.mag)return;P.reload=w.reload;P.reloadTotal=w.reload;sfxReload();}
 function currentSpread(){const w=WEAPONS[P.cur];let s=lerp(w.hip,w.ads,P.adsT);const mv=Math.hypot(player.vx,player.vz);if(!player.onGround)s*=2.4;else if(mv>1)s*=1+Math.min(mv/8,1)*0.6;s+=P.heat*w.hip*0.9*(1-P.adsT*0.6);return s;}
 const _v=new THREE.Vector3();
@@ -1985,6 +2001,7 @@ function updatePlayer(dt){
   flash.visible=P.flash>0;muzzleLight.intensity=P.flash>0?2.2:0;viewMuzzle.intensity=P.flash>0?2.5:0;
   const scopeW=(w.key==='sniper'||w.key==='dmr');const scoped=scopeW&&P.adsT>0.55;const dotW=(w.key==='rifle'||w.key==='smg');
   gunRoot.visible=viewMode==='fp'&&!p.climb && !(scopeW && P.adsT>0.35);
+  laser.visible=laserOn&&gunRoot.visible&&P.adsT<0.05&&!p.climb;
   const sc=$('scope');sc.classList.toggle('hidden',!scoped);
   if(scoped){sc.dataset.k=w.key;sc.style.opacity=clamp((P.adsT-0.55)/0.25,0,1).toFixed(2);
     const hh=castRay(camera.position.x,camera.position.y,camera.position.z,-Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),-Math.cos(yaw)*Math.cos(pitch),600,player);
