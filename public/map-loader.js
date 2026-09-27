@@ -15,7 +15,7 @@
     return;
   }
 
-  const MAP_FILE   = 'models/level5_zone1_level_design_2002.glb';
+  const MAP_FILE   = 'models/map.glb';
   const MAP_SCALE  = 1;   // already authored at human/game scale (~93 x 32 x 64 units) — no correction needed
   const MAP_ROT_Y  = 0;   // radians, in case the model faces the wrong way once you can see it
 

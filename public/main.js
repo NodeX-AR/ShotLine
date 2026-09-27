@@ -1454,7 +1454,7 @@ const CH=(function(){
 /* Kick off soldier model — real GLB first, procedural fallback */
 (function(){
   const tryGen=()=>{try{if(window.SOLDIER_GEN){CH.loadModelFromGen(window.SOLDIER_GEN.build());console.log('[CH] procedural soldier ready');}else console.warn('[CH] no model available');}catch(e){console.warn('[CH] soldier gen failed',e);}};
-    fetch('models/newsoldier.glb',{cache:'no-store'})
+    fetch('models/player.glb',{cache:'no-store'})
     .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.arrayBuffer();})
     .then(buf=>{
       console.log('[CH] GLB bytes',buf.byteLength);
