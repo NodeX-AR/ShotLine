@@ -238,31 +238,121 @@ if(isMobile)groundMat=new THREE.MeshLambertMaterial({map:groundTex,vertexColors:
 const ground=new THREE.Mesh(groundGeo,groundMat);ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
 
 
-/* ============ GLB MAP LOAD ============ */
-// map.glb is a detailed low-poly city pack — but its meshes are single fused
-// surfaces (buildings welded straight into the ground plane), not separate
-// objects, so box colliders can't represent it correctly (confirmed by
-// testing connected-component splitting on it — everything comes back as one
-// giant blob). So it's used purely as a visual backdrop here. The procedural
-// city below still runs, invisibly, as the actual collidable/walkable layer
-// (real stairs, ladders, roof spots, hiding spots) — the GLB is just laid
-// over the top for looks, so it can look great even though it doesn't
-// physically block movement.
-let glbMapOk = false;
-let glbMapData = null;
-if (window.MAP_GLB_PROMISE) {
-  try {
-    const md = await window.MAP_GLB_PROMISE;
-    if (md && md.scene) {
-      scene.add(md.scene);
-      glbMapData = md;
-      window.__GLB_SPAWNS = md.spawns || [];
-      glbMapOk = true;
-      console.log('[main] Underground cave map loaded · Pure mesh collider active');
-    }
-  } catch (e) {
-    console.warn('[main] GLB map load failed:', e);
+/* ============ GLB MAP LOAD / MESH COLLIDER ============ */
+/*
+ * The underground base is a fused GLB, so object/box colliders cannot describe
+ * its rooms, corridors, stairs and openings. Build a CPU triangle collider from
+ * the actual transformed GLB geometry and spatially hash it in 2 m XZ cells.
+ */
+class GLBMeshCollider{
+  constructor(root){
+    this.root=root;this.CELL=2;this.cells=new Map();this.tris=[];this._stamp=1;
+    root.updateMatrixWorld(true);this._build();
   }
+  _key(gx,gz){return (gx<<16) ^ (gz&0xffff);}
+  _add(t){
+    t.x0=Math.min(t.ax,t.bx,t.cx);t.x1=Math.max(t.ax,t.bx,t.cx);
+    t.z0=Math.min(t.az,t.bz,t.cz);t.z1=Math.max(t.az,t.bz,t.cz);t.q=0;
+    const gx0=Math.floor(t.x0/this.CELL),gx1=Math.floor(t.x1/this.CELL);
+    const gz0=Math.floor(t.z0/this.CELL),gz1=Math.floor(t.z1/this.CELL);
+    for(let gx=gx0;gx<=gx1;gx++)for(let gz=gz0;gz<=gz1;gz++){
+      const k=this._key(gx,gz);let a=this.cells.get(k);if(!a){a=[];this.cells.set(k,a);}a.push(t);
+    }
+    this.tris.push(t);
+  }
+  _build(){
+    const a=new THREE.Vector3(),b=new THREE.Vector3(),c=new THREE.Vector3();
+    const e1=new THREE.Vector3(),e2=new THREE.Vector3(),n=new THREE.Vector3();
+    this.root.traverse(o=>{
+      if(!o.isMesh||!o.geometry||!o.geometry.attributes.position)return;
+      const g=o.geometry,pos=g.attributes.position,idx=g.index,count=idx?idx.count:pos.count;
+      o.updateMatrixWorld(true);
+      for(let i=0;i+2<count;i+=3){
+        const ia=idx?idx.getX(i):i,ib=idx?idx.getX(i+1):i+1,ic=idx?idx.getX(i+2):i+2;
+        a.fromBufferAttribute(pos,ia).applyMatrix4(o.matrixWorld);
+        b.fromBufferAttribute(pos,ib).applyMatrix4(o.matrixWorld);
+        c.fromBufferAttribute(pos,ic).applyMatrix4(o.matrixWorld);
+        e1.subVectors(b,a);e2.subVectors(c,a);n.crossVectors(e1,e2);const nl=n.length();if(nl<1e-8)continue;n.multiplyScalar(1/nl);
+        this._add({ax:a.x,ay:a.y,az:a.z,bx:b.x,by:b.y,bz:b.z,cx:c.x,cy:c.y,cz:c.z,nx:n.x,ny:n.y,nz:n.z});
+      }
+    });
+    console.log('[main] GLB collider:',this.tris.length,'triangles in',this.cells.size,'spatial cells');
+  }
+  _query(x0,x1,z0,z1){
+    const out=[];this._stamp++;const stamp=this._stamp;
+    const gx0=Math.floor(x0/this.CELL),gx1=Math.floor(x1/this.CELL),gz0=Math.floor(z0/this.CELL),gz1=Math.floor(z1/this.CELL);
+    for(let gx=gx0;gx<=gx1;gx++)for(let gz=gz0;gz<=gz1;gz++){
+      const arr=this.cells.get(this._key(gx,gz));if(!arr)continue;
+      for(const t of arr){if(t.q===stamp)continue;t.q=stamp;out.push(t);}
+    }
+    return out;
+  }
+  _rayTri(ox,oy,oz,dx,dy,dz,t,maxT){
+    const e1x=t.bx-t.ax,e1y=t.by-t.ay,e1z=t.bz-t.az,e2x=t.cx-t.ax,e2y=t.cy-t.ay,e2z=t.cz-t.az;
+    const hx=dy*e2z-dz*e2y,hy=dz*e2x-dx*e2z,hz=dx*e2y-dy*e2x,a=e1x*hx+e1y*hy+e1z*hz;if(Math.abs(a)<1e-8)return -1;
+    const f=1/a,sx=ox-t.ax,sy=oy-t.ay,sz=oz-t.az,u=f*(sx*hx+sy*hy+sz*hz);if(u<0||u>1)return -1;
+    const qx=sy*e1z-sz*e1y,qy=sz*e1x-sx*e1z,qz=sx*e1y-sy*e1x,v=f*(dx*qx+dy*qy+dz*qz);if(v<0||u+v>1)return -1;
+    const hit=f*(e2x*qx+e2y*qy+e2z*qz);return hit>=0&&hit<=maxT?hit:-1;
+  }
+  raycast(ox,oy,oz,dx,dy,dz,maxT){
+    const l=Math.hypot(dx,dy,dz)||1;dx/=l;dy/=l;dz/=l;
+    let best=maxT,bestT=null;
+    const testCell=(gx,gz)=>{const arr=this.cells.get(this._key(gx,gz));if(!arr)return;for(const t of arr){
+      const h=this._rayTri(ox,oy,oz,dx,dy,dz,t,best);if(h>=0&&h<best){best=h;bestT=t;}
+    }};
+    let gx=Math.floor(ox/this.CELL),gz=Math.floor(oz/this.CELL);testCell(gx,gz);
+    const adx=Math.abs(dx),adz=Math.abs(dz);
+    if(adx<1e-9&&adz<1e-9){return bestT?{hit:true,t:best,normal:[bestT.nx,bestT.ny,bestT.nz]}:{hit:false,t:maxT,normal:[0,1,0]};}
+    const sx=dx>=0?1:-1,sz=dz>=0?1:-1,tdx=adx?this.CELL/adx:Infinity,tdz=adz?this.CELL/adz:Infinity;
+    let tx=adx?((dx>=0?(gx+1)*this.CELL-ox:ox-gx*this.CELL)/adx):Infinity;
+    let tz=adz?((dz>=0?(gz+1)*this.CELL-oz:oz-gz*this.CELL)/adz):Infinity;
+    while(Math.min(tx,tz)<=best){if(tx<tz){gx+=sx;testCell(gx,gz);tx+=tdx;}else{gz+=sz;testCell(gx,gz);tz+=tdz;}}
+    return bestT?{hit:true,t:best,normal:[bestT.nx,bestT.ny,bestT.nz]}:{hit:false,t:maxT,normal:[0,1,0]};
+  }
+  _heightAt(x,z,fromY,dir,maxDist,up){
+    const y0=fromY+(up?0.02:STEP+0.2),end=y0+dir*maxDist,cand=this._query(x-0.02,x+0.02,z-0.02,z+0.02);
+    let best=up?Infinity:-Infinity,found=false;
+    for(const t of cand){
+      if(x<t.x0-1e-4||x>t.x1+1e-4||z<t.z0-1e-4||z>t.z1+1e-4)continue;
+      if(up?(t.ny>-0.25):(t.ny<0.25)||Math.abs(t.ny)<1e-5)continue;
+      const y=t.ay-(t.nx*(x-t.ax)+t.nz*(z-t.az))/t.ny;
+      if(up?(y>=y0-0.05&&y<=end+0.05&&y<best):(y<=y0+0.05&&y>=end-0.05&&y>best)){best=y;found=true;}
+    }
+    return {found,y:found?best:(up?Infinity:-Infinity)};
+  }
+  groundHeight(x,z,fromY,maxDist){return this._heightAt(x,z,fromY,-1,maxDist,false);}
+  ceilingHeight(x,z,fromY){return this._heightAt(x,z,fromY,1,8,true).y;}
+  _segClosest(px,pz,ax,az,bx,bz){const dx=bx-ax,dz=bz-az,l2=dx*dx+dz*dz,t=l2>1e-10?clamp(((px-ax)*dx+(pz-az)*dz)/l2,0,1):0,x=ax+dx*t,z=az+dz*t;return [x,z,(px-x)*(px-x)+(pz-z)*(pz-z)];}
+  _inside2D(px,pz,t){
+    const s1=(t.bx-t.ax)*(pz-t.az)-(t.bz-t.az)*(px-t.ax);
+    const s2=(t.cx-t.bx)*(pz-t.bz)-(t.cz-t.bz)*(px-t.bx);
+    const s3=(t.ax-t.cx)*(pz-t.cz)-(t.az-t.cz)*(px-t.cx);
+    return (s1>=-1e-5&&s2>=-1e-5&&s3>=-1e-5)||(s1<=1e-5&&s2<=1e-5&&s3<=1e-5);
+  }
+  collideWall(f,r){
+    const cand=this._query(f.x-r-0.15,f.x+r+0.15,f.z-r-0.15,f.z+r+0.15);
+    for(const t of cand){
+      if(Math.abs(t.ny)>0.45)continue;
+      const ty0=Math.min(t.ay,t.by,t.cy),ty1=Math.max(t.ay,t.by,t.cy);if(f.y+H<=ty0+0.03||f.y+STEP>=ty1-0.03)continue;
+      let bx=0,bz=0,d2=Infinity;
+      for(const e of [[t.ax,t.az,t.bx,t.bz],[t.bx,t.bz,t.cx,t.cz],[t.cx,t.cz,t.ax,t.az]]){const q=this._segClosest(f.x,f.z,e[0],e[1],e[2],e[3]);if(q[2]<d2){d2=q[2];bx=q[0];bz=q[1];}}
+      if(this._inside2D(f.x,f.z,t))d2=0;if(d2>=r*r)continue;
+      let dx=f.x-bx,dz=f.z-bz,d=Math.hypot(dx,dz);
+      if(d<1e-5){dx=t.nx;dz=t.nz;d=Math.hypot(dx,dz);if(d<1e-5)continue;const side=(f.x-t.ax)*dx+(f.z-t.az)*dz;if(side<0){dx=-dx;dz=-dz;}}
+      const push=(r-d)/d;f.x+=dx*push;f.z+=dz*push;
+    }
+  }
+}
+let glbMapOk=false,glbMapData=null;
+if(window.MAP_GLB_PROMISE){
+  try{
+    const md=await window.MAP_GLB_PROMISE;
+    if(md&&md.scene){
+      scene.add(md.scene);glbMapData=md;window.__GLB_SPAWNS=md.spawns||[];
+      window.MAP_COLLIDER=new GLBMeshCollider(md.scene);glbMapOk=true;
+      console.log('[main] Underground base loaded · triangle mesh collider active');
+    }
+  }catch(e){console.warn('[main] GLB map load failed:',e);}
 }
 
 /* ============ CITY ============ */
