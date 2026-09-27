@@ -1760,7 +1760,20 @@ const CH=(function(){
     if(acts.walk){acts.walk.play();acts.walk.setEffectiveWeight(0);}
     if(acts.run){acts.run.play();acts.run.setEffectiveWeight(0);}
     if(acts.run_shoot){acts.run_shoot.play();acts.run_shoot.setEffectiveWeight(0);}
-    const B=names=>getBone(clone,names);
+    const getBoneForPlayer=(root,candidates)=>{
+      if(!root)return null;
+      for(const n of candidates){const o=root.getObjectByName(n);if(o)return o;}
+      let found=null;
+      root.traverse(o=>{
+        if(found)return;
+        if(o.isBone||o.type==='Bone'){
+          const ln=(o.name||'').toLowerCase();
+          for(const n of candidates){const cn=String(n).toLowerCase();if(ln===cn||ln.endsWith(cn)){found=o;return;}}
+        }
+      });
+      return found;
+    };
+    const B=names=>getBoneForPlayer(clone,names);
     const bones={
       hips:B(['mixamorigHips','Hips','Pelvis']),
       spine:B(['mixamorigSpine','Spine','Abdomen']),
