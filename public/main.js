@@ -1371,7 +1371,7 @@ const VM=(function(){
         if(acts.walk){acts.walk.play();acts.walk.setEffectiveWeight(0);}
         if(acts.run){acts.run.play();acts.run.setEffectiveWeight(0);}
       }
-      const B=names=>getBone(clone,names);
+      const B=names=>getBoneForModel(clone,names);
       const bones={
         rA:B(['mixamorigRightArm','RightArm','UpperArmR','RightUpperArm']),
         rF:B(['mixamorigRightForeArm','RightForeArm','LowerArmR','RightLowerArm']),
@@ -1679,6 +1679,24 @@ const CH=(function(){
   function rotWorldB(bone,axis,ang){if(!bone)return;bone.parent.getWorldQuaternion(_q1);bone.getWorldQuaternion(_q2);_q3.setFromAxisAngle(axis,ang);_q2.premultiply(_q3);bone.quaternion.copy(_q1.invert().multiply(_q2));}
   function aimBoneB(bone,child,target){if(!bone||!child)return;bone.updateWorldMatrix(true,true);bone.getWorldPosition(_v1);child.getWorldPosition(_v2);_v2.sub(_v1).normalize();_v3.copy(target).sub(_v1).normalize();_q3.setFromUnitVectors(_v2,_v3);bone.parent.getWorldQuaternion(_q1);bone.getWorldQuaternion(_q2);_q2.premultiply(_q3);bone.quaternion.copy(_q1.invert().multiply(_q2));bone.updateWorldMatrix(false,true);}
   function ikSolveB(a,t,l1,l2,pole,elbow,end){_d.subVectors(t,a);let dist=_d.length();const mx=l1+l2-0.003;if(dist>mx)dist=mx;if(dist<0.06)dist=0.06;_d.normalize();const a1=(l1*l1-l2*l2+dist*dist)/(2*dist);const h=Math.sqrt(Math.max(0,l1*l1-a1*a1));_p.copy(pole).addScaledVector(_d,-pole.dot(_d)).normalize();elbow.copy(a).addScaledVector(_d,a1).addScaledVector(_p,h);end.copy(a).addScaledVector(_d,dist);}
+  function getBoneForModel(root, candidates){
+    if(!root)return null;
+    for(const n of candidates){
+      const o=root.getObjectByName(n);
+      if(o)return o;
+    }
+    let found=null;
+    root.traverse(o=>{
+      if(found || !(o.isBone || o.type==='Bone'))return;
+      const ln=(o.name||'').toLowerCase();
+      for(const n of candidates){
+        const cn=String(n).toLowerCase();
+        if(ln===cn || ln.endsWith(cn)){ found=o; break; }
+      }
+    });
+    return found;
+  }
+
   function upgradeModel(f){
     if(!MODEL.ready||!f.rig||f.rig.model)return;
     const rg=f.rig,g=f.mesh;
