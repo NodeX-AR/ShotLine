@@ -8,7 +8,8 @@ if(!window.THREE){$('playMulti').disabled=$('playSolo').disabled=true;$('menu').
    jsDelivr serves the GitHub file through a CDN. Both third-person and first-person
    systems share the same downloaded ArrayBuffer so the 30 MiB model is fetched once.
 */
-const PLAYER_GLB_URL='https://cdn.jsdelivr.net/gh/NodeX-AR/shotline@main/player.glb';
+const PLAYER_URL =
+  'https://raw.githubusercontent.com/NodeX-AR/shotline/main/player.glb';
 let playerGLBReady=false,playerGLBFailed=false,playerGLBBuffer=null;
 const playerLoadOverlay=document.createElement('div');
 playerLoadOverlay.id='playerLoadOverlay';
