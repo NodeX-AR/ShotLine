@@ -3,6 +3,40 @@
 const $=id=>document.getElementById(id);
 if(!window.THREE){$('playMulti').disabled=$('playSolo').disabled=true;$('menu').insertAdjacentHTML('beforeend','<p class="note" style="color:#ff8a8a">The 3D engine failed to load.</p>');return;}
 
+/* ============ EXTERNAL PLAYER MODEL LOADER ============
+   The original player.glb stays untouched and lives outside Cloudflare Workers Assets.
+   jsDelivr serves the GitHub file through a CDN. Both third-person and first-person
+   systems share the same downloaded ArrayBuffer so the 30 MiB model is fetched once.
+*/
+const PLAYER_GLB_URL='https://cdn.jsdelivr.net/gh/NodeX-AR/shotline@main/player.glb';
+let playerGLBReady=false,playerGLBFailed=false,playerGLBBuffer=null;
+const playerLoadOverlay=document.createElement('div');
+playerLoadOverlay.id='playerLoadOverlay';
+playerLoadOverlay.innerHTML='<div class="pl-card"><div class="pl-title">LOADING PLAYER</div><div class="pl-sub">Downloading the full player model…</div><div class="pl-track"><div class="pl-fill"></div></div><div class="pl-pct">0%</div><div class="pl-status">Connecting to CDN…</div></div>';
+playerLoadOverlay.style.cssText='position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(5,8,12,.94);font-family:Arial,sans-serif;color:#fff;pointer-events:auto';
+const plStyle=document.createElement('style');
+plStyle.textContent='#playerLoadOverlay .pl-card{width:min(520px,86vw);padding:30px 28px;background:rgba(14,20,28,.98);border:1px solid rgba(255,255,255,.14);border-radius:12px;box-shadow:0 18px 60px rgba(0,0,0,.5);text-align:center}#playerLoadOverlay .pl-title{font-size:22px;font-weight:800;letter-spacing:.16em;margin-bottom:8px}#playerLoadOverlay .pl-sub{font-size:14px;opacity:.72;margin-bottom:20px}#playerLoadOverlay .pl-track{height:10px;background:rgba(255,255,255,.10);border-radius:999px;overflow:hidden}.pl-fill{height:100%;width:0%;background:#fff;transition:width .12s linear}.pl-pct{font-size:28px;font-weight:800;margin-top:12px}.pl-status{font-size:12px;opacity:.58;margin-top:6px;word-break:break-word}';
+document.head.appendChild(plStyle);document.body.appendChild(playerLoadOverlay);
+const plFill=playerLoadOverlay.querySelector('.pl-fill'),plPct=playerLoadOverlay.querySelector('.pl-pct'),plStatus=playerLoadOverlay.querySelector('.pl-status'),plSub=playerLoadOverlay.querySelector('.pl-sub');
+function playerLoadProgress(p,status){p=clamp(p,0,1);const pct=Math.round(p*100);plFill.style.width=pct+'%';plPct.textContent=pct+'%';if(status)plStatus.textContent=status;}
+function playerLoadError(msg){playerGLBFailed=true;plSub.textContent='Player model failed to load';playerLoadProgress(0,msg||'Load failed');plStatus.style.color='#ff8a8a';$('playSolo').disabled=true;$('playMulti').disabled=true;}
+async function fetchPlayerGLB(){
+  try{
+    plSub.textContent='Downloading the full player model…';
+    const r=await fetch(PLAYER_GLB_URL,{cache:'force-cache'});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const total=Number(r.headers.get('content-length'))||0;
+    if(!r.body){
+      const buf=await r.arrayBuffer();playerLoadProgress(0.72,'Download complete · parsing model…');return buf;
+    }
+    const reader=r.body.getReader(),parts=[];let loaded=0;
+    while(true){const {done,value}=await reader.read();if(done)break;if(value){parts.push(value);loaded+=value.byteLength;playerLoadProgress(total?loaded/total:Math.min(.7,loaded/30000000),total?`${(loaded/1048576).toFixed(1)} / ${(total/1048576).toFixed(1)} MiB`:`Downloaded ${(loaded/1048576).toFixed(1)} MiB`);}}
+    const buf=new Uint8Array(loaded);let off=0;for(const part of parts){buf.set(part,off);off+=part.byteLength;}
+    playerLoadProgress(.72,'Download complete · parsing model…');return buf.buffer;
+  }catch(e){playerLoadError('Player download failed: '+e.message);throw e;}
+}
+const PLAYER_GLB_PROMISE=fetchPlayerGLB().then(buf=>{playerGLBBuffer=buf;playerLoadProgress(.82,'Model downloaded · building player…');return buf;}).catch(e=>{throw e;});
+
 /* ============ KEYBINDINGS ============ */
 const DEFAULT_BINDS={forward:'KeyW',back:'KeyS',left:'KeyA',right:'KeyD',jump:'Space',sprint:'ShiftLeft',reload:'KeyR',ads:'Mouse2',fire:'Mouse0',chat:'Enter',leaderboard:'Tab',view:'KeyV',w1:'Digit1',w2:'Digit2',w3:'Digit3',w4:'Digit4',w5:'Digit5',w6:'Digit6',w7:'Digit7',w8:'Digit8'};
 let BINDS=Object.assign({},DEFAULT_BINDS);
@@ -1684,39 +1718,19 @@ const CH=(function(){
   return {build,setGun,animate,gunInst,loadModelFromGen};
 })();
 
-/* Kick off soldier model — real GLB first (player.glb / newsoldier.glb), procedural fallback */
+/* Kick off soldier model from the single external player.glb download. */
 (function(){
-  const tryGen=()=>{
-    try{
-      if(window.SOLDIER_GEN){
-        CH.loadModelFromGen(window.SOLDIER_GEN.build());
-        console.log('[CH] procedural soldier ready');
-      }else console.warn('[CH] no model available');
-    }catch(e){console.warn('[CH] soldier gen failed',e);}
-  };
-
-  const tryLoadGLB=(urls)=>{
-    if(!urls.length){tryGen();return;}
-    const url=urls[0];
-    fetch(url,{cache:'no-store'})
-      .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.arrayBuffer();})
-      .then(buf=>{
-        if(typeof THREE.GLTFLoader!=='function')throw new Error('THREE.GLTFLoader undefined');
-        new THREE.GLTFLoader().parse(buf,'',
-          g=>{
-            CH.loadModelFromGen({scene:g.scene,animations:g.animations});
-            VM.setGLB({scene:g.scene,animations:g.animations});
-            console.log('[CH] Loaded player model from '+url);
-          },
-          e=>{console.warn('[CH] parse error for '+url,e);tryLoadGLB(urls.slice(1));});
-      })
-      .catch(err=>{
-        console.log('[CH] note: '+url+' not loaded ('+err.message+'), trying next fallback');
-        tryLoadGLB(urls.slice(1));
-      });
-  };
-
-  tryLoadGLB(['models/player.glb']);
+  PLAYER_GLB_PROMISE.then(buf=>{
+    if(typeof THREE.GLTFLoader!=='function')throw new Error('THREE.GLTFLoader undefined');
+    new THREE.GLTFLoader().parse(buf,'',g=>{
+      CH.loadModelFromGen({scene:g.scene,animations:g.animations});
+      VM.setGLB({scene:g.scene,animations:g.animations});
+      playerGLBReady=true;
+      playerLoadProgress(1,'Player model ready');
+      setTimeout(()=>{playerLoadOverlay.style.display='none';},220);
+      console.log('[CH] Loaded external player.glb from '+PLAYER_GLB_URL);
+    },e=>{playerLoadError('Player model parse failed');console.warn('[CH] player.glb parse error',e);});
+  }).catch(e=>console.warn('[CH] external player.glb unavailable',e));
 })();
 /* Player + bots */
 function makePlayerMesh(f){const g=CH.build(f);f.label=makeLabel(f.name);g.add(f.label);g.visible=false;scene.add(g);f.mesh=g;CH.setGun(f,f.weaponKind||'rifle');}
@@ -1769,7 +1783,7 @@ let laserOn=false;
 const fpGun={ready:false,root:null,clone:null,mixer:null,gun:null,anim:null,recoil:0,reload:0,basePos:new THREE.Vector3(),baseRot:new THREE.Euler(),muzzleLocal:new THREE.Vector3(0,0.03,-1.02)};
 function isGunNode(o){const n=((o.name||'')+' '+(o.geometry&&o.geometry.name||'')).toLowerCase();return n.includes('scifi_gun')||n.includes('object_169');}
 function loadOnlyGunFromPlayer(){
-  fetch('models/player.glb',{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.arrayBuffer();}).then(buf=>{
+  PLAYER_GLB_PROMISE.then(buf=>{
     if(typeof THREE.GLTFLoader!=='function')throw new Error('THREE.GLTFLoader undefined');
     new THREE.GLTFLoader().parse(buf,'',gltf=>{
       const clone=THREE.SkeletonUtils?THREE.SkeletonUtils.clone(gltf.scene):gltf.scene.clone(true);
@@ -1777,18 +1791,16 @@ function loadOnlyGunFromPlayer(){
       clone.traverse(o=>{if(isGunNode(o))gun=o;});
       if(!gun)throw new Error('Gun mesh not found in player.glb');
       clone.traverse(o=>{if(o.isMesh||o.isSkinnedMesh){o.castShadow=false;o.receiveShadow=false;o.frustumCulled=false;if(o!==gun)o.visible=false;}});
-      // Keep the complete skeleton alive so the gun's skin joint (model_001.001_0102) animates.
       clone.position.set(0.63,-0.36,0.12);clone.rotation.set(0,0,0);clone.scale.setScalar(1.0);
       gunRoot.add(clone);
       fpGun.root=gunRoot;fpGun.clone=clone;fpGun.gun=gun;fpGun.ready=true;
       if(gltf.animations&&gltf.animations.length){
-        // The source asset has several full-body clips; use the longest authored motion as the continuous gun motion base.
         const clip=gltf.animations.reduce((a,b)=>a.duration>b.duration?a:b);
         fpGun.mixer=new THREE.AnimationMixer(clone);fpGun.anim=fpGun.mixer.clipAction(clip);fpGun.anim.play();fpGun.anim.setEffectiveWeight(1);fpGun.anim.setLoop(THREE.LoopRepeat,Infinity);
       }
       clone.updateMatrixWorld(true);
       const wp=new THREE.Vector3();gun.getWorldPosition(wp);fpGun.basePos.copy(clone.position);fpGun.baseRot.copy(clone.rotation);
-      console.log('[FP] integrated player.glb gun mounted');
+      console.log('[FP] integrated player.glb gun mounted from shared buffer');
     },e=>console.warn('[FP] player.glb parse error',e));
   }).catch(e=>console.warn('[FP] integrated gun not loaded:',e.message));
 }
@@ -2129,7 +2141,7 @@ function requestLock(first){if(isMobile){fallback=true;starting=false;syncPause(
   };
   lockRetry=setTimeout(retry,220);}
 function syncPause(){const pz=paused();$('pause').classList.toggle('hidden',!pz);if(pz){$('pauseT').textContent=mode==='multi'?'Paused':'Paused';$('pauseS').textContent='Click resume or press Esc again';}}
-function startGame(m){
+function startGame(m){if(!playerGLBReady){toast(playerGLBFailed?'Player model failed to load.':'Wait for player model to finish loading.','bad');return;}
   initAudio();
   const nm=($('name').value||'').trim().slice(0,14);
   player.name=nm||(m==='multi'?'Player'+(100+((Math.random()*900)|0)):'You');
@@ -2173,6 +2185,7 @@ function hideAdminPrompt(){$('adminPrompt').classList.add('hidden');if(state==='
 $('adminOk').addEventListener('click',()=>{const pass=$('adminPass').value;if(!pass){$('adminMsg').textContent='Enter a password.';return;}if(!net.ws||net.ws.readyState!==1){$('adminMsg').textContent='Not connected.';return;}net.ws.send(JSON.stringify({t:adminPromptMode==='teleport'?'teleport':'admin',pass}));$('adminMsg').textContent='Transmitting…';});
 $('adminCancel').addEventListener('click',hideAdminPrompt);
 $('adminPass').addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter'){e.preventDefault();$('adminOk').click();}else if(e.key==='Escape')hideAdminPrompt();});
+$('playSolo').disabled=true;$('playMulti').disabled=true;PLAYER_GLB_PROMISE.then(()=>{if(!playerGLBFailed){$('playSolo').disabled=false;$('playMulti').disabled=false;}}).catch(()=>{});
 $('playSolo').addEventListener('click',()=>startGame('single'));
 $('playMulti').addEventListener('click',()=>startGame('multi'));
 $('leave').addEventListener('click',e=>{e.stopPropagation();leaveMatch();});
