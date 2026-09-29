@@ -1348,13 +1348,15 @@ const VM=(function(){
         if(acts.walk){acts.walk.play();acts.walk.setEffectiveWeight(0);}
         if(acts.run){acts.run.play();acts.run.setEffectiveWeight(0);}
       }
+      const norm=s=>String(s||'').toLowerCase().replace(/^mixamorig:?/,'').replace(/_\d+$/,'');
       const B=names=>{
         for(const n of names){const o=clone.getObjectByName(n);if(o)return o;}
+        const wanted=names.map(norm);
         let found=null;
         clone.traverse(o=>{
           if(found||!(o.isBone||o.type==='Bone'))return;
-          const ln=(o.name||'').toLowerCase();
-          for(const n of names){const cn=String(n).toLowerCase();if(ln===cn||ln.endsWith(cn)){found=o;break;}}
+          const ln=norm(o.name);
+          if(wanted.includes(ln))found=o;
         });
         return found;
       };
