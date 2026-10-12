@@ -1,4 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
+import { handleApi, userByToken } from "./api.js";
+import { POWERS, ECON, isReserved, parseTag, killReward } from "./lib.js";
 
 const MAX_PLAYERS   = 20;
 const DAMAGE_CAP    = 160;
@@ -9,15 +11,14 @@ const ADMIN_NAME    = "NoDeX";
 const ADMIN_RADIUS  = 500;
 
 const WEAPONS = [
-  { pellets:1, dmg:18, head:1.8, range:120, falloff:[30,120,0.5],  minInterval:130  },
-  { pellets:1, dmg:13, head:1.6, range:120, falloff:[25,120,0.5],  minInterval:55   },
-  { pellets:1, dmg:22, head:2.0, range:220, falloff:[45,220,0.6],  minInterval:85   },
-  { pellets:1, dmg:19, head:2.0, range:240, falloff:[50,240,0.6],  minInterval:65   },
-  { pellets:1, dmg:38, head:2.2, range:320, falloff:[80,320,0.7],  minInterval:260  },
-  { pellets:1, dmg:20, head:1.8, range:200, falloff:[40,200,0.55], minInterval:80   },
-  { pellets:9, dmg:13, head:1.5, range:34,  falloff:[6,34,0.12],   minInterval:800  },
-  { pellets:1, dmg:95, head:2.5, range:400, falloff:[400,400,1.0], minInterval:1200 },
+  { pellets:1, dmg:18,  head:1.8, range:120, falloff:[30,120,0.5],  minInterval:120  },   // 0 pistol
+  { pellets:1, dmg:26,  head:2.0, range:220, falloff:[40,220,0.55], minInterval:85   },   // 1 AK-47
+  { pellets:1, dmg:105, head:2.6, range:400, falloff:[400,400,1.0], minInterval:1000 },   // 2 sniper
+  { pellets:8, dmg:15,  head:1.5, range:34,  falloff:[8,24,0.2],    minInterval:600  },   // 3 shotgun
+  { pellets:0, dmg:0,   head:1.0, range:0,   falloff:[1,1,1],       minInterval:900, projectile:true }, // 4 bazooka
 ];
+const BOOM = { bazooka:{ r:5.5, dmg:130, maxDist:300 }, grenade:{ r:4.2, dmg:85, maxDist:60 } };
+const NADE_CD = 11000;
 
 export default {
   async fetch(request, env) {
@@ -29,6 +30,10 @@ export default {
       const arena = url.searchParams.get("arena") || "1";
       const stub = env.ARENA.getByName("arena-" + arena);
       return stub.fetch(request);
+    }
+    if (url.pathname.startsWith("/api/")) {
+      try { return await handleApi(request, env); }
+      catch (e) { return new Response(JSON.stringify({ ok:false, error:"Server error" }), { status:500, headers:{ "content-type":"application/json" } }); }
     }
     if (url.pathname === "/arena-count") {
       const arena = url.searchParams.get("arena") || "1";
@@ -46,6 +51,8 @@ export class Arena extends DurableObject {
     this.boxes = [];
     this.mapReady = false;
     this.chatHistory = [];
+    this.zones = [];
+    this.repeat = new Map();
     for (const ws of this.ctx.getWebSockets()) {
       const att = ws.deserializeAttachment();
       if (att) this.sessions.set(ws, att);
@@ -100,6 +107,9 @@ export class Arena extends DurableObject {
       case "admin":    return this.onAdmin(ws, s, msg);
       case "teleport": return this.onTeleport(ws, s, msg);
       case "roster":   return this.onRoster(ws, s);
+      case "power":    return this.onPower(ws, s, msg);
+      case "nade":     return this.onNade(ws, s, msg);
+      case "boom":     return this.onBoom(ws, s, msg);
     }
   }
 
@@ -158,17 +168,44 @@ export class Arena extends DurableObject {
         id:o.id, name:o.name, color:o.color,
         x:o.x, y:o.y, z:o.z, yaw:o.yaw,
         hp:o.hp, alive:o.alive?1:0,
-        kills:o.kills, deaths:o.deaths,
+        kills:o.kills, deaths:o.deaths, ...this.meta(o),
       }));
     ws.send(JSON.stringify({ t: "players", list: roster }));
   }
 
-  onJoin(ws, s, msg) {
-    if (s.joined) return;
-    const name = String(msg.name || "Player").slice(0,14).trim() || "Player";
+  meta(o) { return { sv:o.skv|0, sm:o.skm||"classic", col:o.col||null, tag:o.tag||null, pw:o.power||null }; }
+  wsOf(sess) { for (const [w, o] of this.sessions) if (o.id === sess.id) return w; return null; }
 
-    /* Evict any stale session with the same name (a fast reconnect used to
-       leave a ghost of ourselves in the roster with alive:false → red dot). */
+  async onJoin(ws, s, msg) {
+    if (s.joined || s.joining) return;
+    s.joining = true;
+    let user = null;
+    try {
+      if (msg.token && this.env.DB) {
+        user = await userByToken(this.env, String(msg.token));
+        if (!user) ws.send(JSON.stringify({ t:"authfail" }));
+      }
+      let name;
+      if (user) {
+        name = user.UN;
+        s.uid = user.id; s.col = user.COL || null; s.tag = parseTag(user.TAG || ""); s.skv = user.SKV | 0; s.skm = user.SKM || "classic";
+        let owned = []; try { owned = JSON.parse(user.EFFECTS || "[]"); } catch {}
+        s.power = user.POWER && owned.includes("pw_" + user.POWER) && POWERS[user.POWER] ? user.POWER : null;
+      } else {
+        name = String(msg.name || "Player").replace(/[\u0000-\u001f<>]/g, "").slice(0,14).trim() || "Player";
+        let taken = isReserved(name);
+        if (!taken && this.env.DB) {
+          try { taken = !!(await this.env.DB.prepare("SELECT 1 AS x FROM users WHERE UN=?").bind(name).first()); } catch {}
+        }
+        if (taken) name = "Guest" + (1000 + Math.floor(Math.random() * 9000));
+        s.uid = 0; s.col = null; s.tag = null; s.skv = 0; s.skm = "classic"; s.power = null;
+      }
+      this.finishJoin(ws, s, name, msg);
+    } finally { s.joining = false; }
+  }
+
+  finishJoin(ws, s, name, msg) {
+    /* Evict any stale session with the same name (a fast reconnect used to leave a ghost in the roster). */
     const stale = [];
     for (const [ows, o] of this.sessions.entries()) {
       if (ows === ws || o === s) continue;
@@ -181,12 +218,8 @@ export class Arena extends DurableObject {
       this.chatHistory.push({ sys:"leave", name:o.name, t:Date.now() });
       if (this.chatHistory.length > CHAT_HISTORY) this.chatHistory.shift();
     }
-
     const liveCount = [...this.sessions.values()].filter(o => o.joined).length;
-    if (liveCount >= MAX_PLAYERS) {
-      ws.send(JSON.stringify({ t:"error", m:"Arena is full." }));
-      return;
-    }
+    if (liveCount >= MAX_PLAYERS) { ws.send(JSON.stringify({ t:"error", m:"Arena is full." })); return; }
     s.name = name;
     s.color = (msg.color | 0) >>> 0;
     s.joined = true;
@@ -198,21 +231,23 @@ export class Arena extends DurableObject {
         id:o.id, name:o.name, color:o.color,
         x:o.x, y:o.y, z:o.z, yaw:o.yaw,
         hp:o.hp, alive:o.alive?1:0,
-        kills:o.kills, deaths:o.deaths,
+        kills:o.kills, deaths:o.deaths, ...this.meta(o),
       }));
     ws.send(JSON.stringify({ t:"players", list: roster }));
-    this.broadcast({ t:"joined", id:s.id, name:s.name, color:s.color }, ws);
+    ws.send(JSON.stringify({ t:"you", name:s.name, power:s.power, ...this.meta(s) }));
+    this.broadcast({ t:"joined", id:s.id, name:s.name, color:s.color, ...this.meta(s) }, ws);
     this.chatHistory.push({ sys:"join", name:s.name, t:Date.now() });
     if (this.chatHistory.length > CHAT_HISTORY) this.chatHistory.shift();
   }
 
   onState(ws, s, msg) {
+    if (typeof msg.wk === "string" && ["pistol","rifle","sniper","shotgun","bazooka"].includes(msg.wk)) s.wk = msg.wk;
     if (!s.joined) return;
     const now = Date.now();
     const dt = Math.max(0.02, (now - s.lastMove)/1000);
     const dx = (+msg.x||0) - s.x;
     const dz = (+msg.z||0) - s.z;
-    if (s.alive && Math.hypot(dx,dz)/dt > SPRINT_LIMIT*2.2) {
+    if (s.alive && now > (s.dashUntil||0) && Math.hypot(dx,dz)/dt > SPRINT_LIMIT*2.2) {
       ws.send(JSON.stringify({ t:"snap", x:s.x, y:s.y, z:s.z, yaw:s.yaw }));
       return;
     }
@@ -231,14 +266,14 @@ export class Arena extends DurableObject {
       s.spawnedAt = now;
       this.broadcast({
         t:"spawned", id:s.id, name:s.name, color:s.color,
-        x:s.x, y:s.y, z:s.z, yaw:s.yaw,
+        x:s.x, y:s.y, z:s.z, yaw:s.yaw, ...this.meta(s),
       }, ws);
     }
     this.broadcast({
       t:"state", id:s.id, n:s.name, c:s.color,
       x:s.x, y:s.y, z:s.z, yaw:s.yaw, p:s.p,
       hp:s.hp, alive:s.alive?1:0,
-      kills:s.kills, deaths:s.deaths,
+      kills:s.kills, deaths:s.deaths, wk:s.wk,
     }, ws);
   }
 
@@ -249,10 +284,10 @@ export class Arena extends DurableObject {
   }
 
   onSpawn(ws, s) {
-    s.hp = 100; s.alive = true; s.dead = false; s.spawnedAt = Date.now();
+    s.hp = 100; s.alive = true; s.dead = false; s.spawnedAt = Date.now(); s.shieldUntil = 0; s.shieldHp = 0;
     this.broadcast({
       t:"spawned", id:s.id, name:s.name, color:s.color,
-      x:s.x, y:s.y, z:s.z, yaw:s.yaw,
+      x:s.x, y:s.y, z:s.z, yaw:s.yaw, ...this.meta(s),
     }, ws);
   }
 
@@ -278,6 +313,7 @@ export class Arena extends DurableObject {
       w: wi,
     }, ws);
 
+    if (w.projectile) { s.rockets = Math.min(3, (s.rockets||0) + 1); s.lastRocketAt = now; return; }
     const others  = [...this.sessions.values()].filter(o => o !== s && o.joined && o.alive);
     const victims = new Map();
 
@@ -330,27 +366,113 @@ export class Arena extends DurableObject {
     for (const [vid, e] of victims) {
       const victim = [...this.sessions.values()].find(x => x.id === vid);
       if (!victim || !victim.alive) continue;
-      const dmg = Math.min(DAMAGE_CAP, e.dmg);
-      victim.hp -= dmg;
-      if (victim.hp <= 0) {
-        victim.hp = 0;
-        victim.dead = true;
-        victim.alive = false;
-        victim.deaths++;
-        s.kills++;
-        this.broadcast({
-          t:"kill", by:s.id, victim:vid,
-          byName:s.name, victimName:victim.name, hs:e.head?1:0,
-        });
-      } else {
-        const vws = [...this.sessions.entries()].find(([_,x]) => x.id === vid)?.[0];
-        if (vws) {
-          vws.send(JSON.stringify({
-            t:"hit", dmg:Math.round(dmg), from:s.id, hs:e.head?1:0,
-            fromX:round2(s.x), fromZ:round2(s.z),
-          }));
+      this.dealDamage(s, victim, e.dmg, e.head, null);
+    }
+  }
+
+  /* Single place where damage is applied: handles shield absorb, hit notice, kill + coin reward. */
+  dealDamage(attacker, victim, dmg, head, cause) {
+    if (!victim.alive) return;
+    const now = Date.now();
+    if (victim.shieldUntil > now && victim.shieldHp > 0) { const ab = Math.min(victim.shieldHp, dmg); victim.shieldHp -= ab; dmg -= ab; }
+    if (dmg <= 0.01) return;
+    dmg = Math.min(DAMAGE_CAP, dmg);
+    victim.hp -= dmg;
+    if (victim.hp <= 0) { victim.hp = 0; this.registerKill(attacker, victim, head, cause); return; }
+    const vws = this.wsOf(victim);
+    if (vws) vws.send(JSON.stringify({ t:"hit", dmg:Math.round(dmg), from:attacker.id, hs:head?1:0, fromX:round2(attacker.x), fromZ:round2(attacker.z) }));
+  }
+
+  registerKill(killer, victim, head, cause, noCoins) {
+    victim.hp = 0; victim.dead = true; victim.alive = false; victim.deaths++;
+    const real = killer && killer !== victim;
+    if (real) killer.kills++;
+    const m = { t:"kill", by: real ? killer.id : null, victim: victim.id, byName: real ? killer.name : null, victimName: victim.name, hs: head?1:0 };
+    if (cause) m.cause = cause;
+    this.broadcast(m);
+    if (real && !noCoins) this.awardKill(killer, victim).catch(() => {});
+  }
+
+  async awardKill(killer, victim) {
+    if (!killer.uid || !this.env.DB) return;
+    const now = Date.now(), key = killer.uid + ":" + victim.id;
+    let rec = this.repeat.get(key);
+    if (!rec || now - rec.t > ECON.sameVictimWindowMs) rec = { n:0, t:now };
+    const aliveMs = victim.spawnedAt ? now - victim.spawnedAt : 0;
+    const row = await this.env.DB.prepare("SELECT EARN_T,EARN_AMT FROM users WHERE id=?").bind(killer.uid).first();
+    if (!row) return;
+    let t = row.EARN_T, amt = row.EARN_AMT;
+    if (now - t >= 3600000) { t = now; amt = 0; }
+    const reward = killReward({ victimAliveMs: aliveMs, repeats: rec.n, hourAmt: amt });
+    rec.n++; this.repeat.set(key, rec);
+    if (this.repeat.size > 800) for (const [k, v] of this.repeat) if (now - v.t > ECON.sameVictimWindowMs) this.repeat.delete(k);
+    if (reward <= 0) return;
+    await this.env.DB.prepare("UPDATE users SET MONEY=MONEY+?,EARN_T=?,EARN_AMT=? WHERE id=?").bind(reward, t, amt + reward, killer.uid).run();
+    const r = await this.env.DB.prepare("SELECT MONEY FROM users WHERE id=?").bind(killer.uid).first();
+    const kws = this.wsOf(killer);
+    if (kws && r) kws.send(JSON.stringify({ t:"coins", total:r.MONEY, delta:reward, why:"kill" }));
+  }
+
+  /* ---------- powers (all server-validated: ownership, cooldown, effect) ---------- */
+  onPower(ws, s, msg) {
+    if (!s.joined || !s.alive || !s.power) return;
+    const P = POWERS[s.power]; if (!P) return;
+    const now = Date.now();
+    if (now < (s.pwReady || 0) - 600) return;
+    s.pwReady = now + P.cd;
+    this.broadcast({ t:"pw", id:s.id, p:s.power, x:round2(s.x), y:round2(s.y), z:round2(s.z), yaw:round2(s.yaw) }, ws);
+    if (s.power === "heal" || s.power === "poison") {
+      this.zones.push({ kind:s.power, x:s.x, y:s.y, z:s.z, r:P.r, until:now + P.dur, owner:s, P });
+      if (!this.zoneTimer) this.zoneTimer = setInterval(() => this.tickZones(), 1000);
+    } else if (s.power === "dash") {
+      s.dashUntil = now + 800;
+    } else if (s.power === "shield") {
+      s.shieldUntil = now + P.dur; s.shieldHp = P.absorb;
+    }
+  }
+  tickZones() {
+    const now = Date.now();
+    this.zones = this.zones.filter(z => z.until > now);
+    for (const z of this.zones) {
+      for (const [w, o] of this.sessions) {
+        if (!o.joined || !o.alive) continue;
+        if (Math.hypot(o.x - z.x, o.z - z.z) > z.r || Math.abs(o.y - z.y) > 3) continue;
+        if (z.kind === "heal") {
+          const before = o.hp; o.hp = Math.min(100, o.hp + z.P.rate);
+          if (o.hp > before) try { w.send(JSON.stringify({ t:"heal", amt:o.hp - before })); } catch {}
+        } else if (o !== z.owner) {
+          this.dealDamage(z.owner, o, z.P.dmg, false, "poison");
         }
       }
+    }
+    if (!this.zones.length) { clearInterval(this.zoneTimer); this.zoneTimer = null; }
+  }
+
+  /* ---------- grenades & rockets ---------- */
+  onNade(ws, s, msg) {
+    if (!s.joined || !s.alive) return;
+    const now = Date.now();
+    if (now < (s.nadeReady || 0) - 600) return;
+    s.nadeReady = now + NADE_CD; s.nades = 1; s.lastNadeAt = now;
+    const o = [+msg.o[0]||0, +msg.o[1]||0, +msg.o[2]||0], v = [+msg.v[0]||0, +msg.v[1]||0, +msg.v[2]||0];
+    this.broadcast({ t:"nade", id:s.id, o:o.map(round2), v:v.map(round2) }, ws);
+  }
+  onBoom(ws, s, msg) {
+    if (!s.joined) return;
+    const k = msg.k, B = BOOM[k]; if (!B) return;
+    const now = Date.now();
+    if (k === "bazooka") { if (!(s.rockets > 0) || now - (s.lastRocketAt||0) > 9000) return; s.rockets--; }
+    else { if (!(s.nades > 0) || now - (s.lastNadeAt||0) > 5000) return; s.nades--; }
+    const x = +msg.x, y = +msg.y, z = +msg.z;
+    if (![x, y, z].every(Number.isFinite)) return;
+    if (Math.hypot(x - s.x, z - s.z) > B.maxDist) return;
+    this.broadcast({ t:"boom", k, x:round2(x), y:round2(y), z:round2(z) }, ws);
+    for (const o of this.sessions.values()) {
+      if (o === s || !o.joined || !o.alive) continue;
+      const tx = o.x - x, ty = (o.y + 0.9) - y, tz = o.z - z, d = Math.hypot(tx, ty, tz);
+      if (d > B.r) continue;
+      if (d > 0.5 && this.rayWorld(x, y + 0.3, z, tx/d, (ty - 0.3)/d, tz/d, d) < d - 0.3) continue;
+      this.dealDamage(s, o, B.dmg * (1 - d / B.r), false, k === "bazooka" ? "explosion" : "grenade");
     }
   }
 
@@ -361,10 +483,10 @@ export class Arena extends DurableObject {
     s.lastChat = now;
     const text = String(msg.m || "").slice(0,180).trim();
     if (!text) return;
-    const entry = { name:s.name, m:text, t:now };
+    const entry = { name:s.name, m:text, t:now, col:s.col||null, tag:s.tag||null };
     this.chatHistory.push(entry);
     if (this.chatHistory.length > CHAT_HISTORY) this.chatHistory.shift();
-    this.broadcast({ t:"chat", name:s.name, m:text, ts:now });
+    this.broadcast({ t:"chat", name:s.name, m:text, ts:now, col:s.col||null, tag:s.tag||null });
   }
 
   onAdmin(ws, s, msg) {

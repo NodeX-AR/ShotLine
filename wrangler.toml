@@ -16,6 +16,11 @@ bindings = [
 tag = "v1"
 new_sqlite_classes = ["Arena"]
 
+[[d1_databases]]
+binding = "DB"
+database_name = "shotline-db"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"   # wrangler d1 create shotline-db
+
 [observability]
 enabled = true
 

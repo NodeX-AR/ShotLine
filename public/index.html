@@ -126,6 +126,38 @@ kbd{
   user-select:none;
 }
 .wordmark i{font-style:normal;color:var(--accent);text-shadow:0 8px 60px rgba(0,0,0,.6),0 0 40px rgba(255,106,43,.45)}
+/* ---- Animated scope logo (shared by menu wordmark + loading title) ---- */
+.logo .logo-mark{position:relative;display:inline-block;white-space:nowrap}
+.logo-scope{position:relative;display:inline-block;width:.72em;height:.72em;vertical-align:-.06em;margin:0 .01em}
+.logo-scope svg{width:100%;height:100%;display:block;overflow:visible}
+.logo-scope-ring{fill:none;stroke:currentColor;stroke-width:2.1;opacity:.55;animation:logoRingPulse 3.2s ease-in-out infinite}
+.logo-scope-cross{stroke:var(--accent);stroke-width:2;stroke-linecap:round;transform-origin:16px 16px;animation:logoCrossBreathe 3.2s ease-in-out infinite}
+.logo-scope-dot{fill:var(--accent)}
+@keyframes logoRingPulse{0%,100%{opacity:.4}50%{opacity:.85}}
+@keyframes logoCrossBreathe{0%,100%{transform:scale(1)}50%{transform:scale(.88)}}
+.logo-tracer{
+  position:absolute;top:52%;left:-18%;width:22%;height:2px;
+  background:linear-gradient(90deg,rgba(255,255,255,0) 0%,var(--accent) 40%,#fff 50%,var(--accent) 60%,rgba(255,255,255,0) 100%);
+  filter:blur(.4px);opacity:0;transform:translateY(-50%);pointer-events:none;
+  mix-blend-mode:screen;border-radius:2px;
+  animation:logoTracerSweep 5.5s cubic-bezier(.4,0,.2,1) infinite;
+}
+@keyframes logoTracerSweep{
+  0%{left:-18%;opacity:0}
+  6%{opacity:1}
+  46%{opacity:1}
+  52%{opacity:0}
+  100%{left:118%;opacity:0}
+}
+.logo .logo-scope{animation:logoScopeFlash 5.5s ease-in-out infinite}
+@keyframes logoScopeFlash{
+  0%,32%,46%,100%{filter:none}
+  39%{filter:drop-shadow(0 0 7px var(--accent)) brightness(1.7)}
+}
+@media (prefers-reduced-motion:reduce){
+  .logo-tracer,.logo-scope,.logo-scope-ring,.logo-scope-cross{animation:none!important;opacity:0}
+  .logo-scope-ring{opacity:.6!important}
+}
 .lede{
   margin:14px auto 22px;
   color:var(--dim);
@@ -263,6 +295,7 @@ kbd{
   animation:lspin .9s linear infinite;
 }
 @keyframes lspin{to{transform:rotate(360deg)}}
+#loading.late .l-spin{border-top-color:#ff9b5a;animation-duration:.6s}
 #loading .l-msg{
   font-size:12px;letter-spacing:.2em;text-transform:uppercase;
   color:var(--accent);min-height:1em;text-align:center;font-weight:600;
@@ -276,16 +309,44 @@ kbd{
   display:block;height:100%;width:0%;
   background:linear-gradient(90deg,var(--accent),#ff9b5a);
   border-radius:2px;
-  animation:lfill 6s ease-out forwards;
+  transition:width .35s cubic-bezier(.4,0,.2,1);
 }
-@keyframes lfill{
-  0%{width:2%}15%{width:18%}35%{width:38%}
-  55%{width:55%}75%{width:72%}100%{width:92%}
-}
-#loading.late .l-bar i{animation-duration:12s}
 #loading .l-sub{
   font-size:11.5px;color:var(--dim);
   max-width:38ch;text-align:center;line-height:1.6;opacity:.75;
+}
+#loading .l-steps{
+  display:flex;flex-wrap:wrap;justify-content:center;gap:7px;
+  list-style:none;margin:0;padding:0;max-width:min(360px,86vw);
+}
+#loading .l-steps li{
+  font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;
+  color:var(--dim);background:rgba(190,225,240,.07);
+  border:1px solid rgba(190,225,240,.16);border-radius:20px;
+  padding:5px 11px 5px 9px;display:flex;align-items:center;gap:5px;
+  transition:color .3s ease,background .3s ease,border-color .3s ease,transform .3s ease;
+}
+#loading .l-steps li i{
+  width:6px;height:6px;border-radius:50%;flex:none;
+  background:rgba(190,225,240,.35);
+  transition:background .3s ease,box-shadow .3s ease;
+}
+#loading .l-steps li.ok{color:var(--text);background:rgba(255,106,43,.12);border-color:rgba(255,106,43,.5);transform:translateY(-1px)}
+#loading .l-steps li.ok i{background:var(--accent);box-shadow:0 0 8px rgba(255,106,43,.85)}
+@media (max-height:640px){
+  #loading{gap:14px}
+  #loading .l-title{font-size:clamp(32px,7vw,56px)}
+  #loading .l-spin{width:38px;height:38px}
+  #loading .l-sub{display:none}
+}
+@media (max-height:420px){
+  #loading{gap:9px;padding:14px}
+  #loading .l-title{font-size:clamp(24px,6vw,40px)}
+  #loading .l-spin{width:28px;height:28px;border-width:2.5px}
+  #loading .l-msg{font-size:10px}
+  #loading .l-bar{width:min(200px,60vw)}
+  #loading .l-steps{gap:5px;max-width:94vw}
+  #loading .l-steps li{font-size:9px;padding:4px 8px 4px 7px}
 }
 
 /* ---- 5. Rotate overlay -------------------------------------------------- */
@@ -322,22 +383,6 @@ kbd{
 }
 
 #hud{position:fixed;inset:0;pointer-events:none;z-index:10}
-
-#radarWrap{
-  position:absolute;
-  left:max(18px,env(safe-area-inset-left));
-  top:max(18px,env(safe-area-inset-top));
-  width:150px;
-}
-#radar{
-  display:block;width:150px;height:150px;
-  border-radius:50%;border:2px solid var(--line);
-  box-shadow:var(--shadow-md);
-}
-#radarWrap p{
-  margin-top:8px;font-size:12px;color:#fff;
-  text-shadow:0 1px 3px #000;opacity:.85;line-height:1.5;
-}
 
 #topbar{
   position:absolute;left:50%;
@@ -484,6 +529,12 @@ kbd{
   font-size:14px;color:var(--accent);
   height:18px;text-shadow:0 1px 3px #000;font-weight:600;
 }
+#nadecd{
+  font-size:11px;color:var(--dim);
+  text-shadow:0 1px 3px #000;font-weight:600;
+  min-height:14px;
+}
+#nadecd.ready{color:#e0a83c}
 #wslots{
   display:flex;flex-wrap:wrap;gap:5px;margin-top:4px;
   justify-content:flex-end;max-width:380px;
@@ -693,13 +744,19 @@ body.touch{touch-action:none;-webkit-touch-callout:none}
   pointer-events:none;will-change:transform;
 }
 
-#mTopRight{
+#mTopLeft{
   position:absolute;
-  right:14px;top:max(14px,env(safe-area-inset-top));
+  left:14px;top:max(14px,env(safe-area-inset-top));
   display:flex;gap:8px;
   pointer-events:none;touch-action:none;z-index:14;
 }
-#mTopRight .mbtn{
+#mTopMid{
+  position:absolute;
+  left:50%;transform:translateX(-50%);top:max(14px,env(safe-area-inset-top));
+  display:flex;gap:8px;
+  pointer-events:none;touch-action:none;z-index:14;
+}
+#mTopLeft .mbtn,#mTopMid .mbtn{
   position:static;width:44px;height:44px;
   font-size:18px;padding:0;border-radius:50%;font-weight:700;
 }
@@ -710,6 +767,7 @@ body.touch{touch-action:none;-webkit-touch-callout:none}
   box-shadow:0 0 12px rgba(255,60,60,.55)!important;
 }
 #mExit.on{background:var(--danger)!important}
+#mBottomRight{display:contents}
 
 .mbtn{
   font:700 10px 'Chakra Petch',sans-serif;
@@ -725,6 +783,12 @@ body.touch{touch-action:none;-webkit-touch-callout:none}
   user-select:none;-webkit-user-select:none;
   box-shadow:0 2px 8px rgba(0,0,0,.4);
   position:absolute;
+}
+.mbtn .micon{
+  width:1.3em;height:1.3em;display:block;flex:none;
+  stroke:currentColor;fill:none;stroke-width:1.9;
+  stroke-linecap:round;stroke-linejoin:round;
+  pointer-events:none;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5));
 }
 
 #mFire{
@@ -758,29 +822,37 @@ body.touch{touch-action:none;-webkit-touch-callout:none}
 }
 #mSprint.on{background:var(--good);color:#08240f;border-color:#fff}
 
+#mNade{
+  right:160px;bottom:max(26px,calc(env(safe-area-inset-bottom) + 6px));
+  width:46px;height:46px;
+  background:rgba(70,55,20,.72);border-color:#e0a83c;font-size:10px;
+}
+#mNade.on{background:#e0a83c;color:#201402;border-color:#fff}
+#mNade.cooling{opacity:.45;filter:grayscale(.6)}
+
 #mWeapons{
   position:absolute;
   right:max(10px,env(safe-area-inset-right));
-  top:50%;transform:translateY(-50%);
-  display:flex;flex-direction:column;gap:5px;
-  pointer-events:none;touch-action:none;
+  top:max(14px,env(safe-area-inset-top));
+  display:flex;flex-direction:row;flex-wrap:wrap;justify-content:flex-end;
+  gap:5px;max-width:230px;
+  pointer-events:none;touch-action:none;z-index:14;
 }
 .mw{
-  font:700 11px 'Chakra Petch',sans-serif;
+  font:700 10px 'Chakra Petch',sans-serif;
   color:var(--text);
   background:rgba(15,25,35,.68);
   border:1.5px solid rgba(190,225,240,.45);
   border-radius:7px;
-  padding:6px 7px;min-width:30px;text-align:center;
+  padding:6px 8px;min-width:36px;text-align:center;
   pointer-events:auto;touch-action:none;
-  text-shadow:0 1px 2px #000;letter-spacing:.04em;
+  text-shadow:0 1px 2px #000;letter-spacing:.03em;
   }
 
 .mw.on{background:var(--accent);color:#1a0d05;border-color:#fff}
 
 /* ---- 9. Media queries --------------------------------------------------- */
 @media (max-width:700px){
-  #radarWrap{transform:scale(.75);transform-origin:top left}
   #feed{max-width:60vw}
   .keys{display:none}
 }
@@ -808,13 +880,11 @@ body.touch{touch-action:none;-webkit-touch-callout:none}
   #mAds{width:42px;height:42px;right:88px;bottom:max(24px,calc(env(safe-area-inset-bottom) + 6px))}
   #mReload{width:38px;height:38px;right:84px;bottom:calc(max(18px,env(safe-area-inset-bottom)) + 70px)}
   #mSprint{width:38px;height:38px;right:22px;bottom:calc(max(18px,env(safe-area-inset-bottom)) + 122px)}
+  #mNade{width:38px;height:38px;right:130px;bottom:max(24px,calc(env(safe-area-inset-bottom) + 6px))}
   .mw{font-size:10px;padding:5px 6px;min-width:26px}
-  #mTopRight .mbtn{width:40px;height:40px;font-size:17px}
+  #mTopLeft .mbtn,#mTopMid .mbtn{width:40px;height:40px;font-size:17px}
 }
 @media (max-width:900px) and (orientation:landscape){
-  #radarWrap{left:6px!important;top:6px!important;width:100px}
-  #radar{width:100px;height:100px}
-  #radarWrap p{font-size:8px;margin-top:3px;opacity:.7}
   #topbar{top:6px;gap:2px}
   #timer{font-size:12px;padding:1px 10px;border-radius:6px}
   #goal{font-size:9px;opacity:.85}
@@ -853,6 +923,44 @@ body.touch{touch-action:none;-webkit-touch-callout:none}
   *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
   #grain{display:none}
 }
+
+/* ---- accounts / shop ---- */
+.acct-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;margin:2px auto 10px;font-weight:600}
+.acct-bar .who{font-size:18px}
+.coins{display:inline-flex;align-items:center;gap:5px;color:#ffc94d}
+.coins svg,#coinsHud svg{width:18px;height:18px;stroke:#ffc94d;fill:rgba(255,201,77,.18);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.chip{font:600 13px 'Chakra Petch',sans-serif;color:var(--text);background:rgba(255,106,43,.16);border:1px solid rgba(255,106,43,.55);border-radius:20px;padding:6px 14px;cursor:pointer}
+.chip.ghost{background:rgba(255,255,255,.06);border-color:var(--line)}
+.chip:disabled{opacity:.45;cursor:default}
+.link-btn{background:none;border:0;color:var(--dim);text-decoration:underline;cursor:pointer;font:inherit;font-size:13px;margin-top:6px}
+.ntag{font-weight:700;margin-right:1px}
+.ngrad{-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;background-size:100% 100%}
+.ngrad.nflow{background-size:200% 100%;animation:nflow 4s linear infinite}
+@keyframes nflow{to{background-position:200% 0}}
+.skin-pick{display:flex;gap:14px;align-items:flex-start;justify-content:center;margin:8px 0}
+.skin-pick canvas{width:48px;height:96px;image-rendering:pixelated;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:8px}
+.reccode{font:700 22px 'Chakra Petch',monospace;letter-spacing:.08em;text-align:center;padding:12px;margin:10px 0;background:rgba(255,255,255,.07);border:1px dashed var(--accent);border-radius:10px;user-select:all}
+.shop-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.shop-item small{display:block;color:var(--dim);font-weight:400;margin-top:2px;max-width:34ch}
+.col-row{display:flex;gap:8px;align-items:center;margin:6px 0}
+.col-row input[type=color]{width:42px;height:34px;border:1px solid var(--line);border-radius:6px;background:none;padding:2px}
+#coinsHud{position:absolute;left:max(18px,env(safe-area-inset-left));top:max(18px,env(safe-area-inset-top));display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:5px 12px;color:#ffc94d;font-weight:700;text-shadow:0 1px 3px #000}
+#coinsHud.pop b{animation:coinpop .5s ease}
+@keyframes coinpop{40%{transform:scale(1.35)}}
+#powerHud{position:absolute;left:max(18px,env(safe-area-inset-left));bottom:max(18px,env(safe-area-inset-bottom));display:flex;align-items:center;gap:10px;color:#fff;text-shadow:0 1px 3px #000}
+#powerHud small{display:block;color:var(--dim)}
+#powerRing{--p:0;--pc:#43e0a0;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--pc) calc(var(--p)*1%),rgba(255,255,255,.12) 0);position:relative}
+#powerRing::after{content:"";position:absolute;inset:4px;border-radius:50%;background:rgba(10,18,26,.9)}
+#powerRing svg{position:relative;z-index:1;width:22px;height:22px;fill:var(--pc);stroke:none}
+#powerHud.ready #powerRing{box-shadow:0 0 14px var(--pc)}
+#pflash{position:fixed;inset:0;pointer-events:none;z-index:12;opacity:0;background:radial-gradient(ellipse at center,transparent 38%,var(--pc,#43e0a0) 140%)}
+#pflash.go{animation:pflash .7s ease-out}
+@keyframes pflash{0%{opacity:.55}100%{opacity:0}}
+.mbtn .micon .f{fill:currentColor;stroke:none}
+#mPower{right:160px;bottom:calc(max(26px,env(safe-area-inset-bottom)) + 62px);width:46px;height:46px;background:rgba(20,50,45,.75);border-color:#43e0a0;overflow:hidden}
+#mPower::before{content:"";position:absolute;inset:0;background:conic-gradient(rgba(0,0,0,.55) calc(var(--p,0)*1%),transparent 0)}
+#mPower.cooling{filter:grayscale(.5)}
+@media (max-width:900px){#coinsHud{left:68px}#powerHud{display:none}}
 </style>
 </head>
 <body>
@@ -861,10 +969,19 @@ body.touch{touch-action:none;-webkit-touch-callout:none}
      LOADING SCREEN
      ========================================================================== -->
 <div id="loading" role="status" aria-live="polite">
-  <h1 class="l-title">Shot<i>line</i></h1>
+  <h1 class="l-title logo" aria-label="Shotline">
+    <span class="logo-mark" aria-hidden="true">Sh<span class="logo-scope"><svg viewBox="0 0 32 32" aria-hidden="true"><circle class="logo-scope-ring" cx="16" cy="16" r="12.5"/><g class="logo-scope-cross"><line x1="16" y1="2" x2="16" y2="9"/><line x1="16" y1="23" x2="16" y2="30"/><line x1="2" y1="16" x2="9" y2="16"/><line x1="23" y1="16" x2="30" y2="16"/><circle class="logo-scope-dot" cx="16" cy="16" r="1.4"/></g></svg><span class="logo-tracer"></span></span>t<i>line</i></span>
+  </h1>
   <div class="l-spin" aria-hidden="true"></div>
   <div class="l-msg" id="loadingMsg">Booting engine</div>
   <div class="l-bar" aria-hidden="true"><i id="loadingFill"></i></div>
+  <ul class="l-steps" id="loadingSteps" aria-hidden="true">
+    <li data-k="map"><i></i>Map</li>
+    <li data-k="player"><i></i>Soldier</li>
+    <li data-k="pistol"><i></i>Pistol</li>
+    <li data-k="rifle"><i></i>Rifle</li>
+    <li data-k="sniper"><i></i>Sniper</li>
+  </ul>
   <p class="l-sub">Preparing the arena — colliders, spawn points, and soldiers are loading.</p>
 </div>
 
@@ -892,14 +1009,11 @@ body.touch{touch-action:none;-webkit-touch-callout:none}
      ========================================================================== -->
 <div id="hud" class="hidden" role="application">
 
+  <div id="coinsHud" class="hidden"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h4a1.8 1.8 0 0 1 0 3.6h-3a1.8 1.8 0 0 0 0 3.6h4.2"/></svg><b id="coinsHudNum">0</b></div>
+  <div id="powerHud" class="hidden"><div id="powerRing"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.2 6.3L21 12l-6.8 2.7L12 21l-2.2-6.3L3 12l6.8-2.7z"/></svg></div><div><b id="powerName">Power</b><small id="powerKey">Q</small></div></div>
+  <div id="pflash" aria-hidden="true"></div>
   <!-- Damage vignette -->
   <div id="vig" aria-hidden="true"></div>
-
-  <!-- Radar -->
-  <div id="radarWrap" aria-hidden="true">
-    <canvas id="radar" width="150" height="150"></canvas>
-    <p>Hold <kbd>Tab</kbd> · <kbd>Enter</kbd> to chat</p>
-  </div>
 
   <!-- Timer + objective -->
   <div id="topbar" aria-hidden="true">
@@ -944,9 +1058,9 @@ body.touch{touch-action:none;-webkit-touch-callout:none}
     <div id="wname">R-9 Pistol</div>
     <div id="mag">15</div>
     <div id="reloadmsg"></div>
+    <div id="nadecd"></div>
     <div id="wslots">
-      <span class="on">1 Pistol</span><span>2 SMG</span><span>3 Rifle</span><span>4 Bullpup</span>
-      <span>5 DMR</span><span>6 LMG</span><span>7 Shotgun</span><span>8 Sniper</span>
+      <span class="on">1 Pistol</span><span>2 AK-47</span><span>3 Sniper</span><span>4 Shotgun</span><span>5 Bazooka</span>
     </div>
   </div>
 </div>
@@ -1005,15 +1119,73 @@ body.touch{touch-action:none;-webkit-touch-callout:none}
 </div>
 
 <!-- ==========================================================================
+     ACCOUNT GATE: Log in / Sign up / Play as guest
+     ========================================================================== -->
+<div id="auth" class="screen">
+  <h1 class="wordmark logo" aria-label="Shotline">
+    <span class="logo-mark" aria-hidden="true">Sh<span class="logo-scope"><svg viewBox="0 0 32 32" aria-hidden="true"><circle class="logo-scope-ring" cx="16" cy="16" r="12.5"/><g class="logo-scope-cross"><line x1="16" y1="2" x2="16" y2="9"/><line x1="16" y1="23" x2="16" y2="30"/><line x1="2" y1="16" x2="9" y2="16"/><line x1="23" y1="16" x2="30" y2="16"/><circle class="logo-scope-dot" cx="16" cy="16" r="1.4"/></g></svg><span class="logo-tracer"></span></span>t<i>line</i></span>
+  </h1>
+  <p class="lede">Log in to keep your coins, skin and unlocks. Or jump straight in as a guest.</p>
+  <div class="card">
+    <div id="authChoice">
+      <button id="authLoginBtn" class="btn">Log in</button>
+      <button id="authSignupBtn" class="btn ghost">Sign up</button>
+      <button id="authGuestBtn" class="btn ghost">Play as guest</button>
+      <p class="modes">Guests can play but can't earn coins, upload a skin or use the shop.</p>
+    </div>
+    <form id="authLoginForm" class="hidden" autocomplete="on">
+      <label class="field">Username<input id="liUn" type="text" maxlength="14" autocomplete="username" spellcheck="false"></label>
+      <label class="field">Password<input id="liPw" type="password" maxlength="64" autocomplete="current-password"></label>
+      <button class="btn" type="submit">Log in</button>
+      <button class="btn ghost" type="button" data-auth-back>Back</button>
+      <button class="link-btn" type="button" id="authForgot">Forgot password?</button>
+    </form>
+    <form id="authSignupForm" class="hidden" autocomplete="on">
+      <label class="field">Username <small>3–14 letters, numbers, _</small><input id="suUn" type="text" maxlength="14" autocomplete="username" spellcheck="false"></label>
+      <label class="field">Password <small>6+ characters</small><input id="suPw" type="password" maxlength="64" autocomplete="new-password"></label>
+      <label class="field">Repeat password<input id="suPw2" type="password" maxlength="64" autocomplete="new-password"></label>
+      <div class="skin-pick">
+        <canvas id="suPrev" width="96" height="192" aria-label="Skin preview"></canvas>
+        <div>
+          <label class="field">Skin (optional)<small>Minecraft 64×64 PNG</small><input id="suSkin" type="file" accept="image/png"></label>
+          <label class="toggle-row"><span>Slim arms (Alex style)</span><input id="suSlim" type="checkbox"></label>
+        </div>
+      </div>
+      <button class="btn" type="submit">Create account</button>
+      <button class="btn ghost" type="button" data-auth-back>Back</button>
+    </form>
+    <form id="authResetForm" class="hidden" autocomplete="off">
+      <label class="field">Username<input id="rsUn" type="text" maxlength="14" spellcheck="false"></label>
+      <label class="field">Recovery code<input id="rsCode" type="text" maxlength="24" spellcheck="false" placeholder="XXXX-XXXX-XXXX-XXXX"></label>
+      <label class="field">New password<input id="rsPw" type="password" maxlength="64" autocomplete="new-password"></label>
+      <button class="btn" type="submit">Reset password</button>
+      <button class="btn ghost" type="button" data-auth-back>Back</button>
+    </form>
+    <div id="authRecovery" class="hidden">
+      <h3 style="margin:0 0 6px">Save your recovery code</h3>
+      <p class="modes">There is no email reset. This code is the only way to get back in if you forget your password. It is shown once.</p>
+      <div id="recCode" class="reccode"></div>
+      <button id="recDone" class="btn">I saved it — continue</button>
+    </div>
+    <p class="note" id="authMsg" role="status"></p>
+  </div>
+</div>
+
+<!-- ==========================================================================
      MAIN MENU
      ========================================================================== -->
-<div id="menu" class="screen">
+<div id="menu" class="screen hidden">
 
-  <h1 class="wordmark">Shot<i>line</i></h1>
+  <h1 class="wordmark logo" aria-label="Shotline">
+    <span class="logo-mark" aria-hidden="true">Sh<span class="logo-scope"><svg viewBox="0 0 32 32" aria-hidden="true"><circle class="logo-scope-ring" cx="16" cy="16" r="12.5"/><g class="logo-scope-cross"><line x1="16" y1="2" x2="16" y2="9"/><line x1="16" y1="23" x2="16" y2="30"/><line x1="2" y1="16" x2="9" y2="16"/><line x1="23" y1="16" x2="30" y2="16"/><circle class="logo-scope-dot" cx="16" cy="16" r="1.4"/></g></svg><span class="logo-tracer"></span></span>t<i>line</i></span>
+  </h1>
   <p class="lede">A fallen city. Tight alleys, collapsed towers, snipers on the rooftops. Drop in.</p>
+
+  <div id="acctBar" class="acct-bar"></div>
 
   <nav class="menu-tabs" role="tablist">
     <button class="tab-btn active" data-tab="play"     role="tab" aria-selected="true">Play</button>
+    <button class="tab-btn"        data-tab="shop"     role="tab" aria-selected="false">Shop</button>
     <button class="tab-btn"        data-tab="settings" role="tab" aria-selected="false">Settings</button>
     <button class="tab-btn"        data-tab="controls" role="tab" aria-selected="false">Controls</button>
     <button class="tab-btn"        data-tab="keys"     role="tab" aria-selected="false">Keys</button>
@@ -1028,11 +1200,46 @@ body.touch{touch-action:none;-webkit-touch-callout:none}
       </label>
       <button id="playMulti" class="btn">Play online</button>
       <button id="playSolo"  class="btn ghost">Single player</button>
+      <label class="field">Power <small>single player practice</small>
+        <select id="spPower"><option value="">None</option><option value="heal">Healing Ring</option><option value="poison">Poison Ring</option><option value="dash">Dash</option><option value="shield">Shield Pulse</option></select>
+      </label>
+      <p class="modes" id="mpPower"></p>
       <p class="modes">
         <b>Play online</b> — real players only.<br>
         <b>Single player</b> — offline practice vs bots.
       </p>
       <p class="note" id="menumsg" role="status"></p>
+    </div>
+  </section>
+
+  <!-- SHOP / PROFILE -->
+  <section class="tab-panel hidden" data-tab="shop">
+    <div class="card" id="shopGuest"><p class="modes">Log in or sign up to earn coins, upload a skin and buy name colours and powers.</p><button class="btn" onclick="ACCT.showAuth()">Log in / Sign up</button></div>
+    <div id="shopBody" class="hidden">
+      <div class="settings-group"><h3>Daily reward</h3>
+        <button id="dailyBtn" class="btn" style="font-size:16px;padding:12px">Claim daily reward</button>
+        <p class="modes" id="dailyInfo"></p>
+        <p class="modes">Earn more: <b>+10 coins per kill</b> in online matches (capped per hour, reduced for repeat kills on the same player).</p>
+      </div>
+      <div class="settings-group"><h3>Skin</h3>
+        <div class="skin-pick">
+          <canvas id="pfPrev" width="96" height="192" aria-label="Skin preview"></canvas>
+          <div>
+            <label class="field">Upload skin<small>Minecraft 64×64 PNG</small><input id="pfSkin" type="file" accept="image/png"></label>
+            <label class="toggle-row"><span>Slim arms (Alex style)</span><input id="pfSlim" type="checkbox"></label>
+            <button id="pfUp" class="btn" style="font-size:16px;padding:10px" disabled>Save skin</button>
+          </div>
+        </div>
+      </div>
+      <div class="settings-group"><h3>Name colour</h3>
+        <p class="modes">Preview: <span id="shopPreview"></span></p>
+        <div id="colSolidRow" class="hidden col-row"><input id="colSolid" type="color" value="#ff8a3d"><button id="colApplySolid" class="chip">Apply solid</button></div>
+        <div id="colGradRow" class="hidden col-row"><input id="colG1" type="color" value="#ff3d6e"><input id="colG2" type="color" value="#4d9bff"><button id="colApplyGrad" class="chip">Apply gradient</button></div>
+        <button id="colClear" class="chip ghost">Reset to white</button>
+      </div>
+      <div class="settings-group"><h3>Unlocks</h3><div id="powerList"></div>
+        <p class="modes">Only one power can be equipped. Powers are permanent and work in online matches; each has a cooldown.</p>
+      </div>
     </div>
   </section>
 
@@ -1203,36 +1410,41 @@ body.touch{touch-action:none;-webkit-touch-callout:none}
      ========================================================================== -->
 <div id="mobileHud" class="hidden">
 
-  <!-- Left-thumb joystick -->
+  <!-- Left-thumb joystick (bottom-left) -->
   <div id="joyZone">
     <div id="joyBase"><div id="joyKnob"></div></div>
   </div>
 
-  <!-- Top-right shortcuts -->
-  <div id="mTopRight">
-    <button class="mbtn" data-act="board" aria-label="Leaderboard" title="Leaderboard">☰</button>
-    <button class="mbtn" data-act="chat"  aria-label="Chat"        title="Chat">✉</button>
-    <button id="mExit"   class="mbtn" data-act="exit" aria-label="Pause"  title="Pause">✕</button>
+  <!-- Top-left: pause/exit -->
+  <div id="mTopLeft">
+    <button id="mExit"   class="mbtn" data-act="exit" aria-label="Pause"  title="Pause"><svg class="micon" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   </div>
 
-  <!-- Right-edge weapon strip -->
+  <!-- Top-middle: chat + leaderboard -->
+  <div id="mTopMid">
+    <button class="mbtn" data-act="chat"  aria-label="Chat"        title="Chat"><svg class="micon" viewBox="0 0 24 24"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7A2.5 2.5 0 0 1 17.5 16H10l-4.2 3.2c-.5.4-1.3 0-1.3-.6V16h-.5A2.5 2.5 0 0 1 2 13.5"/><path d="M4 13.5v-7A2.5 2.5 0 0 1 6.5 4"/></svg></button>
+    <button class="mbtn" data-act="board" aria-label="Leaderboard" title="Leaderboard"><svg class="micon" viewBox="0 0 24 24"><path d="M5 19V13"/><path d="M12 19V8"/><path d="M19 19V5"/></svg></button>
+  </div>
+
+  <!-- Top-right: weapon selection -->
   <div id="mWeapons">
-    <button class="mw" id="mw0" data-w="0">1</button>
-    <button class="mw" id="mw1" data-w="1">2</button>
-    <button class="mw" id="mw2" data-w="2">3</button>
-    <button class="mw" id="mw3" data-w="3">4</button>
-    <button class="mw" id="mw4" data-w="4">5</button>
-    <button class="mw" id="mw5" data-w="5">6</button>
-    <button class="mw" id="mw6" data-w="6">7</button>
-    <button class="mw" id="mw7" data-w="7">8</button>
+    <button class="mw" id="mw0" data-w="0">PIS</button>
+    <button class="mw" id="mw1" data-w="1">AK</button>
+    <button class="mw" id="mw2" data-w="2">SNP</button>
+    <button class="mw" id="mw3" data-w="3">SG</button>
+    <button class="mw" id="mw4" data-w="4">RPG</button>
   </div>
 
-  <!-- Action buttons -->
-  <button id="mFire"   class="mbtn" data-act="fire"   aria-label="Fire" title="Fire">✛</button>
-  <button id="mAds"    class="mbtn" data-act="ads"    aria-label="Aim down sight" title="Aim down sight">◎</button>
-  <button id="mJump"   class="mbtn" data-act="jump"   aria-label="Jump" title="Jump">↑</button>
-  <button id="mReload" class="mbtn" data-act="reload" aria-label="Reload" title="Reload">↻</button>
-  <button id="mSprint" class="mbtn" data-act="sprint" aria-label="Toggle sprint" title="Sprint">»</button>
+  <!-- Bottom-right: action buttons -->
+  <div id="mBottomRight">
+    <button id="mFire"   class="mbtn" data-act="fire"   aria-label="Fire" title="Fire"><svg class="micon" viewBox="0 0 24 24"><path class="f" d="M12 8.6h4.6c1.9 0 3.6 1.5 4.6 3.4-1 1.9-2.7 3.4-4.6 3.4H12z"/><rect class="f" x="8.6" y="8.6" width="2.6" height="6.8" rx=".8"/><path d="M1.6 9.6h4.6M3.4 12h3.2M1.6 14.4h4.6" opacity=".85"/></svg></button>
+    <button id="mAds"    class="mbtn" data-act="ads"    aria-label="Aim down sight" title="Aim down sight"><svg class="micon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2.6"/></svg></button>
+    <button id="mNade"   class="mbtn" data-act="nade"   aria-label="Throw grenade" title="Throw grenade"><svg class="micon" viewBox="0 0 24 24"><ellipse cx="11.5" cy="14.4" rx="5.6" ry="6.2"/><rect class="f" x="9.6" y="4.8" width="3.8" height="3" rx=".7"/><path d="M13.4 5.6c2-.9 3.8-.3 4.6 1"/><circle cx="18.6" cy="8.6" r="1.3"/><path d="M6.7 13.2h9.6M6.4 16h10.2" opacity=".6"/></svg></button>
+    <button id="mPower"  class="mbtn" data-act="power"  aria-label="Use power" title="Use power"><svg class="micon" viewBox="0 0 24 24"><path class="f" d="M12 3l2.2 6.3L21 12l-6.8 2.7L12 21l-2.2-6.3L3 12l6.8-2.7z"/></svg></button>
+    <button id="mJump"   class="mbtn" data-act="jump"   aria-label="Jump" title="Jump"><svg class="micon" viewBox="0 0 24 24"><path d="M12 19V6"/><path d="M6 11l6-6 6 6"/></svg></button>
+    <button id="mReload" class="mbtn" data-act="reload" aria-label="Reload" title="Reload"><svg class="micon" viewBox="0 0 24 24"><path class="f" d="M12 6.4c1.3 1 2 2.3 2 3.6v5.2h-4V10c0-1.3.7-2.6 2-3.6z"/><rect class="f" x="10" y="15.6" width="4" height="2.2" rx=".6"/><path d="M4.95 9.43A7.5 7.5 0 0 1 18.5 8.25"/><path class="f" d="M20.32 7.2L19.8 10.5 16.68 9.3z"/><path d="M19.05 14.57A7.5 7.5 0 0 1 5.5 15.75"/><path class="f" d="M3.68 16.8L4.2 13.5 7.32 14.7z"/></svg></button>
+    <button id="mSprint" class="mbtn" data-act="sprint" aria-label="Toggle sprint" title="Sprint"><svg class="micon" viewBox="0 0 24 24"><path d="M5 6l6 6-6 6"/><path d="M13 6l6 6-6 6"/></svg></button>
+  </div>
 </div>
 
 <!-- ==========================================================================
@@ -1242,6 +1454,7 @@ body.touch{touch-action:none;-webkit-touch-callout:none}
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
 <script src="soldier-gen.js"></script>
+<script src="account.js"></script>
 <script src="map-loader.js"></script>
 <script src="main.js" defer></script>
 
@@ -1249,29 +1462,37 @@ body.touch{touch-action:none;-webkit-touch-callout:none}
 /* ==========================================================================
    LOADING SCREEN CONTROLLER
    --------------------------------------------------------------------------
-   Hides the overlay once the renderer's canvas exists AND main.js has
-   signalled that the world is up (window.MAP_READY). Falls back after 45s
-   so the user is never stuck on a spinner.
+   Hides the overlay once the renderer's canvas exists AND every tracked
+   asset (map, player rig, pistol/rifle/sniper) has actually finished
+   loading via window.ASSET_STATE (set by main.js). The bar and step
+   chips reflect real progress, not a fixed-time fake animation. Falls
+   back after 45s so the user is never stuck on a spinner.
    ========================================================================== */
 (function () {
   var el    = document.getElementById('loading');
   if (!el) return;
 
-  var msg   = document.getElementById('loadingMsg');
-  var fill  = document.getElementById('loadingFill');
-  var start = performance.now();
-  var done  = false;
+  var msg    = document.getElementById('loadingMsg');
+  var fill   = document.getElementById('loadingFill');
+  var steps  = document.getElementById('loadingSteps');
+  var chips  = steps ? steps.querySelectorAll('li') : [];
+  var ORDER  = ['map','player','pistol','rifle','sniper'];
+  var LABEL  = {map:'Loading map',player:'Loading soldier',pistol:'Loading pistol',rifle:'Loading rifle',sniper:'Loading sniper'};
+  var done   = false;
+  var shown  = 0; // smoothed displayed percent, only moves forward
 
   function setMsg(m) { if (msg && m) msg.textContent = m; }
+
+  function setPct(p) {
+    if (p < shown) return;
+    shown = p;
+    if (fill) fill.style.width = shown + '%';
+  }
 
   function finish() {
     if (done) return;
     done = true;
-    if (fill) {
-      fill.style.animation = 'none';
-      fill.style.transition = 'width .25s ease';
-      fill.style.width = '100%';
-    }
+    setPct(100);
     setMsg('Ready');
     setTimeout(function () {
       el.classList.add('done');
@@ -1282,14 +1503,28 @@ body.touch{touch-action:none;-webkit-touch-callout:none}
   setTimeout(function () { if (el.parentNode) el.classList.add('late'); }, 4000);
 
   var iv = setInterval(function () {
-    var canvas   = document.querySelector('#game canvas');
-    var mapReady = !!window.MAP_READY;
+    var canvas = document.querySelector('#game canvas');
+    var state  = window.ASSET_STATE || {};
 
-    if (!canvas)        { setMsg('Booting engine'); return; }
-    if (!mapReady)      { setMsg('Loading map');    return; }
+    if (!canvas) { setMsg('Booting engine'); setPct(4); return; }
 
-    clearInterval(iv);
-    finish();
+    var okCount = 0, nextLabel = null;
+    for (var i = 0; i < ORDER.length; i++) {
+      var k = ORDER[i], on = !!state[k];
+      if (on) okCount++;
+      else if (!nextLabel) nextLabel = LABEL[k];
+      var chip = chips[i];
+      if (chip) chip.classList.toggle('ok', on);
+    }
+
+    var pct = 8 + Math.round((okCount / ORDER.length) * 90);
+    setPct(pct);
+    setMsg(nextLabel || 'Finishing up');
+
+    if (okCount === ORDER.length) {
+      clearInterval(iv);
+      finish();
+    }
   }, 80);
 
   /* Absolute safety net */
