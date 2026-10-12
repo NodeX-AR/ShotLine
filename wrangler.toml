@@ -1,4 +1,4 @@
-name = "shotline-arena"
+name = "shotline"
 main = "src/index.js"
 compatibility_date = "2025-04-01"
 compatibility_flags = ["nodejs_compat"]
