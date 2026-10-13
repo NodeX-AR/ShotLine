@@ -3347,11 +3347,11 @@ if(isMobile)document.body.classList.add('touch');
   if(isMobile){
     if(pc)pc.style.display='none';
     if(tc)tc.style.display='flex';
-    if(keysTabBtn)keysTabBtn.textContent='Touch';
+    if(keysTabBtn){const sp=keysTabBtn.querySelector('span');if(sp)sp.textContent='Touch';else keysTabBtn.textContent='Touch';}
   }else{
     if(pc)pc.style.display='flex';
     if(tc)tc.style.display='none';
-    if(keysTabBtn)keysTabBtn.textContent='Keys';
+    if(keysTabBtn){const sp=keysTabBtn.querySelector('span');if(sp)sp.textContent='Keys';else keysTabBtn.textContent='Keys';}
   }
 })();
 

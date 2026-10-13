@@ -64,19 +64,43 @@ function showAuth(){$('auth').classList.remove('hidden');$('menu').classList.add
 function enterMenu(){$('auth').classList.add('hidden');$('menu').classList.remove('hidden');}
 A.showAuth=showAuth;
 
+const SVGC='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h4a1.8 1.8 0 0 1 0 3.6h-3a1.8 1.8 0 0 0 0 3.6h4.2"/></svg>';
+let skinCache={key:'',cv:null};
+function withSkin(cb){
+  const m=A.me;if(!m){cb(null);return;}const key=m.un+'|'+m.skv+'|'+m.hasSkin;
+  if(skinCache.key===key&&skinCache.cv){cb(skinCache.cv);return;}
+  const done=cv=>{skinCache={key,cv};cb(cv);};
+  if(m.hasSkin){const im=new Image();im.crossOrigin='anonymous';im.onload=()=>{try{done(window.SOLDIER_GEN.normalizeSkin(im));}catch(e){done(window.SOLDIER_GEN.defaultSkin(m.un));}};im.onerror=()=>done(window.SOLDIER_GEN.defaultSkin(m.un));im.src=A.skinUrl(m.un,m.skv);}
+  else done(window.SOLDIER_GEN.defaultSkin(m.un));
+}
+function drawHead(cv,skin){const g=cv.getContext('2d');g.imageSmoothingEnabled=false;g.clearRect(0,0,cv.width,cv.height);if(!skin)return;g.drawImage(skin,8,8,8,8,0,0,cv.width,cv.height);g.drawImage(skin,40,8,8,8,0,0,cv.width,cv.height);}
+function renderOperator(){
+  const el=$('opCard');if(!el)return;const m=A.me;
+  if(!m){el.innerHTML='<div class="eyebrow">Operator</div><div class="op-guest"><b>Guest</b><span>Guests can play, but coins, skins, levels and the shop need an account.</span><button class="chip" id="opLogin">Log in / Sign up</button></div>';
+    const b=$('opLogin');if(b)b.onclick=showAuth;return;}
+  const lv=m.level||1,span=Math.max(1,m.xpNext-m.xpThis),pc=Math.min(100,Math.max(0,(m.xp-m.xpThis)/span*100));
+  const pw={heal:'Healing Ring',poison:'Poison Ring',dash:'Dash',shield:'Shield Pulse',spectral:'Spectral Arrow',frost:'Frost Nova',adrenaline:'Adrenaline'}[m.power]||'None equipped';
+  el.innerHTML='<div class="eyebrow">Operator</div><div class="op-top"><canvas id="opSkin" width="96" height="192" aria-label="Your skin"></canvas><div class="op-info"><div class="op-name">'+A.nameHTML(m.un,m.col,m.tag,lv)+'</div><div class="op-title">'+m.title+' · Level '+lv+'</div><div class="bar"><i style="width:'+pc.toFixed(1)+'%;background:linear-gradient(90deg,var(--accent),var(--gold))"></i></div><small>'+Math.max(0,m.xpNext-m.xp).toLocaleString()+' XP to level '+(lv+1)+'</small></div></div>'+
+   '<div class="op-stats"><div><b>'+(m.kills||0).toLocaleString()+'</b><span>Kills</span></div><div><b>'+fmtTime(m.playsec||0)+'</b><span>Played</span></div><div><b>'+m.money.toLocaleString()+'</b><span>Coins</span></div></div>'+
+   '<div class="op-load"><div class="lo"><span>Power</span><b>'+pw+'</b></div><div class="lo"><span>Drone</span><b>'+((m.items||[]).includes('pet_buddy')?'Ready':'Not owned')+'</b></div></div>'+
+   '<button class="chip" id="opShop">Open shop &amp; profile</button>';
+  const sb=$('opShop');if(sb)sb.onclick=()=>{const t=document.querySelector('.tab-btn[data-tab="shop"]');if(t)t.click();};
+  withSkin(cv=>{const c=$('opSkin');if(c)drawPreview(c,cv);});
+}
 function renderBar(){
   const bar=$('acctBar');if(!bar)return;const m=A.me,nm=$('name');
   if(!m){bar.innerHTML='<span class="who">Guest</span><button class="chip" id="barLogin">Log in / Sign up</button>';
-    const b=$('barLogin');if(b)b.onclick=showAuth;if(nm){nm.readOnly=false;}return;}
-  bar.innerHTML='<span class="who">'+A.nameHTML(m.un,m.col,m.tag,m.level)+'</span>'+
-    '<span class="coins"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h4a1.8 1.8 0 0 1 0 3.6h-3a1.8 1.8 0 0 0 0 3.6h4.2"/></svg><b id="coinNum">'+m.money.toLocaleString()+'</b></span>'+
-    '<button class="chip" id="barShop">Shop</button><button class="chip ghost" id="barOut">Log out</button>';
-  $('barShop').onclick=()=>{const t=document.querySelector('.tab-btn[data-tab="shop"]');if(t)t.click();};
+    const b=$('barLogin');if(b)b.onclick=showAuth;if(nm){nm.readOnly=false;}renderOperator();return;}
+  bar.innerHTML='<canvas class="av" id="barAv" width="32" height="32" aria-hidden="true"></canvas><span class="who">'+A.nameHTML(m.un,m.col,m.tag,m.level)+'</span>'+
+    '<span class="coins">'+SVGC+'<b id="coinNum">'+m.money.toLocaleString()+'</b></span>'+
+    '<button class="chip ghost" id="barOut">Log out</button>';
   $('barOut').onclick=A.logout;
   if(nm){nm.value=m.un;nm.readOnly=true;}
-  const mp=$('mpPower');if(mp)mp.textContent=m.power?('Online power: '+({heal:'Healing Ring',poison:'Poison Ring',dash:'Dash',shield:'Shield Pulse'}[m.power]||m.power)):'Online power: none equipped (see Shop)';
+  const mp=$('mpPower');if(mp)mp.textContent=m.power?('Online power: '+({heal:'Healing Ring',poison:'Poison Ring',dash:'Dash',shield:'Shield Pulse',spectral:'Spectral Arrow',frost:'Frost Nova',adrenaline:'Adrenaline'}[m.power]||m.power)):'Online power: none equipped (see Shop)';
+  withSkin(cv=>{const c=$('barAv');if(c)drawHead(c,cv);});
+  renderOperator();
 }
-A.setCoins=function(total){if(A.me){A.me.money=total;const n=$('coinNum');if(n)n.textContent=total.toLocaleString();renderShop();}};
+A.setCoins=function(total){if(A.me){A.me.money=total;const n=$('coinNum');if(n)n.textContent=total.toLocaleString();renderShop();renderOperator();}};
 
 /* ---------- skin picker (shared by sign-up and profile) ---------- */
 function drawPreview(cv,skin){
@@ -138,7 +162,7 @@ async function loadBoard(by){
   const j=await api('leaderboard?by='+lbBy);
   if(!j.ok){L.innerHTML='<p class="modes">Leaderboard unavailable right now.</p>';return;}
   if(!j.list.length){L.innerHTML='<p class="modes">No ranked players yet — be the first.</p>';}
-  else L.innerHTML=j.list.map(r=>'<div class="r'+(A.me&&A.me.un===r.un?' me':'')+'"><span class="rk">'+r.rank+'</span><span>'+A.nameHTML(r.un,r.col,r.tag,r.level)+'</span><span class="val">'+(lbBy==='time'?fmtTime(r.playsec):r.kills.toLocaleString())+'</span><span class="rk">'+(lbBy==='time'?'':'kills')+'</span></div>').join('');
+  else L.innerHTML=j.list.map(r=>'<div class="r'+(r.rank<=3?' p'+r.rank:'')+(A.me&&A.me.un===r.un?' me':'')+'"><span class="rk">'+r.rank+'</span><span>'+A.nameHTML(r.un,r.col,r.tag,r.level)+'</span><span class="val">'+(lbBy==='time'?fmtTime(r.playsec):r.kills.toLocaleString())+'</span><span class="rk">'+(lbBy==='time'?'':'kills')+'</span></div>').join('');
   const me=$('lbMe');me.textContent=j.me?('You: #'+j.me.rank+' · level '+j.me.level+' · '+j.me.kills.toLocaleString()+' kills · '+fmtTime(j.me.playsec)):(A.me?'':'Log in to see your rank.');
 }
 async function setColor(c){const j=await api('color',{color:c});if(!j.ok){if(A.notify)A.notify(j.error||'Could not set colour');return;}A.me=j.me;renderBar();renderShop();changed();}
@@ -161,6 +185,7 @@ const SHOP=[
 ];
 const SOLIDS=['#ffffff','#c0c8d0','#ff4d4d','#ff8a3d','#ffc94d','#ffe14d','#a6ff4d','#43e0a0','#2ec4b6','#4de3ff','#3a8dff','#8a5cff','#b06cff','#ff7ac8','#ff3d9a','#e0e0ff'];
 const GRADS=[['#ff3d6e','#ffb347'],['#ff8a3d','#ffe14d'],['#43e0a0','#4de3ff'],['#4de3ff','#b06cff'],['#b06cff','#ff7ac8'],['#ff4d4d','#ffc94d'],['#a6ff4d','#2ec4b6'],['#3a8dff','#43e0a0'],['#ffe14d','#ff3d9a'],['#ffffff','#4d9bff']];
+const IC={col_solid:'<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/>',col_grad:'<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/><path d="M6.5 14h11"/>',pw_heal:'<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',pw_poison:'<path d="M12 3c4 0 7 3 7 7 0 2-1 3.5-2 4.5V18H7v-3.5C6 13.5 5 12 5 10c0-4 3-7 7-7z"/><circle cx="9.5" cy="11" r="1"/><circle cx="14.5" cy="11" r="1"/>',pw_dash:'<path d="M5 6l6 6-6 6M13 6l6 6-6 6"/>',pw_shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>',pw_spectral:'<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',pw_frost:'<path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9"/>',pw_adrenaline:'<path d="M13 2L5 14h6l-1 8 8-12h-6z"/>',pet_buddy:'<circle cx="12" cy="12" r="4"/><path d="M3 12h3M18 12h3M12 3v3M12 18v3"/>'};
 let pick=null;   // currently previewed colour string
 function fmtTime(s){const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return h?h+'h '+m+'m':m+'m';}
 function previewName(){
@@ -191,7 +216,8 @@ function renderShop(){
   for(const it of SHOP){
     const row=document.createElement('div');row.className='shop-item';
     const has=owned.has(it.id);
-    row.innerHTML='<div><b>'+esc(it.name)+'</b><small>'+esc(it.desc)+'</small></div>';
+    row.className='shop-item'+(has?' owned':'');
+    row.innerHTML='<div class="si-ic"><svg viewBox="0 0 24 24" aria-hidden="true">'+(IC[it.id]||'')+'</svg></div><div class="si-body"><b>'+esc(it.name)+'</b><small>'+esc(it.desc)+'</small></div>';
     const btn=document.createElement('button');btn.className='chip';
     if(!has){btn.textContent=it.price.toLocaleString()+' coins';btn.disabled=m.money<it.price;
       btn.onclick=async()=>{btn.disabled=true;const j=await api('buy',{item:it.id});if(!j.ok){if(A.notify)A.notify(j.error||'Purchase failed');}else{A.me=j.me;if(A.notify)A.notify('Purchased '+it.name);}renderBar();renderShop();changed();};}
@@ -200,8 +226,8 @@ function renderShop(){
     else{btn.textContent='Owned';btn.disabled=true;}
     row.appendChild(btn);L.appendChild(row);
   }
-  drawPreview($('pfPrev'),profileSkin?profileSkin.cv:null);
-  if(!profileSkin&&m.hasSkin){const im=new Image();im.crossOrigin='anonymous';im.onload=()=>{const c=document.createElement('canvas');c.width=c.height=64;c.getContext('2d').drawImage(im,0,0);drawPreview($('pfPrev'),c);};im.src=A.skinUrl(m.un,m.skv);}
+  withSkin(cv=>drawPreview($('pfPrev'),profileSkin?profileSkin.cv:cv));
+  if(false&&!profileSkin&&m.hasSkin){const im=new Image();im.crossOrigin='anonymous';im.onload=()=>{const c=document.createElement('canvas');c.width=c.height=64;c.getContext('2d').drawImage(im,0,0);drawPreview($('pfPrev'),c);};im.src=A.skinUrl(m.un,m.skv);}
 }
 async function init(){
   wire();
