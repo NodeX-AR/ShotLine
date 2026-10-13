@@ -1,6 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 import { handleApi, userByToken } from "./api.js";
-import { POWERS, ECON, isReserved, parseTag, killReward } from "./lib.js";
+import { POWERS, ECON, PET, petPos, levelOf, xpOf, isReserved, parseTag, killReward } from "./lib.js";
 
 const MAX_PLAYERS   = 20;
 const DAMAGE_CAP    = 160;
@@ -16,9 +16,10 @@ const WEAPONS = [
   { pellets:1, dmg:105, head:2.6, range:400, falloff:[400,400,1.0], minInterval:1000 },   // 2 sniper
   { pellets:8, dmg:15,  head:1.5, range:34,  falloff:[8,24,0.2],    minInterval:600  },   // 3 shotgun
   { pellets:0, dmg:0,   head:1.0, range:0,   falloff:[1,1,1],       minInterval:900, projectile:true }, // 4 bazooka
+  { pellets:1, dmg:22,  head:1.3, range:2.3, falloff:[2.3,2.3,1],   minInterval:380 },   // 5 fists (melee)
 ];
 const BOOM = { bazooka:{ r:5.5, dmg:130, maxDist:300 }, grenade:{ r:4.2, dmg:85, maxDist:60 } };
-const NADE_CD = 11000;
+
 
 export default {
   async fetch(request, env) {
@@ -113,7 +114,16 @@ export class Arena extends DurableObject {
     }
   }
 
+  async flushPlay(s) {
+    if (!s.uid || !s.lastFlush || !this.env.DB) return;
+    const now = Date.now(), secs = Math.floor((now - s.lastFlush) / 1000);
+    if (secs < 1) return;
+    s.lastFlush += secs * 1000;
+    try { await this.env.DB.prepare("UPDATE users SET PLAYSEC=PLAYSEC+? WHERE id=?").bind(Math.min(secs, 3600), s.uid).run(); } catch {}
+  }
+
   async webSocketClose(ws) {
+    { const so = this.sessions.get(ws); if (so) await this.flushPlay(so); }
     const s = this.sessions.get(ws);
     if (ws === this.mapUploader && !this.mapReady) { this.mapUploader = null; this.mapParts = null; }
     if (s && s.joined) {
@@ -123,7 +133,7 @@ export class Arena extends DurableObject {
     }
     this.sessions.delete(ws);
   }
-  async webSocketError(ws) { this.sessions.delete(ws); }
+  async webSocketError(ws) { const so = this.sessions.get(ws); if (so) await this.flushPlay(so); this.sessions.delete(ws); }
 
   onMap(ws, msg) {
     if (this.mapReady || typeof msg.s !== "string" || !(msg.n > 0 && msg.n < 64)) return;
@@ -173,7 +183,7 @@ export class Arena extends DurableObject {
     ws.send(JSON.stringify({ t: "players", list: roster }));
   }
 
-  meta(o) { return { sv:o.skv|0, sm:o.skm||"classic", col:o.col||null, tag:o.tag||null, pw:o.power||null }; }
+  meta(o) { return { sv:o.skv|0, sm:o.skm||"classic", col:o.col||null, tag:o.tag||null, pw:o.power||null, lv:o.lv|0||1, pet:(o.pet && o.pet.alive) ? 1 : 0 }; }
   wsOf(sess) { for (const [w, o] of this.sessions) if (o.id === sess.id) return w; return null; }
 
   async onJoin(ws, s, msg) {
@@ -191,6 +201,8 @@ export class Arena extends DurableObject {
         s.uid = user.id; s.col = user.COL || null; s.tag = parseTag(user.TAG || ""); s.skv = user.SKV | 0; s.skm = user.SKM || "classic";
         let owned = []; try { owned = JSON.parse(user.EFFECTS || "[]"); } catch {}
         s.power = user.POWER && owned.includes("pw_" + user.POWER) && POWERS[user.POWER] ? user.POWER : null;
+        s.lv = levelOf(xpOf(user.KILLS, user.PLAYSEC));
+        s.pet = owned.includes("pet_buddy") ? { hp: PET.hp, alive: true, nextAt: Date.now() + PET.nadeEvery } : null;
       } else {
         name = String(msg.name || "Player").replace(/[\u0000-\u001f<>]/g, "").slice(0,14).trim() || "Player";
         let taken = isReserved(name);
@@ -198,7 +210,7 @@ export class Arena extends DurableObject {
           try { taken = !!(await this.env.DB.prepare("SELECT 1 AS x FROM users WHERE UN=?").bind(name).first()); } catch {}
         }
         if (taken) name = "Guest" + (1000 + Math.floor(Math.random() * 9000));
-        s.uid = 0; s.col = null; s.tag = null; s.skv = 0; s.skm = "classic"; s.power = null;
+        s.uid = 0; s.col = null; s.tag = null; s.skv = 0; s.skm = "classic"; s.power = null; s.lv = 1; s.pet = null;
       }
       this.finishJoin(ws, s, name, msg);
     } finally { s.joining = false; }
@@ -223,6 +235,9 @@ export class Arena extends DurableObject {
     s.name = name;
     s.color = (msg.color | 0) >>> 0;
     s.joined = true;
+    s.lastFlush = Date.now(); s.nadeStock = 1; s.nadeRegenAt = 0; s.nadeThrowAt = 0; s.nadesOut = 0;
+    this.startTick();
+    try { ws.send(JSON.stringify({ t:"ns", n:1, cap:s.pet ? PET.nadeCapPet : PET.nadeCapBase })); } catch {}
     ws.serializeAttachment(s);
 
     const roster = [...this.sessions.values()]
@@ -316,6 +331,7 @@ export class Arena extends DurableObject {
     if (w.projectile) { s.rockets = Math.min(3, (s.rockets||0) + 1); s.lastRocketAt = now; return; }
     const others  = [...this.sessions.values()].filter(o => o !== s && o.joined && o.alive);
     const victims = new Map();
+    const petHits = new Map();
 
     for (let p = 0; p < w.pellets; p++) {
       let dx = d[0], dy = d[1], dz = d[2];
@@ -341,16 +357,24 @@ export class Arena extends DurableObject {
       }
       const worldT = this.rayWorld(o[0],o[1],o[2],dx,dy,dz,w.range);
       let bestT = Math.min(worldT, w.range);
-      let bV = null, bH = false;
+      let bV = null, bH = false, bP = null;
       for (const os of others) {
         const hbox = { x0:os.x-0.2, x1:os.x+0.2, y0:os.y+1.4, y1:os.y+1.78, z0:os.z-0.2, z1:os.z+0.2 };
         const bbox = { x0:os.x-0.33, x1:os.x+0.33, y0:os.y, y1:os.y+1.4, z0:os.z-0.33, z1:os.z+0.33 };
         let t = rayBox(o,[dx,dy,dz],hbox,bestT);
         if (t >= 0 && t < bestT) { bestT = t; bV = os; bH = true; }
         t = rayBox(o,[dx,dy,dz],bbox,bestT);
-        if (t >= 0 && t < bestT) { bestT = t; bV = os; bH = false; }
+        if (t >= 0 && t < bestT) { bestT = t; bV = os; bH = false; bP = null; }
+        if (os.pet && os.pet.alive) {
+          const pp = petPos(os), R = PET.hitR;
+          t = rayBox(o,[dx,dy,dz],{ x0:pp[0]-R, x1:pp[0]+R, y0:pp[1]-R, y1:pp[1]+R, z0:pp[2]-R, z1:pp[2]+R },bestT);
+          if (t >= 0 && t < bestT) { bestT = t; bP = os; bV = null; bH = false; }
+        }
       }
-      if (bV) {
+      if (bP) {
+        const t01p = bestT <= w.falloff[0] ? 0 : bestT >= w.falloff[1] ? 1 : (bestT - w.falloff[0])/(w.falloff[1] - w.falloff[0]);
+        petHits.set(bP.id, (petHits.get(bP.id) || 0) + w.dmg * (1 + (w.falloff[2]-1)*t01p) * 0.8);
+      } else if (bV) {
         const t01 = bestT <= w.falloff[0] ? 0
                   : bestT >= w.falloff[1] ? 1
                   : (bestT - w.falloff[0])/(w.falloff[1] - w.falloff[0]);
@@ -363,6 +387,7 @@ export class Arena extends DurableObject {
       }
     }
 
+    for (const [pid, dmgP] of petHits) { const owner = [...this.sessions.values()].find(x => x.id === pid); if (owner) this.hurtPet(owner, dmgP, s); }
     for (const [vid, e] of victims) {
       const victim = [...this.sessions.values()].find(x => x.id === vid);
       if (!victim || !victim.alive) continue;
@@ -404,7 +429,19 @@ export class Arena extends DurableObject {
     let t = row.EARN_T, amt = row.EARN_AMT;
     if (now - t >= 3600000) { t = now; amt = 0; }
     const reward = killReward({ victimAliveMs: aliveMs, repeats: rec.n, hourAmt: amt });
+    const counts = aliveMs >= ECON.minVictimAliveMs && rec.n < ECON.lbRepeatLimit;
     rec.n++; this.repeat.set(key, rec);
+    if (counts) {
+      await this.env.DB.prepare("UPDATE users SET KILLS=KILLS+1 WHERE id=?").bind(killer.uid).run();
+      const u2 = await this.env.DB.prepare("SELECT KILLS,PLAYSEC FROM users WHERE id=?").bind(killer.uid).first();
+      if (u2) {
+        const lv = levelOf(xpOf(u2.KILLS, u2.PLAYSEC));
+        if (lv !== killer.lv) {
+          killer.lv = lv;
+          this.broadcast({ t:"lv", id:killer.id, lv });
+        }
+      }
+    }
     if (this.repeat.size > 800) for (const [k, v] of this.repeat) if (now - v.t > ECON.sameVictimWindowMs) this.repeat.delete(k);
     if (reward <= 0) return;
     await this.env.DB.prepare("UPDATE users SET MONEY=MONEY+?,EARN_T=?,EARN_AMT=? WHERE id=?").bind(reward, t, amt + reward, killer.uid).run();
@@ -420,17 +457,45 @@ export class Arena extends DurableObject {
     const now = Date.now();
     if (now < (s.pwReady || 0) - 600) return;
     s.pwReady = now + P.cd;
-    this.broadcast({ t:"pw", id:s.id, p:s.power, x:round2(s.x), y:round2(s.y), z:round2(s.z), yaw:round2(s.yaw) }, ws);
+    const base = { t:"pw", id:s.id, p:s.power, x:round2(s.x), y:round2(s.y), z:round2(s.z), yaw:round2(s.yaw) };
+    const others = [...this.sessions.values()].filter(o => o !== s && o.joined && o.alive);
     if (s.power === "heal" || s.power === "poison") {
+      this.broadcast(base, ws);
       this.zones.push({ kind:s.power, x:s.x, y:s.y, z:s.z, r:P.r, until:now + P.dur, owner:s, P });
-      if (!this.zoneTimer) this.zoneTimer = setInterval(() => this.tickZones(), 1000);
+      this.startTick();
     } else if (s.power === "dash") {
-      s.dashUntil = now + 800;
+      this.broadcast(base, ws); s.dashUntil = now + 800;
     } else if (s.power === "shield") {
-      s.shieldUntil = now + P.dur; s.shieldHp = P.absorb;
+      this.broadcast(base, ws); s.shieldUntil = now + P.dur; s.shieldHp = P.absorb;
+    } else if (s.power === "adrenaline") {
+      this.broadcast(base, ws); s.dashUntil = now + P.dur + 600;
+      s.hp = Math.min(100, s.hp + P.heal); try { ws.send(JSON.stringify({ t:"heal", amt:P.heal })); } catch {}
+    } else if (s.power === "frost") {
+      this.broadcast(base, ws);
+      for (const o of others) {
+        if (Math.hypot(o.x - s.x, o.z - s.z) > P.r || Math.abs(o.y - s.y) > 3) continue;
+        const ow = this.wsOf(o); if (ow) try { ow.send(JSON.stringify({ t:"slow", ms:P.ms, k:P.slow })); } catch {}
+        this.dealDamage(s, o, P.dmg, false, "frost");
+      }
+    } else if (s.power === "spectral") {
+      const o = [+(msg.o && msg.o[0]) || s.x, +(msg.o && msg.o[1]) || s.y + 1.6, +(msg.o && msg.o[2]) || s.z];
+      let d = [+(msg.d && msg.d[0]) || 0, +(msg.d && msg.d[1]) || 0, +(msg.d && msg.d[2]) || -1];
+      const dl = Math.hypot(d[0], d[1], d[2]) || 1; d = d.map(v => v / dl);
+      if (Math.hypot(o[0] - s.x, o[2] - s.z) > 4) { o[0] = s.x; o[1] = s.y + 1.6; o[2] = s.z; }
+      let bestT = Math.min(this.rayWorld(o[0], o[1], o[2], d[0], d[1], d[2], P.range), P.range);
+      for (const os of others) {
+        const t = rayBox(o, d, { x0:os.x-0.4, x1:os.x+0.4, y0:os.y, y1:os.y+1.8, z0:os.z-0.4, z1:os.z+0.4 }, bestT);
+        if (t >= 0 && t < bestT) bestT = t;
+      }
+      const ix = o[0] + d[0]*bestT, iy = o[1] + d[1]*bestT, iz = o[2] + d[2]*bestT;
+      const ids = [];
+      for (const os of others) if (Math.hypot(os.x - ix, os.z - iz) <= P.r && Math.abs((os.y + 0.9) - iy) <= P.r) { os.glowUntil = now + P.glow; ids.push(os.id); }
+      this.broadcast({ ...base, o:o.map(round2), d:d.map(round4), hit:[round2(ix), round2(iy), round2(iz)] }, ws);
+      if (ids.length) this.broadcast({ t:"glow", ids, ms:P.glow });
     }
   }
-  tickZones() {
+  startTick() { if (!this.tickTimer) this.tickTimer = setInterval(() => this.tick(), 1000); }
+  tick() {
     const now = Date.now();
     this.zones = this.zones.filter(z => z.until > now);
     for (const z of this.zones) {
@@ -445,15 +510,56 @@ export class Arena extends DurableObject {
         }
       }
     }
-    if (!this.zones.length) { clearInterval(this.zoneTimer); this.zoneTimer = null; }
+    let anyone = this.zones.length > 0;
+    for (const [w, o] of this.sessions) {
+      if (!o.joined) continue;
+      const cap = (o.pet && o.pet.alive) ? PET.nadeCapPet : PET.nadeCapBase;
+      /* grenade stock: refills on its own (slowly); the buddy drone restocks faster and holds more */
+      if (o.alive && o.nadeStock < cap && now >= (o.nadeRegenAt || 0)) {
+        if (o.nadeRegenAt) { o.nadeStock++; try { w.send(JSON.stringify({ t:"ns", n:o.nadeStock, cap })); } catch {} if (o.pet && o.pet.alive) this.broadcast({ t:"petfetch", id:o.id }); }
+        o.nadeRegenAt = now + ((o.pet && o.pet.alive) ? PET.nadeEvery : PET.baseNadeEvery);
+      }
+      if (o.pet && o.pet.alive) {
+        anyone = true;
+        if (o.alive && o.hp < 100) {
+          const before = o.hp; o.hp = Math.min(100, o.hp + PET.heal);
+          try { w.send(JSON.stringify({ t:"heal", amt:o.hp - before, pet:1 })); } catch {}
+        }
+      }
+      if (o.nadeStock < cap) anyone = true;
+    }
+    if (!anyone && this.tickTimer && ![...this.sessions.values()].some(o => o.joined)) { clearInterval(this.tickTimer); this.tickTimer = null; }
+    for (const o of this.sessions.values()) if (o.joined && o.uid && now - (o.lastFlush || now) >= 60000) this.flushPlay(o);
+  }
+
+  /* ---------- buddy drone ---------- */
+  hurtPet(owner, dmg, attacker) {
+    if (!owner.pet || !owner.pet.alive) return;
+    owner.pet.hp -= dmg;
+    const ow = this.wsOf(owner);
+    if (owner.pet.hp > 0) { if (ow) try { ow.send(JSON.stringify({ t:"pethit", hp:Math.round(owner.pet.hp) })); } catch {} return; }
+    owner.pet.alive = false; owner.pet.hp = 0;
+    this.broadcast({ t:"petdead", id:owner.id });
+    this.removePetFromAccount(owner).catch(() => {});
+  }
+  async removePetFromAccount(owner) {
+    if (!owner.uid || !this.env.DB) return;
+    const row = await this.env.DB.prepare("SELECT EFFECTS FROM users WHERE id=?").bind(owner.uid).first();
+    if (!row) return;
+    let items = []; try { items = JSON.parse(row.EFFECTS || "[]"); } catch {}
+    const next = JSON.stringify(items.filter(i => i !== "pet_buddy"));
+    await this.env.DB.prepare("UPDATE users SET EFFECTS=? WHERE id=? AND EFFECTS=?").bind(next, owner.uid, row.EFFECTS).run();
   }
 
   /* ---------- grenades & rockets ---------- */
   onNade(ws, s, msg) {
     if (!s.joined || !s.alive) return;
     const now = Date.now();
-    if (now < (s.nadeReady || 0) - 600) return;
-    s.nadeReady = now + NADE_CD; s.nades = 1; s.lastNadeAt = now;
+    if (!(s.nadeStock > 0) || now < (s.nadeThrowAt || 0) - 200) return;
+    s.nadeStock--; s.nadeThrowAt = now + PET.throwGap; s.nadesOut = (s.nadesOut || 0) + 1; s.lastNadeAt = now;
+    if (!s.nadeRegenAt || s.nadeRegenAt < now) s.nadeRegenAt = now + ((s.pet && s.pet.alive) ? PET.nadeEvery : PET.baseNadeEvery);
+    const cap = (s.pet && s.pet.alive) ? PET.nadeCapPet : PET.nadeCapBase;
+    const wsS = this.wsOf(s); if (wsS) try { wsS.send(JSON.stringify({ t:"ns", n:s.nadeStock, cap })); } catch {}
     const o = [+msg.o[0]||0, +msg.o[1]||0, +msg.o[2]||0], v = [+msg.v[0]||0, +msg.v[1]||0, +msg.v[2]||0];
     this.broadcast({ t:"nade", id:s.id, o:o.map(round2), v:v.map(round2) }, ws);
   }
@@ -462,13 +568,18 @@ export class Arena extends DurableObject {
     const k = msg.k, B = BOOM[k]; if (!B) return;
     const now = Date.now();
     if (k === "bazooka") { if (!(s.rockets > 0) || now - (s.lastRocketAt||0) > 9000) return; s.rockets--; }
-    else { if (!(s.nades > 0) || now - (s.lastNadeAt||0) > 5000) return; s.nades--; }
+    else { if (!(s.nadesOut > 0) || now - (s.lastNadeAt||0) > 5000) return; s.nadesOut--; }
     const x = +msg.x, y = +msg.y, z = +msg.z;
     if (![x, y, z].every(Number.isFinite)) return;
     if (Math.hypot(x - s.x, z - s.z) > B.maxDist) return;
     this.broadcast({ t:"boom", k, x:round2(x), y:round2(y), z:round2(z) }, ws);
     for (const o of this.sessions.values()) {
-      if (o === s || !o.joined || !o.alive) continue;
+      if (!o.joined) continue;
+      if (o.pet && o.pet.alive && o !== s) {
+        const pp = petPos(o), dp = Math.hypot(pp[0] - x, pp[1] - y, pp[2] - z);
+        if (dp <= B.r) this.hurtPet(o, B.dmg * (1 - dp / B.r) * 0.6, s);
+      }
+      if (o === s || !o.alive) continue;
       const tx = o.x - x, ty = (o.y + 0.9) - y, tz = o.z - z, d = Math.hypot(tx, ty, tz);
       if (d > B.r) continue;
       if (d > 0.5 && this.rayWorld(x, y + 0.3, z, tx/d, (ty - 0.3)/d, tz/d, d) < d - 0.3) continue;
@@ -483,10 +594,10 @@ export class Arena extends DurableObject {
     s.lastChat = now;
     const text = String(msg.m || "").slice(0,180).trim();
     if (!text) return;
-    const entry = { name:s.name, m:text, t:now, col:s.col||null, tag:s.tag||null };
+    const entry = { name:s.name, m:text, t:now, col:s.col||null, tag:s.tag||null, lv:s.lv|0 };
     this.chatHistory.push(entry);
     if (this.chatHistory.length > CHAT_HISTORY) this.chatHistory.shift();
-    this.broadcast({ t:"chat", name:s.name, m:text, ts:now, col:s.col||null, tag:s.tag||null });
+    this.broadcast({ t:"chat", name:s.name, m:text, ts:now, col:s.col||null, tag:s.tag||null, lv:s.lv|0 });
   }
 
   onAdmin(ws, s, msg) {

@@ -1,7 +1,7 @@
 /* HTTP API: accounts, skins, coins, shop.  All money logic lives here / in the game server — never in the client. */
 import {
   ADMIN_NAME, ITEMS, POWERS, ECON, validName, isReserved, parseTag, parseUserColor, dayKey, dailyReward,
-  validPng, b64, unb64, sha256Hex, randomToken, hashPassword, verifyPassword,
+  validPng, b64, unb64, sha256Hex, randomToken, hashPassword, verifyPassword, xpOf, levelOf, xpForLevel, titleOf,
 } from "./lib.js";
 
 const SESSION_MS = 30 * 24 * 3600 * 1000;
@@ -36,9 +36,11 @@ async function bump(env, key, windowMs) {
 export function publicMe(u) {
   const t = parseTag(u.TAG || "");
   let items = []; try { items = JSON.parse(u.EFFECTS || "[]"); } catch {}
+  const xp = xpOf(u.KILLS, u.PLAYSEC), lv = levelOf(xp);
   return {
     un: u.UN, money: u.MONEY, col: u.COL || null, tag: t, items, power: u.POWER || null,
     skm: u.SKM, skv: u.SKV, hasSkin: !!u.SKN || u.SKV > 0, streak: u.STREAK,
+    kills: u.KILLS | 0, playsec: u.PLAYSEC | 0, xp, level: lv, title: titleOf(lv), xpThis: xpForLevel(lv), xpNext: xpForLevel(lv + 1),
     dailyReady: u.LAST_DAILY !== dayKey(Date.now()),
   };
 }
@@ -61,6 +63,23 @@ export async function handleApi(request, env) {
   }
   if (request.method === "GET" && path === "shop") {
     return json({ ok: true, items: Object.entries(ITEMS).map(([id, v]) => ({ id, ...v })), powers: POWERS, econ: ECON });
+  }
+  if (request.method === "GET" && path === "leaderboard") {
+    const by = url.searchParams.get("by") === "time" ? "time" : "kills";
+    const order = by === "time" ? "PLAYSEC DESC, KILLS DESC" : "KILLS DESC, PLAYSEC DESC";
+    const rows = await env.DB.prepare(`SELECT UN,KILLS,PLAYSEC,COL,TAG FROM users WHERE KILLS>0 OR PLAYSEC>0 ORDER BY ${order} LIMIT 50`).all();
+    const list = (rows.results || []).map((r, i) => {
+      const lv = levelOf(xpOf(r.KILLS, r.PLAYSEC)), t = parseTag(r.TAG || "");
+      return { rank: i + 1, un: r.UN, kills: r.KILLS | 0, playsec: r.PLAYSEC | 0, level: lv, col: r.COL || null, tag: t };
+    });
+    let me = null;
+    const u0 = await userByToken(env, bearer(request));
+    if (u0) {
+      const col = by === "time" ? "PLAYSEC" : "KILLS", v = u0[col] | 0;
+      const c = await env.DB.prepare(`SELECT COUNT(*) AS n FROM users WHERE ${col}>?`).bind(v).first();
+      me = { un: u0.UN, rank: (c ? c.n : 0) + 1, kills: u0.KILLS | 0, playsec: u0.PLAYSEC | 0, level: levelOf(xpOf(u0.KILLS, u0.PLAYSEC)) };
+    }
+    return json({ ok: true, by, list, me }, 200, { "cache-control": me ? "private, no-store" : "public, max-age=20" });
   }
   if (request.method !== "POST" && !(request.method === "GET" && path === "me")) return err("Not found", 404);
 

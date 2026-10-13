@@ -13,6 +13,10 @@ export const ITEMS = {
   pw_poison:  { price: 15000,  name: "Poison Ring",          type: "power", id: "poison" },
   pw_dash:    { price: 10000,  name: "Dash",                 type: "power", id: "dash" },
   pw_shield:  { price: 25000,  name: "Shield Pulse",         type: "power", id: "shield" },
+  pw_spectral:{ price: 20000,  name: "Spectral Arrow",       type: "power", id: "spectral" },
+  pw_frost:   { price: 20000,  name: "Frost Nova",           type: "power", id: "frost" },
+  pw_adrenaline:{ price: 12000,name: "Adrenaline",           type: "power", id: "adrenaline" },
+  pet_buddy:  { price: 30000,  name: "Buddy Drone (pet)",    type: "pet" },
 };
 /* Power balance (ms / metres / hp). Only ONE can be equipped; all are cooldown-gated and short. */
 export const POWERS = {
@@ -20,13 +24,31 @@ export const POWERS = {
   poison: { cd: 50000, dur: 5000, r: 4, dmg: 5 },       // 5 dmg/s for 5 s  (owner immune)
   dash:   { cd: 20000, dist: 6 },
   shield: { cd: 60000, dur: 3000, absorb: 30 },
+  spectral:{ cd: 40000, glow: 8000, r: 7, range: 120 },        // arrow reveals enemies near the impact (through walls) for 8 s
+  frost:  { cd: 45000, r: 5, slow: 0.55, ms: 3000, dmg: 8 },   // slows enemies in 5 m to 55% speed for 3 s
+  adrenaline:{ cd: 50000, dur: 4500, boost: 1.35, heal: 10 },  // +35% speed for 4.5 s and a small heal
 };
+/* Buddy drone: follows you, intercepts some bullets, heals you slowly and restocks grenades. If it is destroyed in a match it is gone until bought again. */
+export const PET = { hp: 100, heal: 2, nadeEvery: 8000, baseNadeEvery: 11000, nadeCapBase: 1, nadeCapPet: 3, hitR: 0.34, throwGap: 1000 };
+export function petPos(s) {
+  const c = Math.cos(s.yaw || 0), sn = Math.sin(s.yaw || 0);
+  const fx = -sn, fz = -c, rx = c, rz = -sn;   // right-front of the owner, so it shields from the front and is visible
+  return [s.x + rx * 0.75 + fx * 0.55, s.y + 1.5, s.z + rz * 0.75 + fz * 0.55];
+}
+/* Levels: XP = 10 per (counted) kill + 2 per minute played. level = 1 + floor(sqrt(XP/40)).  L10 = 3240 XP, L20 = 14440 XP. */
+export const LEVEL_K = 40;
+export const xpOf = (kills, playsec) => (kills | 0) * 10 + Math.floor((playsec | 0) / 60) * 2;
+export const levelOf = (xp) => 1 + Math.floor(Math.sqrt(Math.max(0, xp) / LEVEL_K));
+export const xpForLevel = (l) => LEVEL_K * (l - 1) * (l - 1);
+export const TITLES = [[50, "Mythic"], [40, "Legend"], [30, "Elite"], [20, "Veteran"], [10, "Soldier"], [1, "Recruit"]];
+export const titleOf = (l) => { for (const [m, t] of TITLES) if (l >= m) return t; return "Recruit"; };
 export const ECON = {
   daily: 10, streakStep: 5, dailyMax: 50,
   hourCap: 600,                 // max coins from kills per rolling hour
   minVictimAliveMs: 8000,       // victim must have been alive this long
   sameVictim: [10, 5, 2, 0],    // reward for kill #1,#2,#3,#4+ on the same victim inside the window
   sameVictimWindowMs: 10 * 60 * 1000,
+  lbRepeatLimit: 3,             // leaderboard kills: the 4th+ kill on the same victim in the window does not count
 };
 
 export function validName(n) { return typeof n === "string" && NAME_RE.test(n); }

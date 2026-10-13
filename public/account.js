@@ -21,8 +21,9 @@ function colorStops(col){
   return null;
 }
 /* HTML for "[Tag]Name" with colours; every dynamic piece is escaped or validated. */
-A.nameHTML=function(name,col,tag){
+A.nameHTML=function(name,col,tag,lv){
   let h='';
+  if(lv>0)h+='<span class="lvb t'+(lv>=50?50:lv>=40?40:lv>=30?30:lv>=20?20:lv>=10?10:0)+'">'+(lv|0)+'</span>';
   if(tag&&tag.label&&HEX.test(tag.color||''))h+='<span class="ntag" style="color:'+tag.color+'">['+esc(tag.label)+']</span>';
   const c=colorStops(col);
   if(!c)h+='<span class="nm">'+esc(name)+'</span>';
@@ -37,6 +38,8 @@ A.canvasFill=function(g,col,x0,x1){
   const gr=g.createLinearGradient(x0,0,x1,0);c.stops.forEach((s,i)=>gr.addColorStop(i/(c.stops.length-1),s));return gr;
 };
 A.onChange=fn=>A.listeners.push(fn);
+A.setMe=function(m){A.me=m;renderBar();renderShop();changed();};
+A.refresh=async function(){if(!A.token)return;const j=await api('me');if(j.ok)A.setMe(j.me);};
 function changed(){A.listeners.forEach(f=>{try{f(A);}catch(e){console.warn(e);}});}
 function say(m,bad){const el=$('authMsg');if(el){el.textContent=m||'';el.style.color=bad?'#ff8a8a':'';}if(A.notify&&m&&!bad)A.notify(m);}
 async function api(path,body,method){
@@ -50,7 +53,7 @@ A.skinUrl=(un,v)=>'/api/skin/'+encodeURIComponent(un)+'?v='+(v||0);
 A.identity=function(){
   const m=A.me;
   if(!m)return {guest:true};
-  return {guest:false,name:m.un,col:m.col,tag:m.tag,slim:m.skm==='slim',skin:m.hasSkin?A.skinUrl(m.un,m.skv):null,power:m.power};
+  return {guest:false,name:m.un,col:m.col,tag:m.tag,level:m.level,slim:m.skm==='slim',skin:m.hasSkin?A.skinUrl(m.un,m.skv):null,power:m.power};
 };
 function setSession(token,me){A.token=token;A.me=me;A.guest=!me;try{if(token)localStorage.setItem(LS,token);else localStorage.removeItem(LS);}catch(e){}renderBar();renderShop();changed();}
 A.logout=async function(){if(A.token)await api('logout',{});setSession(null,null);showAuth();};
@@ -65,7 +68,7 @@ function renderBar(){
   const bar=$('acctBar');if(!bar)return;const m=A.me,nm=$('name');
   if(!m){bar.innerHTML='<span class="who">Guest</span><button class="chip" id="barLogin">Log in / Sign up</button>';
     const b=$('barLogin');if(b)b.onclick=showAuth;if(nm){nm.readOnly=false;}return;}
-  bar.innerHTML='<span class="who">'+A.nameHTML(m.un,m.col,m.tag)+'</span>'+
+  bar.innerHTML='<span class="who">'+A.nameHTML(m.un,m.col,m.tag,m.level)+'</span>'+
     '<span class="coins"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h4a1.8 1.8 0 0 1 0 3.6h-3a1.8 1.8 0 0 0 0 3.6h4.2"/></svg><b id="coinNum">'+m.money.toLocaleString()+'</b></span>'+
     '<button class="chip" id="barShop">Shop</button><button class="chip ghost" id="barOut">Log out</button>';
   $('barShop').onclick=()=>{const t=document.querySelector('.tab-btn[data-tab="shop"]');if(t)t.click();};
@@ -122,7 +125,21 @@ function wire(){
   $('dailyBtn').onclick=()=>claimDaily(false);
   $('colApplySolid').onclick=()=>setColor($('colSolid').value);
   $('colApplyGrad').onclick=()=>setColor('g:'+$('colG1').value+','+$('colG2').value);
+  $('colSolid').oninput=()=>{pick=$('colSolid').value;previewName();};
+  const gp=()=>{pick='g:'+$('colG1').value+','+$('colG2').value;previewName();};$('colG1').oninput=gp;$('colG2').oninput=gp;
+  const ls=document.querySelectorAll('[data-tab="ranks"] .seg [data-by]');ls.forEach(b=>b.onclick=()=>{ls.forEach(x=>x.classList.toggle('on',x===b));loadBoard(b.dataset.by);});
+  $('lbRefresh').onclick=()=>loadBoard(lbBy);
+  const rt=document.querySelector('.tab-btn[data-tab="ranks"]');if(rt)rt.addEventListener('click',()=>loadBoard(lbBy));
   $('colClear').onclick=()=>setColor(null);
+}
+let lbBy='kills';
+async function loadBoard(by){
+  lbBy=by||lbBy;const L=$('lbList');L.innerHTML='<p class="modes">Loading…</p>';
+  const j=await api('leaderboard?by='+lbBy);
+  if(!j.ok){L.innerHTML='<p class="modes">Leaderboard unavailable right now.</p>';return;}
+  if(!j.list.length){L.innerHTML='<p class="modes">No ranked players yet — be the first.</p>';}
+  else L.innerHTML=j.list.map(r=>'<div class="r'+(A.me&&A.me.un===r.un?' me':'')+'"><span class="rk">'+r.rank+'</span><span>'+A.nameHTML(r.un,r.col,r.tag,r.level)+'</span><span class="val">'+(lbBy==='time'?fmtTime(r.playsec):r.kills.toLocaleString())+'</span><span class="rk">'+(lbBy==='time'?'':'kills')+'</span></div>').join('');
+  const me=$('lbMe');me.textContent=j.me?('You: #'+j.me.rank+' · level '+j.me.level+' · '+j.me.kills.toLocaleString()+' kills · '+fmtTime(j.me.playsec)):(A.me?'':'Log in to see your rank.');
 }
 async function setColor(c){const j=await api('color',{color:c});if(!j.ok){if(A.notify)A.notify(j.error||'Could not set colour');return;}A.me=j.me;renderBar();renderShop();changed();}
 async function claimDaily(quiet){
@@ -136,17 +153,40 @@ const SHOP=[
   {id:'pw_heal',name:'Healing Ring',desc:'Drop a 4 m ring: +6 HP/s for 5 s to anyone inside. 60 s cooldown.',price:15000,power:'heal'},
   {id:'pw_poison',name:'Poison Ring',desc:'Drop a 4 m toxic ring: 5 dmg/s for 5 s to enemies inside. 50 s cooldown.',price:15000,power:'poison'},
   {id:'pw_dash',name:'Dash',desc:'Burst forward about 6 m. 20 s cooldown.',price:10000,power:'dash'},
-  {id:'pw_shield',name:'Shield Pulse',desc:'Absorb up to 30 damage for 3 s. 60 s cooldown.',price:25000,power:'shield'}
+  {id:'pw_shield',name:'Shield Pulse',desc:'Absorb up to 30 damage for 3 s. 60 s cooldown.',price:25000,power:'shield'},
+  {id:'pw_spectral',name:'Spectral Arrow',desc:'Fire a glowing arrow: enemies within 7 m of where it lands glow through walls for 8 s. 40 s cooldown.',price:20000,power:'spectral'},
+  {id:'pw_frost',name:'Frost Nova',desc:'Freeze the ground in 5 m: enemies take 8 damage and move at 55% speed for 3 s. 45 s cooldown.',price:20000,power:'frost'},
+  {id:'pw_adrenaline',name:'Adrenaline',desc:'+35% move speed for 4.5 s and heal 10 HP. 50 s cooldown.',price:12000,power:'adrenaline'},
+  {id:'pet_buddy',name:'Buddy Drone (pet)',desc:'Follows you, soaks bullets, heals 2 HP/s and restocks grenades (hold up to 3). If it is destroyed in a match it is lost until you buy it again.',price:30000,pet:true}
 ];
+const SOLIDS=['#ffffff','#c0c8d0','#ff4d4d','#ff8a3d','#ffc94d','#ffe14d','#a6ff4d','#43e0a0','#2ec4b6','#4de3ff','#3a8dff','#8a5cff','#b06cff','#ff7ac8','#ff3d9a','#e0e0ff'];
+const GRADS=[['#ff3d6e','#ffb347'],['#ff8a3d','#ffe14d'],['#43e0a0','#4de3ff'],['#4de3ff','#b06cff'],['#b06cff','#ff7ac8'],['#ff4d4d','#ffc94d'],['#a6ff4d','#2ec4b6'],['#3a8dff','#43e0a0'],['#ffe14d','#ff3d9a'],['#ffffff','#4d9bff']];
+let pick=null;   // currently previewed colour string
+function fmtTime(s){const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return h?h+'h '+m+'m':m+'m';}
+function previewName(){
+  const m=A.me;if(!m)return;const c=pick!==null?pick:m.col;
+  $('shopPreview').innerHTML=A.nameHTML(m.un,c,m.tag,m.level);
+  $('pvChat').innerHTML='<b>'+A.nameHTML(m.un,c,m.tag,m.level)+':</b> Rush B, I\'ll cover you!';
+}
+function renderSwatches(owned){
+  const hasSolid=owned.has('col_solid')||owned.has('col_grad'),hasGrad=owned.has('col_grad');
+  const S=$('swSolid'),G=$('swGrad');S.innerHTML='';G.innerHTML='';
+  SOLIDS.forEach(c=>{const b=document.createElement('button');b.className='sw'+(pick===c||(!pick&&A.me.col===c)?' on':'')+(hasSolid?'':' lock');b.style.background=c;b.setAttribute('aria-label','Colour '+c);
+    b.onclick=()=>{pick=c;$('colSolid').value=c;renderSwatches(owned);previewName();};S.appendChild(b);});
+  GRADS.forEach(p=>{const v='g:'+p[0]+','+p[1];const b=document.createElement('button');b.className='sw'+(pick===v||(!pick&&A.me.col===v)?' on':'')+(hasGrad?'':' lock');b.style.background='linear-gradient(90deg,'+p[0]+','+p[1]+')';b.setAttribute('aria-label','Gradient');
+    b.onclick=()=>{pick=v;$('colG1').value=p[0];$('colG2').value=p[1];renderSwatches(owned);previewName();};G.appendChild(b);});
+  $('colApplySolid').disabled=!hasSolid;$('colApplyGrad').disabled=!hasGrad;
+  $('colLock').textContent=hasGrad?'':(hasSolid?'Gradients unlock with the Gradient name colour (100,000 coins). You can still preview them.':'Preview any style, then unlock it under Unlocks below (solid 10,000 · gradient 100,000 coins).');
+}
 function renderShop(){
   const m=A.me;$('shopGuest').classList.toggle('hidden',!!m);$('shopBody').classList.toggle('hidden',!m);if(!m)return;
   $('dailyBtn').disabled=!m.dailyReady;$('dailyBtn').textContent=m.dailyReady?'Claim daily reward':'Come back tomorrow';
   $('dailyInfo').textContent='Streak: '+m.streak+' day'+(m.streak===1?'':'s')+' · +10 coins, growing to +50';
-  $('shopPreview').innerHTML=A.nameHTML(m.un,m.col,m.tag);
+  { const lv=m.level||1,span=Math.max(1,m.xpNext-m.xpThis),pc=Math.min(100,Math.max(0,(m.xp-m.xpThis)/span*100));$('lvNum').textContent=lv;$('lvTitle').textContent=m.title+' · '+fmtTime(m.playsec||0)+' played';$('lvBar').style.width=pc+'%';$('lvText').textContent=(m.kills||0).toLocaleString()+' kills · '+m.xp.toLocaleString()+' XP · '+Math.max(0,m.xpNext-m.xp).toLocaleString()+' XP to level '+(lv+1);}
+  pick=null;
   $('pfSlim').checked=m.skm==='slim';
   const owned=new Set(m.items);
-  $('colSolidRow').classList.toggle('hidden',!(owned.has('col_solid')||owned.has('col_grad')));
-  $('colGradRow').classList.toggle('hidden',!owned.has('col_grad'));
+  renderSwatches(owned);previewName();
   const L=$('powerList');L.innerHTML='';
   for(const it of SHOP){
     const row=document.createElement('div');row.className='shop-item';

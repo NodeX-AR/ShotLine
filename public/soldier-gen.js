@@ -168,8 +168,16 @@ function build(opt){
   });
   return {scene:root,animations:[idle,walk,run]};
 }
+/* A single Minecraft arm (hangs down from its shoulder pivot) for the first-person view: fists, grenade throw, power casts. */
+function makeFPArm(side,slim,tex){
+  const aw=slim?3:4,o=side==='right'?[40,16]:[32,48],ov=side==='right'?[40,32]:[48,48],g=new THREE.Group();
+  for(const over of [false,true]){
+    const m=new THREE.Mesh(mcGeo(aw,12,4,over?ov[0]:o[0],over?ov[1]:o[1],0,1,over?0.5:0),new THREE.MeshStandardMaterial({map:tex||null,color:0xffffff,roughness:0.95,metalness:0,alphaTest:over?0.5:0,side:over?THREE.DoubleSide:THREE.FrontSide}));
+    m.position.y=-6*U;m.userData.mc=over?2:1;m.frustumCulled=false;g.add(m);}
+  return g;
+}
 function applySkin(root,tex){
   root.traverse(o=>{if(o.isMesh&&o.userData&&o.userData.mc){o.material.map=tex;o.material.needsUpdate=true;}});
 }
-return {build,defaultSkin,makeTexture,loadSkin,normalizeSkin,applySkin,hash,U,HIPY};
+return {build,defaultSkin,makeTexture,loadSkin,normalizeSkin,applySkin,makeFPArm,hash,U,HIPY};
 })();

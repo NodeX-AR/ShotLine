@@ -16,8 +16,12 @@ CREATE TABLE IF NOT EXISTS users (
   STREAK      INTEGER NOT NULL DEFAULT 0,
   EARN_T      INTEGER NOT NULL DEFAULT 0,               -- start of current earn window (ms)
   EARN_AMT    INTEGER NOT NULL DEFAULT 0,               -- coins earned from kills this window
+  KILLS       INTEGER NOT NULL DEFAULT 0,               -- counted kills (leaderboard + XP)
+  PLAYSEC     INTEGER NOT NULL DEFAULT 0,               -- seconds played in online matches (leaderboard + XP)
   CREATED     INTEGER NOT NULL
 );
+CREATE INDEX IF NOT EXISTS users_kills ON users(KILLS DESC);
+CREATE INDEX IF NOT EXISTS users_play  ON users(PLAYSEC DESC);
 CREATE TABLE IF NOT EXISTS sessions (
   token_hash TEXT PRIMARY KEY,
   uid        INTEGER NOT NULL,
