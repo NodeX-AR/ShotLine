@@ -1023,6 +1023,16 @@ const HandLib=(function(){
     pb.add('glv',R(0.076,0.038,0.040,0.012),0,0.002,0.070);
     pb.add('tape',R(0.080,0.011,0.026,0.002),0,0.010,0.072);pb.add('blk',R(0.030,0.004,0.020,0.001),0,0.0175,0.072);
     pb.add('blk',R(0.020,0.006,0.030,0.002),-0.034,-0.010,0.020);
+    // Higher-detail tactical glove: raised knuckle guards, finger armor, seams and wrist hardware.
+    for(let i=0;i<4;i++){
+      const fx=FX[i];
+      pb.add('blk',R(0.017,0.006,0.013,0.002),fx,-0.004,-0.020);
+      pb.add('tape',R(0.014,0.003,0.006,0.001),fx,-0.0005,-0.039);
+      pb.add('blk',R(0.004,0.003,0.022,0.001),fx+0.006,0.004,-0.046);
+    }
+    pb.add('blk',R(0.060,0.005,0.012,0.002),0,0.021,0.070);
+    pb.add('tape',R(0.052,0.004,0.008,0.001),0,0.024,0.070);
+    pb.add('blk',R(0.025,0.004,0.018,0.002),-0.034,-0.009,0.043);
     if(mirror&&opt.watch){pb.add('blk',R(0.036,0.008,0.034,0.003),0,0.022,0.088);pb.add('!g',R(0.026,0.002,0.024,0.0008),0,0.0275,0.088);}
     pb.emis={'!g':0x60c0ff};pb.finish(inner,null,true);
     const h={root,inner,f:[],th:null};
@@ -2943,12 +2953,46 @@ function makeDrone(){
   const earL=part(new THREE.ConeGeometry(.095,.23,4),fur,-.14,.48,-.48,0,0,.08),earR=part(new THREE.ConeGeometry(.095,.23,4),fur,.14,.48,-.48,0,0,-.08);
   part(new THREE.BoxGeometry(.07,.07,.025),eyeM,-.115,.23,-.654);part(new THREE.BoxGeometry(.07,.07,.025),eyeM,.115,.23,-.654);
   const legs=[];for(const x of [-.18,.18])for(const z of [-.25,.25])legs.push(part(new THREE.BoxGeometry(.14,.27,.15),dark,x,-.29,z));
-  const tail=part(new THREE.BoxGeometry(.25,.25,.63),fur,0,.07,.58,-.55,0,0);
-  const tailTip=part(new THREE.BoxGeometry(.26,.26,.25),cream,0,.22,.79,-.55,0,0);
+  const tail=part(new THREE.BoxGeometry(.30,.30,.72),fur,0,.08,.58,-.55,0,0);
+  const tailMid=part(new THREE.BoxGeometry(.275,.275,.42),cream,0,.185,.78,-.55,0,0);
+  const tailTip=part(new THREE.BoxGeometry(.25,.25,.22),cream,0,.27,.96,-.55,0,0);
+  // Face, ears, paws and fantasy harness details make the companion read as a fox, not a drone.
+  const earInnerMat=mat(0x55251a),markMat=mat(0xf5a04d),gold=mat(0xffb52e,0x7b3105),leather=mat(0x38251d),eyeWhite=mat(0xffe9bd);
+  const earInnerL=part(new THREE.ConeGeometry(.047,.145,4),earInnerMat,-.14,.493,-.492,0,0,.08);
+  const earInnerR=part(new THREE.ConeGeometry(.047,.145,4),earInnerMat,.14,.493,-.492,0,0,-.08);
+  part(new THREE.BoxGeometry(.105,.055,.025),eyeWhite,-.115,.238,-.674);
+  part(new THREE.BoxGeometry(.105,.055,.025),eyeWhite,.115,.238,-.674);
+  part(new THREE.BoxGeometry(.043,.047,.018),black,-.108,.238,-.692);
+  part(new THREE.BoxGeometry(.043,.047,.018),black,.122,.238,-.692);
+  part(new THREE.BoxGeometry(.025,.024,.008),eyeM,-.116,.251,-.703);
+  part(new THREE.BoxGeometry(.025,.024,.008),eyeM,.114,.251,-.703);
+  // Cream cheek tufts and a dark nose bridge.
+  part(new THREE.BoxGeometry(.105,.075,.08),cream,-.145,.12,-.625,0,0,-.18);
+  part(new THREE.BoxGeometry(.105,.075,.08),cream,.145,.12,-.625,0,0,.18);
+  part(new THREE.BoxGeometry(.12,.045,.045),dark,0,.17,-.64);
+  // Four articulated paws with bright toe caps and small claws.
+  const paws=[];for(const x of [-.18,.18])for(const z of [-.25,.25]){
+    part(new THREE.BoxGeometry(.145,.075,.17),fur,x,-.405,z);
+    for(const dx of [-.04,0,.04])part(new THREE.BoxGeometry(.018,.018,.035),cream,x+dx,-.432,z-.025);
+    paws.push({x,z});
+  }
+  // Mystic collar, chest badge and segmented harness straps.
+  part(new THREE.BoxGeometry(.32,.105,.13),leather,0,.075,-.34);
+  part(new THREE.BoxGeometry(.105,.115,.045),gold,0,.075,-.421);
+  part(new THREE.OctahedronGeometry(.075,0),new THREE.MeshStandardMaterial({color:0xff7a1a,emissive:0xff3b00,emissiveIntensity:1.2,metalness:.25,roughness:.28}),0,.075,-.455);
+  part(new THREE.BoxGeometry(.07,.23,.035),leather,-.205,.005,-.02,0,0,-.12);
+  part(new THREE.BoxGeometry(.07,.23,.035),leather,.205,.005,-.02,0,0,.12);
+  part(new THREE.BoxGeometry(.045,.055,.018),gold,-.205,.01,-.043);
+  part(new THREE.BoxGeometry(.045,.055,.018),gold,.205,.01,-.043);
+  // Layered flame aura and tiny ember motes around the tail.
   const flameMat=new THREE.MeshBasicMaterial({color:0xff5a16,transparent:true,opacity:.95});
+  const flameCore=part(new THREE.ConeGeometry(.095,.32,6),flameMat,0,.36,.57,Math.PI,0,0);
+  const emberMat=new THREE.MeshBasicMaterial({color:0xffb52e});
+  const embers=[];for(let i=0;i<7;i++){const e=part(new THREE.IcosahedronGeometry(.018+Math.random()*.018,0),emberMat,(Math.random()-.5)*.55,.2+Math.random()*.5,.35+Math.random()*.5);embers.push(e);}
+
   const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:FX_TEX,color:0xff7b24,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,opacity:.55}));glow.scale.set(.8,.8,1);glow.position.set(0,.1,-.65);g.add(glow);
   g.scale.setScalar(1.05);g.frustumCulled=false;scene.add(g);
-  return {g,body,head,tail,tailTip,legs,glow,fur,init:false,flash:0,attackT:1.5+Math.random()*2.5,seed:Math.random()*6.28,fire:0,hp:100};
+  return {g,body,head,tail,tailMid,tailTip,legs,paws,glow,flameCore,embers,earInnerL,earInnerR,fur,init:false,flash:0,attackT:1.5+Math.random()*2.5,seed:Math.random()*6.28,fire:0,hp:100};
 }
 function petFetch(f){/* legacy action intentionally disabled: fox does not carry grenades */}
 function disposeDrone(d){scene.remove(d.g);d.g.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material&&o.material.dispose)o.material.dispose();});}
@@ -2969,8 +3013,8 @@ function updateDrones(dt){
     if(!want){if(d){disposeDrone(d);drones.delete(f);}continue;}if(!d){d=makeDrone();drones.set(f,d);}
     petTarget(f,_pt);const tx=_pt.x,ty=_pt.y,tz=_pt.z;if(!d.init){d.x=tx;d.y=ty;d.z=tz;d.init=true;}
     const kk=1-Math.exp(-dt*7);d.x+=(tx-d.x)*kk;d.y+=(ty-d.y)*kk;d.z+=(tz-d.z)*kk;
-    d.g.position.set(d.x,d.y+Math.sin(T*3.5+d.seed)*.055,d.z);d.g.rotation.y=(f.yaw||0)+Math.PI;d.tail.rotation.x=-.55+Math.sin(T*5+d.seed)*.24;d.head.rotation.y=Math.sin(T*2+d.seed)*.1;
-    d.legs.forEach((l,i)=>{l.rotation.x=Math.sin(T*9+d.seed+i*Math.PI)*.18;});d.glow.material.opacity=.35+.35*Math.sin(T*7+d.seed);
+    d.g.position.set(d.x,d.y+Math.sin(T*3.5+d.seed)*.055,d.z);d.g.rotation.y=(f.yaw||0)+Math.PI;d.tail.rotation.x=-.55+Math.sin(T*5+d.seed)*.24;d.tail.rotation.z=Math.sin(T*3.1+d.seed)*.10;d.tailMid.rotation.x=d.tail.rotation.x-.08;d.tailTip.rotation.x=d.tail.rotation.x-.13;d.head.rotation.y=Math.sin(T*2+d.seed)*.1;d.head.rotation.x=Math.sin(T*1.7+d.seed)*.035;
+    d.legs.forEach((l,i)=>{l.rotation.x=Math.sin(T*9+d.seed+i*Math.PI)*.18;});d.glow.material.opacity=.35+.35*Math.sin(T*7+d.seed);d.flameCore.scale.setScalar(.8+.25*Math.sin(T*10+d.seed));d.flameCore.rotation.z=Math.sin(T*4+d.seed)*.16;d.embers.forEach((e,i)=>{e.position.y=.25+((T*.7+i*.173+d.seed)%1)*.48;e.position.x=Math.sin(T*2+i*2+d.seed)*(.22+i%3*.035);e.material.opacity=.35+.6*Math.abs(Math.sin(T*5+i));});
     if(d.flash>0){d.flash=Math.max(0,d.flash-dt*3);d.fur.emissive.setRGB(d.flash,.1*d.flash,0);}
     if(f.isPlayer&&mode==='single'&&state==='playing'){d.attackT-=dt;if(d.attackT<=0){foxFireAttack(f,d);d.attackT=2.8+Math.random()*3.7;}}
   }

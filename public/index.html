@@ -562,6 +562,30 @@ kbd{font:600 .85em var(--font);padding:1px 7px;border:1px solid var(--line2);bor
 @media (pointer:coarse) and (max-height:380px){#mobileHud{--g:7px}#mag{font-size:26px}}
 
 
+/* Reference-inspired full-screen game lobby */
+#menu{position:relative;background:#07101b url("lobby-hero.png") center 42%/cover no-repeat!important;isolation:isolate}
+#menu::before{content:"";position:absolute;inset:0;height:auto;background:linear-gradient(90deg,rgba(3,8,15,.08) 0%,rgba(3,8,15,.12) 42%,rgba(3,8,15,.72) 68%,rgba(3,8,15,.9) 100%);opacity:1;pointer-events:none;z-index:0}
+#menu::after{z-index:0;pointer-events:none}
+#menu .lb-top,#menu .lb-main{position:relative;z-index:2}
+#menu .lb-top{background:linear-gradient(180deg,rgba(3,7,13,.88),rgba(3,7,13,.35));border-bottom-color:rgba(255,255,255,.12)}
+#menu .lb-main{display:flex;align-items:center;padding-top:clamp(12px,3vh,34px);padding-bottom:clamp(16px,3vh,32px)}
+#menu .tab-panel[data-tab="play"]{max-width:1500px;width:100%}
+#menu .play-grid{grid-template-columns:minmax(280px,.85fr) minmax(300px,1.15fr);gap:clamp(16px,3vw,44px);align-items:center}
+#menu .deploy{order:2;justify-self:end;width:min(100%,440px);padding:clamp(20px,2.4vw,34px);background:linear-gradient(145deg,rgba(10,17,28,.88),rgba(6,10,17,.9));border:1px solid rgba(255,255,255,.18);box-shadow:0 24px 70px rgba(0,0,0,.35);backdrop-filter:blur(15px)}
+#menu .operator{order:1;min-height:clamp(360px,60vh,620px);justify-content:flex-end;align-self:stretch;background:linear-gradient(0deg,rgba(4,9,15,.74),transparent 42%);border:1px solid rgba(255,255,255,.09);box-shadow:none;animation:operatorEnter .8s cubic-bezier(.2,.8,.2,1) both}
+#menu .operator:before{content:"YOUR OPERATIVE  /  SEASON 01";left:24px;top:22px;color:rgba(255,255,255,.75)}
+#menu .operator:after{background:radial-gradient(ellipse,rgba(255,130,47,.17),transparent 65%)}
+#menu .op-top canvas{width:clamp(84px,8vw,118px);height:clamp(168px,16vw,236px);background:transparent;border:0;filter:drop-shadow(0 16px 22px rgba(0,0,0,.35));animation:operativeIdle 4.8s ease-in-out infinite}
+#menu #playMulti{position:relative;min-height:76px;border-radius:10px;letter-spacing:.03em;cursor:pointer;z-index:5;pointer-events:auto;transition:transform .18s,filter .18s,box-shadow .18s}
+#menu #playMulti:hover{transform:translateY(-2px);filter:brightness(1.08);box-shadow:0 16px 42px rgba(255,106,43,.35)}
+#menu #playMulti:active{transform:translateY(1px) scale(.99)}
+#menu #playSolo{border-radius:10px}
+#menu .field input,#menu .field select{border-radius:8px}
+@keyframes operatorEnter{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes operativeIdle{0%,100%{transform:translateY(0) rotate(-.5deg)}50%{transform:translateY(-7px) rotate(.5deg)}}
+@media(max-width:760px){#menu{background-position:35% center!important}#menu::before{background:linear-gradient(180deg,rgba(3,8,15,.18),rgba(3,8,15,.35) 32%,rgba(3,8,15,.94) 76%)}#menu .lb-main{align-items:flex-start;padding:12px 12px 20px}#menu .play-grid{grid-template-columns:1fr;gap:10px}#menu .deploy{order:1;width:100%;justify-self:stretch;padding:16px}#menu .operator{order:2;min-height:220px;padding:16px}#menu .op-top canvas{width:54px;height:108px}#menu .tab-btn{padding:8px 9px;font-size:10px}#menu .menu-tabs{gap:0}#menu .lb-top{gap:8px;padding:9px 10px}#menu .lb-top .wordmark{font-size:22px}}
+@media(prefers-reduced-motion:reduce){#menu .operator,#menu .op-top canvas,.companion-fox,.companion-glow{animation:none!important}}
+
 /* Shotline lobby refresh: premium mobile-shooter composition */
 #menu{background:radial-gradient(ellipse at 72% 42%,rgba(255,92,32,.17),transparent 38%),radial-gradient(ellipse at 54% 100%,rgba(47,145,255,.13),transparent 42%),linear-gradient(135deg,#070b12 0%,#111b28 52%,#080b11 100%)}
 #menu::before{height:65%;opacity:.72;filter:saturate(1.2)}
