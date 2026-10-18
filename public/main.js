@@ -3054,17 +3054,11 @@ function coinsHudSet(total,delta){const n=$('coinsHudNum');if(n)n.textContent=Nu
 /* ============ BUDDY DRONE (pet): follows you, soaks bullets, heals you, restocks grenades ============ */
 const drones=new Map();
 function petTarget(f,o){
+  // Validated floor spot behind the operator; never a void or another floor.
+  const a=petAnchorFor(f);
+  if(a){o.x=a[0];o.z=a[2];o.y=a[1]+0.025;return o;}
   const c=Math.cos(f.yaw||0),sn=Math.sin(f.yaw||0);
-  o.x=f.x+0.82*c-0.62*sn;
-  o.z=f.z-0.82*sn-0.62*c;
-  // Never let the fox inherit a bad player height. Sample the actual GLB
-  // floor underneath the fox and place its feet directly on that surface.
-  let gy=f.y;
-  if(window.MAP_COLLIDER){
-    const h=window.MAP_COLLIDER.groundHeight(o.x,o.z,f.y+1.5,3.5);
-    if(h.found)gy=h.y;
-  }
-  o.y=gy+0.025;
+  o.x=f.x+0.82*c-0.62*sn;o.z=f.z-0.82*sn-0.62*c;o.y=f.y;
   return o;
 }
 function makeDrone(){
@@ -3110,6 +3104,137 @@ function makeDrone(){
 function petFetch(f){const d=drones.get(f);if(d){d.fetch=1.2;d.dinged=false;}}
 function disposeDrone(d){scene.remove(d.g);d.g.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material&&o.material.dispose)o.material.dispose();});}
 const _pt={x:0,y:0,z:0};
+/* ---- Fox companion AI ----
+ * Follows the operator at a trot when they move, and when they stop it wanders
+ * around them on the real GLB floor: walks to random clear spots, sits, sniffs,
+ * looks at the operator and does small hops. Feet are placed on the floor the
+ * collider reports, so the fox never hovers. */
+function petGroundAt(x,z,fromY){
+  const C=window.MAP_COLLIDER;if(!C)return null;
+  let h=C.groundHeight(x,z,fromY+0.7,1.6);
+  if(!h.found)h=C.groundHeight(x,z,fromY-0.2,1.0);
+  return h.found?h.y:null;
+}
+/* A pet spot is valid only when there is floor on the operator's level under it,
+ * the floor continues 0.3 m around it (no stepping off ledges), and there is
+ * headroom. Anything over a lower/upper floor or a void is rejected. */
+function petFloorOK(x,z,ref){
+  const gy=petGroundAt(x,z,ref);if(gy===null||Math.abs(gy-ref)>0.5)return null;
+  for(const [ox,oz] of [[0.3,0],[-0.3,0],[0,0.3],[0,-0.3]]){
+    const g2=petGroundAt(x+ox,z+oz,gy);if(g2===null||Math.abs(g2-gy)>0.12)return null;
+  }
+  const C=window.MAP_COLLIDER;
+  if(C){const ce=C.ceilingHeight(x,z,gy+0.05);if(isFinite(ce)&&ce-gy<1.2)return null;}
+  return gy;
+}
+function petPickSpot(f){
+  for(let i=0;i<14;i++){
+    const a=Math.random()*TAU,r=rnd(0.9,2.2);
+    const x=f.x+Math.cos(a)*r,z=f.z+Math.sin(a)*r;
+    if(petFloorOK(x,z,f.y)!==null)return [x,z];
+  }
+  return null;
+}
+/* Resting spot behind and beside the operator (same layout as before). If that
+ * spot has no valid floor, search the nearest valid one around the operator. */
+function petAnchorFor(f){
+  const yaw=f.yaw||0,sn=Math.sin(yaw),cs=Math.cos(yaw);
+  const ang=Math.atan2(-(0.82*sn+0.62*cs),0.82*cs-0.62*sn);
+  for(const k of [0,0.35,-0.35,0.7,-0.7,1.1,-1.1,1.6,-1.6,2.2,-2.2,2.8,-2.8,Math.PI]){
+    for(const r of [0.95,0.8,1.2,1.5]){
+      const x=f.x+Math.cos(ang+k)*r,z=f.z+Math.sin(ang+k)*r;
+      const gy=petFloorOK(x,z,f.y);
+      if(gy!==null)return [x,gy,z];
+    }
+  }
+  return null;
+}
+function petBrain(f,d,dt){
+  const C=window.MAP_COLLIDER;
+  const ai=d.ai||(d.ai={mode:'follow',act:'',t:0.4,dur:0,tx:d.x,tz:d.z,vx:0,vz:0,yaw:f.yaw||0,odo:0,sit:0,sniff:0,look:0,play:0,airY:0,vy:0,hops:0,hopCd:0,turn:0,blockT:0,anc:null,ancT:0,seed:Math.random()*10});
+  // Re-check the resting spot a few times a second, not every frame.
+  ai.ancT-=dt;
+  if(ai.ancT<=0||!ai.anc){ai.anc=petAnchorFor(f);ai.ancT=0.25;}
+  const ax=ai.anc?ai.anc[0]:d.x,az=ai.anc?ai.anc[2]:d.z;
+  // Lost (far away or on another floor): snap back to the operator's floor.
+  if(Math.hypot(f.x-d.x,f.z-d.z)>9||Math.abs(f.y-d.y)>2.5){
+    if(ai.anc){d.x=ax;d.z=az;d.y=ai.anc[1];}
+    ai.vx=ai.vz=0;ai.act='';ai.mode='follow';
+  }
+  const moving=(f.speed||0)>0.35;
+  if(moving){ai.mode='follow';ai.act='';}
+  else if(ai.mode==='follow'){ai.mode='idle';ai.act='';ai.t=rnd(0.3,0.8);}
+
+  // ---- choose behaviour ----
+  if(ai.mode==='idle'){
+    if(ai.act===''){
+      ai.t-=dt;
+      if(ai.t<=0){
+        const r=Math.random();
+        if(r<0.46){
+          const spot=petPickSpot(f);
+          if(spot){ai.act='walk';ai.tx=spot[0];ai.tz=spot[1];ai.dur=5;}
+          else {ai.act='sit';ai.dur=rnd(3,5);}
+        }else if(r<0.62){ai.act='sit';ai.dur=rnd(3.5,6);}
+        else if(r<0.76){ai.act='sniff';ai.dur=rnd(2,3);}
+        else if(r<0.88){ai.act='look';ai.dur=rnd(1.6,2.4);}
+        else {ai.act='play';ai.dur=1.9;ai.hops=2;ai.hopCd=0.1;}
+      }
+    }else{
+      ai.dur-=dt;
+      if(ai.act==='walk'&&Math.hypot(ai.tx-d.x,ai.tz-d.z)<0.12)ai.dur=0;
+      if(ai.dur<=0){ai.act='';ai.t=rnd(0.8,2.4);}
+    }
+  }
+
+  // ---- movement target and speed ----
+  let gx=d.x,gz=d.z,spd=0;
+  if(ai.mode==='follow'){
+    gx=ax+Math.sin(T*1.3+ai.seed)*0.05;gz=az+Math.cos(T*1.1+ai.seed)*0.05;
+    const dd=Math.hypot(gx-d.x,gz-d.z);
+    spd=dd>0.22?Math.min(4.6,dd*2.6+0.5):0;
+  }else if(ai.act==='walk'){gx=ai.tx;gz=ai.tz;spd=1.15;}
+
+  const dx=gx-d.x,dz=gz-d.z,l=Math.hypot(dx,dz);
+  const tvx=l>0.01?dx/l*spd:0,tvz=l>0.01?dz/l*spd:0;
+  const k=Math.min(1,dt*7);
+  ai.vx+=(tvx-ai.vx)*k;ai.vz+=(tvz-ai.vz)*k;
+
+  // ---- integrate with floor and wall checks ----
+  const nx=d.x+ai.vx*dt,nz=d.z+ai.vz*dt;
+  const gy=petFloorOK(nx,nz,d.y);
+  if(gy===null){
+    // ledge, wall or gap: stop; if stuck for a moment, go back to the operator's spot
+    ai.vx=ai.vz=0;if(ai.act==='walk'){ai.act='';ai.t=0.2;}
+    ai.blockT+=dt;
+    if(ai.blockT>0.3&&ai.anc){d.x=ax;d.z=az;d.y=ai.anc[1];ai.blockT=0;}
+  }else{
+    ai.blockT=0;
+    let px=nx,pz=nz;
+    if(C){const tmp={x:nx,y:gy,z:nz};C.collideWall(tmp,0.22);px=tmp.x;pz=tmp.z;}
+    d.x=px;d.z=pz;d.y+=(gy-d.y)*Math.min(1,dt*14);
+  }
+  const speedNow=Math.hypot(ai.vx,ai.vz);
+  ai.odo+=speedNow*dt;
+
+  // ---- hops (play) ----
+  if(ai.act==='play'&&ai.hops>0){ai.hopCd-=dt;if(ai.hopCd<=0&&ai.airY<=0.001){ai.vy=4.4;ai.hops--;ai.hopCd=0.55;}}
+  ai.airY+=ai.vy*dt;ai.vy-=16*dt;
+  if(ai.airY<=0){ai.airY=0;if(ai.vy<0)ai.vy=0;}
+
+  // ---- heading: toward motion, otherwise look at the operator ----
+  const targetYaw=speedNow>0.05?Math.atan2(ai.vx,ai.vz):Math.atan2(f.x-d.x,f.z-d.z);
+  const dyaw=angDiff(ai.yaw,targetYaw)*Math.min(1,dt*5);ai.yaw+=dyaw;ai.turn=dt>0?dyaw/dt:0;
+
+  // ---- pose blends ----
+  const isAct=(n)=>ai.mode==='idle'&&ai.act===n;
+  ai.sit+=((isAct('sit')?1:0)-ai.sit)*Math.min(1,dt*4);
+  ai.sniff+=((isAct('sniff')?1:0)-ai.sniff)*Math.min(1,dt*5);
+  ai.look+=((isAct('look')?1:0)-ai.look)*Math.min(1,dt*4);
+  ai.play+=((isAct('play')?1:0)-ai.play)*Math.min(1,dt*6);
+  ai.speed=speedNow;
+}
+
 function updateDrones(dt){
   player.hasPet=!!(P.pet&&P.pet.alive);
   if(mode==='single'&&player.hasPet&&player.alive&&player.hp<100&&state==='playing')player.hp=Math.min(100,player.hp+2*dt);
@@ -3117,28 +3242,59 @@ function updateDrones(dt){
     const want=f.hasPet&&f.alive&&(state!=='menu'||f.isPlayer);let d=drones.get(f);
     if(!want){if(d){disposeDrone(d);drones.delete(f);}continue;}
     if(!d){d=makeDrone();drones.set(f,d);}
-    petTarget(f,_pt);let tx=_pt.x,ty=_pt.y,tz=_pt.z;
-    if(d.fetch>0){d.fetch-=dt;const k=1-Math.max(0,d.fetch)/1.2,bump=Math.sin(Math.min(1,k)*Math.PI),yw=f.yaw||0;
+    if(!d.init){petTarget(f,_pt);d.x=_pt.x;d.y=_pt.y;d.z=_pt.z;d.init=true;}
+
+    if(d.fetch>0){
+      // grenade fetch: the fox jumps up to the operator's hand, then goes back to wandering
+      d.fetch-=dt;petTarget(f,_pt);const k=1-Math.max(0,d.fetch)/1.2,bump=Math.sin(Math.min(1,k)*Math.PI),yw=f.yaw||0;
+      let tx=_pt.x,ty=_pt.y,tz=_pt.z;
       tx+=((f.x-Math.sin(yw)*0.5)-tx)*bump;ty+=((f.y+1.15)-ty)*bump;tz+=((f.z-Math.cos(yw)*0.5)-tz)*bump;
       d.nadeM.visible=k>0.2&&k<0.8;
-      if(!d.dinged&&k>0.5){d.dinged=true;if(f.isPlayer){toast('+1 grenade','good');buzz(12);sfxTone(1200,0.08,0.12,'sine',1800);}}}
-    else d.nadeM.visible=false;
-    if(!d.init){d.x=tx;d.y=ty;d.z=tz;d.init=true;}
-    const kk=1-Math.exp(-dt*9);d.x+=(tx-d.x)*kk;d.y+=(ty-d.y)*kk;d.z+=(tz-d.z)*kk;
-    const bob=Math.sin(T*5+d.seed)*0.006;
-    d.g.position.set(d.x,d.y+bob,d.z);
-    const vx=(tx-d.x),vz=(tz-d.z);d.g.rotation.y=(f.yaw||0)+Math.PI;d.g.rotation.z=clamp((vx*Math.cos(f.yaw||0)-vz*Math.sin(f.yaw||0))*0.45,-0.25,0.25);
-    const speed=Math.hypot(vx,vz);
-    const gait=T*(speed>0.18?7.5:2.2)+d.seed;
-    if(d.legs){d.legs[0].rotation.x=Math.sin(gait)*0.34;d.legs[3].rotation.x=Math.sin(gait)*0.34;d.legs[1].rotation.x=Math.sin(gait+Math.PI)*0.34;d.legs[2].rotation.x=Math.sin(gait+Math.PI)*0.34;}
-    if(d.tail){d.tail.rotation.z=Math.sin(T*3.8+d.seed)*0.18;d.tail.rotation.y=Math.sin(T*2.5+d.seed)*0.22;}
-    if(d.head){d.head.rotation.y=Math.sin(T*1.8+d.seed)*0.035;d.head.rotation.x=Math.sin(T*2.3+d.seed)*0.018;}
+      if(!d.dinged&&k>0.5){d.dinged=true;if(f.isPlayer){toast('+1 grenade','good');buzz(12);sfxTone(1200,0.08,0.12,'sine',1800);}}
+      const kk=1-Math.exp(-dt*9);d.x+=(tx-d.x)*kk;d.y+=(ty-d.y)*kk;d.z+=(tz-d.z)*kk;
+      if(d.ai){d.ai.airY=0;d.ai.vy=0;}
+    }else{
+      d.nadeM.visible=false;
+      petBrain(f,d,dt);
+    }
+
+    const ai=d.ai||{airY:0,sit:0,sniff:0,look:0,play:0,vx:0,vz:0,yaw:f.yaw||0,speed:0,seed:d.seed,odo:0};
+    const hop=ai.airY||0;
+    const breath=Math.sin(T*2.2+d.seed)*0.004*(1-(ai.speed||0)*0.2);
+    d.g.position.set(d.x,d.y+hop-(ai.sit||0)*0.08+breath,d.z);
+    d.g.rotation.y=ai.yaw||0;
+    // lean into turns and into hops
+    d.g.rotation.z=clamp(-(ai.turn||0)*0.05,-0.16,0.16);
+    d.g.rotation.x=-clamp((ai.vy||0)*0.03,-0.12,0.12)-(ai.sit||0)*0.12;
+
+    // gait: legs swing in diagonal pairs, phase tied to distance travelled so feet don't slide
+    const amp=Math.min(1,(ai.speed||0)/1.6)*0.55,ph=(ai.odo||0)/0.42*Math.PI*2+d.seed;
+    if(d.legs){
+      const s=Math.sin(ph),c=Math.sin(ph+Math.PI);
+      d.legs[0].rotation.x=s*amp-(ai.sit||0)*0.9;
+      d.legs[3].rotation.x=s*amp;
+      d.legs[1].rotation.x=c*amp;
+      d.legs[2].rotation.x=c*amp-(ai.sit||0)*0.9;
+    }
+    // head: looks at the operator, sniffs down, tilts when curious
+    if(d.head){
+      d.head.rotation.x=(ai.sniff||0)*0.55+Math.sin(T*1.7+d.seed)*0.02;
+      d.head.rotation.z=(ai.look||0)*0.28+Math.sin(T*0.9+d.seed)*0.03*(1-(ai.speed||0)*0.2);
+      d.head.rotation.y=Math.sin(T*1.3+d.seed)*0.04*(1-(ai.speed||0)*0.2)+(ai.look||0)*0.2;
+    }
+    // tail: slow idle sway, fast when sniffing/playing/moving
+    if(d.tail){
+      const wag=3.8+(ai.sniff||0)*5+(ai.play||0)*7+(ai.speed||0)*1.2;
+      d.tail.rotation.z=Math.sin(T*wag+d.seed)*(0.16+(ai.play||0)*0.25);
+      d.tail.rotation.y=Math.sin(T*2.5+d.seed)*0.2;
+    }
     d.ring.scale.setScalar(1+Math.sin(T*4+d.seed)*0.035);d.glow.material.opacity=0.10+0.08*Math.sin(T*5+d.seed);d.tip.visible=true;
     if(d.flash>0){d.flash=Math.max(0,d.flash-dt*4);d.white.emissive.setRGB(d.flash*0.35,d.flash*0.08,0);}
   }
   for(const [f,d] of drones)if(fighters.indexOf(f)<0){disposeDrone(d);drones.delete(f);}
   const ph=$('petHud');if(ph){const on=!!(P.pet&&P.pet.alive)&&state==='playing';ph.classList.toggle('hidden',!on);if(on){const b=$('petBar');if(b)b.style.width=Math.max(0,P.pet.hp)+'%';}}
 }
+
 function petBurst(f){const d=drones.get(f),x=d?d.g.position.x:f.x,y=d?d.g.position.y:f.y+1.5,z=d?d.g.position.z:f.z;addPFX(blastFX(x,y-0.6,z,1.6));fxLight(x,y,z,0x6fe3ff,4,0.35);sfxExplosion(0.25*clamp(1-Math.hypot(camera.position.x-x,camera.position.z-z)/40,0,1));if(d){disposeDrone(d);drones.delete(f);}f.hasPet=false;}
 function hurtPetLocal(dmg){const pt=P.pet;if(!pt||!pt.alive)return;pt.hp-=dmg;const d=drones.get(player);if(d)d.flash=1;
   if(pt.hp<=0){pt.alive=false;pt.hp=0;petBurst(player);banner('DRONE DESTROYED','#ff6a6a');toast('Your drone was destroyed','warn');buzz([30,40,30]);}}
@@ -3395,6 +3551,51 @@ function onPlayerDeath(a,head,cause){state='dead';deadT=0;P.reload=0;mouseL=fals
   else $('killer').textContent='You were eliminated';
   $('death').classList.remove('hidden');$('shield').classList.add('hidden');$('interact').classList.add('hidden');gunRoot.visible=false;$('scope').classList.add('hidden');$('reddot').classList.add('hidden');$('borderWarn').classList.remove('show');
   if(document.pointerLockElement)document.exitPointerLock();fallback=false;starting=false;$('pause').classList.add('hidden');}
+/* Lobby point: a clear standing point on the GLB's own floor triangles (headroom
+ * checked against the GLB ceilings) inside the most open room of the level. The
+ * old lookup only searched near the origin, which on this map is inside the upper
+ * floors, so the lobby camera ended up inside the geometry. */
+function findLobbyHome(pool){
+  const C=window.MAP_COLLIDER;if(!C)return null;
+  const cands=pool||[];
+  if(!cands.length){
+    for(let x=-44;x<=44;x+=3.5)for(let z=-30;z<=30;z+=3.5){
+      for(let sy=C.maxY-0.5;sy>=C.minY;sy-=1.5){
+        const gh=C.groundHeight(x,z,sy,3.5);if(!gh.found)continue;
+        const ce=C.ceilingHeight(x,z,gh.y+0.05);if(isFinite(ce)&&ce-gh.y<2.4)continue;
+        cands.push([x,gh.y+0.06,z]);break;
+      }
+    }
+  }
+  let best=null,bestScore=-Infinity;
+  for(const p of cands){
+    const [x,y,z]=p;
+    const ce=C.ceilingHeight(x,z,y+0.05);if(isFinite(ce)&&ce-y<2.4)continue;
+    let openness=0,blocked=false;
+    for(let k=0;k<8;k++){
+      const a=k/8*TAU,dx=Math.cos(a),dz=Math.sin(a);
+      const h=C.raycast(x,y+1.2,z,dx,0,dz,8);
+      const d=h&&h.hit?h.t:8;
+      if(d<1.0)blocked=true;
+      openness+=d;
+    }
+    if(blocked)continue;
+    // the companion fox and the operator both need solid floor around the spot
+    let okDirs=0;for(let k=0;k<8;k++){const a=k/8*TAU;if(petFloorOK(x+Math.cos(a)*1.5,z+Math.sin(a)*1.5,y)!==null)okDirs++;}
+    if(okDirs<6)continue;
+    // the menu camera orbits the operator at 6.8 m; avoid spots where a wall cuts that orbit
+    let orbitBlocked=0;
+    for(let k=0;k<16;k++){
+      const a=k/16*TAU,cx=x+Math.cos(a)*6.8,cz=z+Math.sin(a)*6.8,cy=y+2.15;
+      const ox=cx-x,oy=cy-(y+1.05),oz=cz-z,L=Math.hypot(ox,oy,oz)||1;
+      const h=C.raycast(x,y+1.05,z,ox/L,oy/L,oz/L,L);
+      if(h&&h.hit&&h.t<L-0.2)orbitBlocked++;
+    }
+    const score=openness/8-Math.hypot(x,z)*0.02-orbitBlocked*1.5;
+    if(score>bestScore){bestScore=score;best=[x,y,z];}
+  }
+  return best;
+}
 function spawn(f){
   const mapPoints=(window.__MAP_SPAWN_POINTS&&window.__MAP_SPAWN_POINTS.length)?window.__MAP_SPAWN_POINTS:
     ((window.__GLB_SPAWNS&&window.__GLB_SPAWNS.length)?window.__GLB_SPAWNS:null);
@@ -3464,21 +3665,9 @@ function step(dt){
     // Find a real walkable point on the supplied GLB near its main floor.
     // Do not use an arbitrary median spawn or (0,0,0): both can land inside
     // walls/upper rooms on this multi-level underground map.
-    let home=null,homeScore=Infinity;
-    if(window.MAP_COLLIDER){
-      const r=24,step=2.0;
-      for(let x=-r;x<=r;x+=step){for(let z=-r;z<=r;z+=step){
-        const h=window.MAP_COLLIDER.groundHeight(x,z,4.0,8.0);
-        if(!h.found||h.y<-1.2||h.y>1.2)continue;
-        const ceil=window.MAP_COLLIDER.ceilingHeight(x,z,h.y+0.05);
-        if(isFinite(ceil)&&ceil-h.y<2.0)continue;
-        const score=Math.hypot(x,z)+Math.abs(h.y)*8;
-        if(score<homeScore){home=[x,h.y+0.06,z];homeScore=score;}
-      }}
-    }
-    if(!home&&window.__MAP_SPAWN_POINTS&&window.__MAP_SPAWN_POINTS.length){
-      for(const p of window.__MAP_SPAWN_POINTS){const score=Math.abs(p[1])+Math.hypot(p[0],p[2]);if(score<homeScore){home=p;homeScore=score;}}
-    }
+    let home=null;
+    if(window.MAP_COLLIDER)home=findLobbyHome();
+    if(!home&&window.__MAP_SPAWN_POINTS&&window.__MAP_SPAWN_POINTS.length)home=findLobbyHome(window.__MAP_SPAWN_POINTS);
     if(home){player.x=home[0];player.y=home[1];player.z=home[2];}
     else {player.x=0;player.y=0.06;player.z=0;}
     player.speed=0;player.vx=player.vy=player.vz=0;
@@ -3493,7 +3682,14 @@ function step(dt){
     if(glbMapOk){
       const r=6.8;
       const focusY=player.y+1.05;
-      camera.position.set(player.x+Math.cos(menuAng)*r,player.y+2.15+Math.sin(menuAng*0.7)*0.18,player.z+Math.sin(menuAng)*r);
+      // Pull the orbit camera in when a wall of the GLB map is between it and the operator.
+      let cdx=Math.cos(menuAng)*r,cdz=Math.sin(menuAng)*r,cyy=player.y+2.15+Math.sin(menuAng*0.7)*0.18;
+      if(window.MAP_COLLIDER&&window.MAP_COLLIDER.raycast){
+        const vx=cdx,vy=cyy-focusY,vz=cdz,L=Math.hypot(vx,vy,vz)||1;
+        const hit=window.MAP_COLLIDER.raycast(player.x,focusY,player.z,vx/L,vy/L,vz/L,L);
+        if(hit&&hit.hit){const t=Math.max(1.0,hit.t-0.3)/L;cdx*=t;cdz*=t;cyy=focusY+vy*t;}
+      }
+      camera.position.set(player.x+cdx,cyy,player.z+cdz);
       camera.lookAt(player.x,focusY,player.z);
     } else {
       camera.position.set(player.x+Math.cos(menuAng)*7.5,player.y+3.1,player.z+Math.sin(menuAng)*7.5);
