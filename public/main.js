@@ -12,7 +12,7 @@ function saveBinds(){try{localStorage.setItem('shotline.binds',JSON.stringify(BI
 function prettyKey(code){if(!code)return '—';if(code==='Space')return 'Space';if(code==='Enter')return 'Enter';if(code==='Tab')return 'Tab';if(code==='ShiftLeft'||code==='ShiftRight')return 'Shift';if(code==='Mouse0')return 'LMB';if(code==='Mouse1')return 'MMB';if(code==='Mouse2')return 'RMB';if(code.startsWith('Key'))return code.slice(3);if(code.startsWith('Digit'))return code.slice(5);if(code.startsWith('Arrow'))return code.slice(5);return code;}
 const keys={};
 function isDown(action){return !!keys[BINDS[action]];}
-document.querySelectorAll('.tab-btn').forEach(btn=>{btn.addEventListener('click',()=>{const tab=btn.dataset.tab;document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b===btn));document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('hidden',p.dataset.tab!==tab));});});
+document.querySelectorAll('.tab-btn').forEach(btn=>{btn.addEventListener('click',()=>{const tab=btn.dataset.tab;document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b===btn));document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('hidden',p.dataset.tab!==tab));document.querySelectorAll('.mg-nav[data-global-tab]').forEach(b=>b.classList.toggle('active',b.dataset.globalTab===tab));});});
 (function(){const btns=document.querySelectorAll('.bind-key');let listening=null;
   function refresh(){btns.forEach(b=>{b.textContent=prettyKey(BINDS[b.dataset.bind]);});}
   btns.forEach(btn=>{btn.addEventListener('click',e=>{e.preventDefault();if(listening)listening.classList.remove('listening');listening=btn;btn.classList.add('listening');btn.textContent='Press…';
@@ -2700,6 +2700,20 @@ $('closePlayModes')&&$('closePlayModes').addEventListener('click',closePlayModes
 $('homeShopBtn')&&$('homeShopBtn').addEventListener('click',()=>openHomeTab('shop'));
 $('homeSettingsBtn')&&$('homeSettingsBtn').addEventListener('click',()=>openHomeTab('settings'));
 $('homeProfileBtn')&&$('homeProfileBtn').addEventListener('click',()=>openHomeTab('shop'));
+$('mobileDeployBtn')&&$('mobileDeployBtn').addEventListener('click',openPlayModes);
+document.querySelectorAll('.mnav-btn[data-home-tab]').forEach(btn=>btn.addEventListener('click',()=>{
+  const tab=btn.getAttribute('data-home-tab');
+  openHomeTab(tab);
+  document.querySelectorAll('.mnav-btn[data-home-tab]').forEach(x=>x.classList.toggle('active',x===btn));
+}));
+$('mobileSectionBack')&&$('mobileSectionBack').addEventListener('click',()=>openHomeTab('play'));
+document.querySelectorAll('.mg-nav[data-global-tab]').forEach(btn=>btn.addEventListener('click',()=>{
+  const tab=btn.getAttribute('data-global-tab');
+  openHomeTab(tab);
+  document.querySelectorAll('.mg-nav[data-global-tab]').forEach(x=>x.classList.toggle('active',x===btn));
+}));
+$('mobileGlobalPlay')&&$('mobileGlobalPlay').addEventListener('click',openPlayModes);
+
 
 $('leave').addEventListener('click',e=>{e.stopPropagation();leaveMatch();});
 $('resume').addEventListener('click',e=>{e.stopPropagation();manualPause=false;syncPause();if(!isMobile)requestLock(false);});
