@@ -396,7 +396,7 @@ if(window.MAP_GLB_PROMISE){
   try{
     const md=await window.MAP_GLB_PROMISE;
     if(md&&md.scene){
-      scene.add(md.scene);glbMapData=md;window.__GLB_SPAWNS=md.spawns||[];window.__MAP_NAV_NODES=md.navNodes||window.__MAP_NAV_NODES||[];scene.fog=new THREE.Fog(L(0x111820),70,360);sun.intensity=0.55;for(const q of mapLights)q.l.intensity=q.intensity;
+      scene.add(md.scene);glbMapData=md;window.__GLB_SPAWNS=md.spawns||[];window.__MAP_NAV_NODES=md.navNodes||window.__MAP_NAV_NODES||[];scene.fog=new THREE.Fog(L(0x111820),120,520);sun.intensity=0.55;for(const q of mapLights)q.l.intensity=q.intensity;
       window.MAP_COLLIDER=new GLBMeshCollider(md.scene);
       window.__MAP_SPAWN_POINTS=window.MAP_COLLIDER.spawnPoints||[];
       glbMapOk=true;
@@ -1673,10 +1673,16 @@ const CH=(function(){
     for(let i=0;i<90;i++){const x=rng()*S,y=rng()*S,r=2+rng()*10;g.fillStyle='rgba('+(rng()<0.5?'20,15,12':'200,190,170')+','+(0.03+rng()*0.10).toFixed(3)+')';g.beginPath();g.arc(x,y,r,0,6.283);g.fill();}
     for(let i=0;i<300;i++){g.fillStyle='rgba(0,0,0,'+(0.03+rng()*0.10).toFixed(3)+')';g.fillRect(rng()*S,rng()*S,1+rng()*2,1+rng()*2);}
     const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;t.wrapS=t.wrapT=THREE.RepeatWrapping;return t;}
+  function hslHex(h,s,l){
+    h=((h%360)+360)%360/360;s=Math.max(0,Math.min(1,s/100));l=Math.max(0,Math.min(1,l/100));
+    const q=l<.5?l*(1+s):l+s-l*s,p=2*l-q;
+    const hue2=t=>{if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<1/2)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p;};
+    return '#'+[hue2(h+1/3),hue2(h),hue2(h-1/3)].map(v=>Math.round(v*255).toString(16).padStart(2,'0')).join('');
+  }
   function getSkin(name){if(skinCache.has(name))return skinCache.get(name);
     const seed=hashStr(name);const rng=mulberry32(seed);
     const hue=rng()*360,sat=18+rng()*40,light=20+rng()*25;
-    const palette={base:'hsl('+hue+','+sat+'%,'+light+'%)',dark:'hsl('+hue+','+(sat+5)+'%,'+Math.max(12,light-12)+'%)',light:'hsl('+hue+','+(sat-5)+'%,'+Math.min(60,light+18)+'%)',accent:'hsl('+((hue+180)%360)+',65%,55%)',accent2:'hsl('+((hue+120)%360)+',55%,45%)',skinTone:'hsl(28,55%,'+(55+rng()*20)+'%)',helmet:rng()<0.6,cap:rng()<0.2,beret:rng()<0.08,boonie:rng()<0.12,vest:rng()<0.80,back:rng()<0.75,pads:rng()<0.55,holster:rng()<0.4,radio:rng()<0.45,pattern:Math.floor(rng()*7)};
+    const palette={base:hslHex(hue,sat,light),dark:hslHex(hue,sat+5,Math.max(12,light-12)),light:hslHex(hue,Math.max(0,sat-5),Math.min(60,light+18)),accent:hslHex(hue+180,65,55),accent2:hslHex(hue+120,55,45),skinTone:hslHex(28,55,55+rng()*20),helmet:rng()<0.6,cap:rng()<0.2,beret:rng()<0.08,boonie:rng()<0.12,vest:rng()<0.80,back:rng()<0.75,pads:rng()<0.55,holster:rng()<0.4,radio:rng()<0.45,pattern:Math.floor(rng()*7)};
     palette.texture=makeSkinTexture(seed,palette);skinCache.set(name,palette);return palette;}
 
   const MODEL={ready:false,scene:null,animations:null};
@@ -2181,31 +2187,9 @@ document.querySelectorAll('#wslots span').forEach((s,i)=>{s.style.display=i<WEAP
   }catch(e){console.warn('[hands] material sync failed',e);}
 })();
 VM.init(gunRoot,viewCamera);guns.push(...VM.rig.map(r=>r.g));
-// Activate the cached weapon immediately after all first-person rigs exist.
-try{if(P.cur!==0)setGun(P.cur);}catch(e){console.warn('[weapon-cache] activation failed',e);}
 VM.rig.forEach(r=>{r.g.add(viewMuzzle);});
 WEAPONS.forEach((w,i)=>{w.flashZ=VM.rig[i].A.muzzle[2];});
-// High-detail operator attachments: add rail covers, muzzle rings and compact
-// optics to the existing weapon bodies without replacing their animation rigs.
-(function(){
-  try{
-    VM.rig.forEach((r,i)=>{
-      if(!r||!r.g)return;
-      const kind=WEAPONS[i].key;
-      if(kind==='fist')return;
-      const dark=new THREE.MeshStandardMaterial({color:0x171a1d,roughness:.38,metalness:.72,envMap:GX.env(),envMapIntensity:.55});
-      const steel=new THREE.MeshStandardMaterial({color:0x34383b,roughness:.28,metalness:.82,envMap:GX.env(),envMapIntensity:.65});
-      const rail=new THREE.Mesh(new THREE.BoxGeometry(.075,.018,.28),dark);rail.position.set(0,.095,-.28);r.g.add(rail);
-      const muzzle=new THREE.Mesh(new THREE.CylinderGeometry(.035,.042,.055,16),steel);muzzle.rotation.x=Math.PI/2;muzzle.position.set(0,.028,(r.A.muzzle[2]||-.7)+.025);r.g.add(muzzle);
-      if(kind!=='shotgun'&&kind!=='bazooka'){
-        const optic=new THREE.Group();
-        const body=new THREE.Mesh(new THREE.BoxGeometry(.075,.045,.14),dark);body.position.z=-.01;optic.add(body);
-        const glass=new THREE.Mesh(new THREE.CylinderGeometry(.015,.015,.003,12),new THREE.MeshStandardMaterial({color:0x66a6b8,roughness:.12,metalness:.25,emissive:0x16323a,emissiveIntensity:.7}));glass.rotation.x=Math.PI/2;glass.position.set(0,.024,-.082);optic.add(glass);
-        optic.position.set(0,.145,-.29);r.g.add(optic);
-      }
-    });
-  }catch(e){console.warn('[weapon-detail] attachment pass failed',e);}
-})();
+// Keep the authored procedural weapon rigs untouched; their animation anchors are calibrated to the hands.
 gunRoot.add(flash);gunRoot.visible=false;
 
 /* Border - removed: map is small enough now that a shrinking play-zone isn't needed.
@@ -2221,6 +2205,21 @@ let yaw=0,pitch=0,deadT=0;let locked=false,fallback=false,starting=false;let sen
 let mouseL=false,mouseR=false,mousePressed=false;
 let manualPause=false;
 const P={cur:0,ammo:WEAPONS.map(w=>w.mag),reload:0,reloadTotal:1,nextFire:0,heat:0,adsT:0,swap:0,kick:0,flash:0,bob:0,swayX:0,swayY:0,hitT:0,dmgT:0,dmgDirT:0,toastT:0,fovB:0,recoilX:0,recoilY:0,idleSway:0,lastShotTime:0,sprintSway:0,lastHitAt:-999,regenning:false,landDip:0,stepD:0,breath:4,gasp:0,swayYaw:0,swayPitch:0,cycle:0,streak:0,roll:0,zoom:0,climbT:0,nearLadder:false,slideBack:0,boltCycle:0,camShake:0,camShakeYaw:0,camShakePitch:0};
+// Restore the last selected weapon after VM/FPA are initialized, without
+// touching the setGun function declaration order.
+try{
+  const saved=localStorage.getItem('shotline.lastWeapon');
+  const idx=WEAPONS.findIndex(w=>w.key===saved);
+  if(idx>=0){
+    P.cur=idx;
+    const vr=VM.setActive(idx);
+    FPA.setWeapon(WEAPONS[idx].key);
+    setText('wname',WEAPONS[idx].name);
+    document.querySelectorAll('#wslots span').forEach((el,k)=>el.classList.toggle('on',k===idx));
+    console.log('[weapon-cache] restored',WEAPONS[idx].key);
+  }
+}catch(e){console.warn('[weapon-cache] restore failed',e);}
+
 // Remember the last weapon the player actually selected. The cache is per-browser
 // and only stores the weapon key, so a deleted/unknown weapon safely falls back.
 try{const saved=localStorage.getItem('shotline.lastWeapon');const idx=WEAPONS.findIndex(w=>w.key===saved);if(idx>=0)P.cur=idx;}catch(e){}
@@ -2593,7 +2592,7 @@ function resetMatch(){
   for(const f of fighters)spawn(f);
   P.ammo=WEAPONS.map(w=>w.mag);P.reload=0;P.heat=0;P.adsT=0;P.kick=0;P.swap=0;P.recoilX=0;P.recoilY=0;P.slideBack=0;P.boltCycle=0;P.camShake=0;P.lastHitAt=T;P.nadeCap=(P.pet&&P.pet.alive)?3:1;P.nadeStock=P.nadeCap;P.nadeRegenT=(P.pet&&P.pet.alive)?8:11;FPA.reset();
   camera.fov=BASE_FOV;camera.updateProjectionMatrix();camera.rotation.z=0;
-  setGun(0);P.swap=0;
+  setGun(P.cur);P.swap=0;
   for(const m of medkits){m.active=true;m.mesh.visible=true;}
   matchActive=true;feedItems.length=0;renderFeed();cache.mk=cache.mr=null;
   borderState.lastCount=0;borderState.currentRadius=BORDER_MAX;
@@ -3316,7 +3315,7 @@ function updatePlayer(dt){
     P.swayYaw=(Math.sin(T*0.9)*0.0010+Math.sin(T*2.3)*0.00035)*amp;P.swayPitch=(Math.cos(T*1.1)*0.0010+Math.sin(T*2.9)*0.00035)*amp;}
   else{P.swayYaw*=0.8;P.swayPitch*=0.8;P.breath=Math.min(4,P.breath+dt);}
   P.fovB=lerp(P.fovB||0,((sprinting&&p.speed>6)?7:0)+(P.boostT>0?4:0),Math.min(1,dt*5));
-  const advF=sniper?(P.zoom?6:12):w.adsFov;const targetFov=lerp(BASE_FOV+P.fovB,advF,P.adsT);
+  const advF=sniper?(P.zoom?7:14):w.adsFov;const targetFov=lerp(BASE_FOV+P.fovB,advF,P.adsT);
   if(Math.abs(camera.fov-targetFov)>0.01){camera.fov=targetFov;camera.updateProjectionMatrix();}
   const bobY=p.onGround&&p.speed>1?Math.sin(P.bob*2)*0.035*(1-P.adsT):0;
   P.roll=lerp(P.roll||0,-rt*0.03*(1-P.adsT)+(P.slowT>0?Math.sin(T*11)*0.004:0),Math.min(1,dt*7));
@@ -3342,8 +3341,8 @@ function updatePlayer(dt){
   const sprintAim=Math.max(0,(sprinting?1:0)-P.adsT);P.sprintSway=lerp(P.sprintSway,sprintAim,Math.min(1,dt*8));
   VM.update(dt,{cur:P.cur,adsT:P.adsT,sprintK:P.sprintSway,moveK:Math.min(1,p.speed/6.2),bob:P.bob,swayX:P.swayX,swayY:P.swayY,strafe:rt,landDip:P.landDip,onGround:p.onGround,swap:P.swap,reload01:rl01,lastFire:p.lastFire||-1,time:T,onEvent:vmEvent,frozen:paused()});
   flash.visible=P.flash>0;muzzleLight.intensity=P.flash>0?2.2:0;viewMuzzle.intensity=P.flash>0?2.5:0;
-  const scopeW=(w.key==='sniper'||w.key==='dmr');const scoped=scopeW&&P.adsT>0.55;const dotW=(w.key==='rifle'||w.key==='smg');
-  gunRoot.visible=viewMode==='fp'&&!p.climb && !(scopeW && P.adsT>0.35);
+  const scopeW=(w.key==='sniper'||w.key==='dmr');const scoped=scopeW&&P.adsT>0.64;const dotW=(w.key==='rifle'||w.key==='smg');
+  gunRoot.visible=viewMode==='fp'&&!p.climb && !(scopeW && P.adsT>0.60);
   laser.visible=laserOn&&gunRoot.visible&&P.adsT<0.05&&!p.climb;
   const sc=$('scope');sc.classList.toggle('hidden',!scoped);
   if(scoped){sc.dataset.k=w.key;sc.style.opacity=clamp((P.adsT-0.55)/0.25,0,1).toFixed(2);
@@ -3414,8 +3413,13 @@ function spawn(f){
     // player/bots do not always enter at the same location.
     valid.sort((a,b)=>b.minD-a.minD);
     const top=valid.slice(0,Math.min(10,valid.length));
-    const pick=top[(Math.random()*top.length)|0].sp;
-    const jAng=Math.random()*TAU,jR=Math.random()*0.32;
+    let choices=top;
+    if(f.isPlayer){
+      const main=mapPoints.filter(sp=>Math.abs(sp[1])<1.2);
+      if(main.length)choices=main.map(sp=>({sp,minD:0}));
+    }
+    const pick=choices[(Math.random()*choices.length)|0].sp;
+    const jAng=Math.random()*TAU,jR=Math.random()*0.18;
     f.x=pick[0]+Math.cos(jAng)*jR;
     f.z=pick[2]+Math.sin(jAng)*jR;
     f.y=pick[1]+0.04;
@@ -3457,35 +3461,39 @@ function step(dt){
     // is not guaranteed to be an open floor. Anchor the showcase to a real
     // triangle-collider spawn point instead.
     player.alive=true;player.onGround=true;
-    const homePts=(window.__MAP_SPAWN_POINTS&&window.__MAP_SPAWN_POINTS.length)?window.__MAP_SPAWN_POINTS:[];
-    // Use the actual central/main-floor area of map.glb for the lobby instead
-    // of taking the median spawn, which could put the operator on a distant
-    // upper room or an unrelated level. The GLB's authored main floor is
-    // -19.3832 before the global +15.9719 normalization => -3.4113.
-    const homeY=-3.4113;
+    // Find a real walkable point on the supplied GLB near its main floor.
+    // Do not use an arbitrary median spawn or (0,0,0): both can land inside
+    // walls/upper rooms on this multi-level underground map.
     let home=null,homeScore=Infinity;
-    for(const p of homePts){
-      const dy=Math.abs(p[1]-homeY), dxz=Math.hypot(p[0],p[2]);
-      const score=dy*12+dxz;
-      if(dy<1.2 && score<homeScore){home=p;homeScore=score;}
+    if(window.MAP_COLLIDER){
+      const r=24,step=2.0;
+      for(let x=-r;x<=r;x+=step){for(let z=-r;z<=r;z+=step){
+        const h=window.MAP_COLLIDER.groundHeight(x,z,4.0,8.0);
+        if(!h.found||h.y<-1.2||h.y>1.2)continue;
+        const ceil=window.MAP_COLLIDER.ceilingHeight(x,z,h.y+0.05);
+        if(isFinite(ceil)&&ceil-h.y<2.0)continue;
+        const score=Math.hypot(x,z)+Math.abs(h.y)*8;
+        if(score<homeScore){home=[x,h.y+0.06,z];homeScore=score;}
+      }}
     }
-    if(!home && homePts.length){
-      for(const p of homePts){const score=Math.abs(p[1]-homeY)*10+Math.hypot(p[0],p[2]);if(score<homeScore){home=p;homeScore=score;}}
+    if(!home&&window.__MAP_SPAWN_POINTS&&window.__MAP_SPAWN_POINTS.length){
+      for(const p of window.__MAP_SPAWN_POINTS){const score=Math.abs(p[1])+Math.hypot(p[0],p[2]);if(score<homeScore){home=p;homeScore=score;}}
     }
-    if(home){player.x=home[0];player.y=home[1]+0.02;player.z=home[2];}
-    else {player.x=0;player.y=homeY+0.02;player.z=0;}
+    if(home){player.x=home[0];player.y=home[1];player.z=home[2];}
+    else {player.x=0;player.y=0.06;player.z=0;}
     player.speed=0;player.vx=player.vy=player.vz=0;
     player.yaw=menuAng+Math.PI;
     player.hasPet=!!(window.ACCT&&window.ACCT.me&&(window.ACCT.me.items||[]).includes('pet_buddy'));
+    if(player.hasPet&&(!P.pet||!P.pet.alive))P.pet={alive:true,hp:100};
     for(const bot of botPool){bot.alive=false;if(bot.mesh)bot.mesh.visible=false;}
     if(player.mesh){
       player.mesh.visible=true;
       CH.animate(player,dt,T,0,false,false,0);
     }
     if(glbMapOk){
-      const r=11.5;
+      const r=6.8;
       const focusY=player.y+1.05;
-      camera.position.set(player.x+Math.cos(menuAng)*r,player.y+3.0+Math.sin(menuAng*0.7)*0.35,player.z+Math.sin(menuAng)*r);
+      camera.position.set(player.x+Math.cos(menuAng)*r,player.y+2.15+Math.sin(menuAng*0.7)*0.18,player.z+Math.sin(menuAng)*r);
       camera.lookAt(player.x,focusY,player.z);
     } else {
       camera.position.set(player.x+Math.cos(menuAng)*7.5,player.y+3.1,player.z+Math.sin(menuAng)*7.5);

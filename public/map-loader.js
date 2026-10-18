@@ -141,14 +141,19 @@
             }
           });
 
-          // The GLB is kept at authored X/Z coordinates. Its authored playable floor\n          // is lifted to Y=0 so the character controller, lobby and bots share\n          // the same world origin. No old procedural city is used.\n          const spawns = [];\n          const navNodes = [];\n          window.__MAP_NAV_NODES = navNodes;\n\n          for (const c of colliders) delete c._area;
+          // The GLB is the complete playable world. Spawn points are generated
+          // from its actual triangle collider in main.js.
+          const navNodes = [];
+          window.__MAP_NAV_NODES = navNodes;
+
+          for (const c of colliders) delete c._area;
 
           const mapBox = new THREE.Box3().setFromObject(scene);
           const mapCenter = mapBox.getCenter(new THREE.Vector3());
           console.log('[map-loader] ' + MAP_FILE + ' loaded ·', colliders.length,
                       'visual map geometry ready · bounds', mapBox.min.toArray(), mapBox.max.toArray());
           window.MAP_LOAD_PROGRESS = 1;
-          resolve({ scene, colliders, spawns, navNodes, bounds: mapBox, center: mapCenter });
+          resolve({ scene, colliders, spawns: [], navNodes, bounds: mapBox, center: mapCenter });
         } catch (err) { reject(err); }
       }, reject);
     }))
