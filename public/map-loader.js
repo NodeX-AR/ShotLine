@@ -78,12 +78,33 @@
     return comps;
   }
 
+  window.MAP_LOAD_PROGRESS = 0;
   window.MAP_GLB_PROMISE = fetch(MAP_FILE, { cache: 'no-store' })
-    .then(r => {
+    .then(async r => {
       if (!r.ok) throw new Error('HTTP ' + r.status + ' for ' + MAP_FILE);
-      return r.arrayBuffer();
+      const total = Number(r.headers.get('content-length')) || 0;
+      if (!r.body || !r.body.getReader) {
+        const fallback = await r.arrayBuffer();
+        window.MAP_LOAD_PROGRESS = 0.82;
+        return fallback;
+      }
+      const reader = r.body.getReader(), chunks = [];
+      let received = 0;
+      while (true) {
+        const part = await reader.read();
+        if (part.done) break;
+        chunks.push(part.value); received += part.value.byteLength;
+        // Download phase occupies 0–82%; parsing and collider creation follow.
+        window.MAP_LOAD_PROGRESS = total ? Math.min(0.82, (received / total) * 0.82) : Math.min(0.78, window.MAP_LOAD_PROGRESS + 0.025);
+      }
+      const merged = new Uint8Array(received);
+      let offset = 0;
+      for (const chunk of chunks) { merged.set(chunk, offset); offset += chunk.byteLength; }
+      window.MAP_LOAD_PROGRESS = 0.84;
+      return merged.buffer;
     })
     .then(buf => new Promise((resolve, reject) => {
+      window.MAP_LOAD_PROGRESS = Math.max(window.MAP_LOAD_PROGRESS || 0, 0.86);
       new THREE.GLTFLoader().parse(buf, '', gltf => {
         try {
           const scene = gltf.scene;
@@ -131,11 +152,30 @@
           const spawns = [];
           const floorPieces = colliders.filter(c => (c.y1-c.y0) < 0.6 && Math.abs(c.y1) < 3 && c._area > 2)
                                         .sort((a,b) => b._area - a._area);
+          // Lightweight navigation graph for bots. These are real walkable
+          // floor centres, not guessed points in empty space.
+          const navNodes = [];
+          for (const c of floorPieces.slice(0, 60)) {
+            const sx=c.x1-c.x0, sz=c.z1-c.z0;
+            const samples = [
+              [(c.x0+c.x1)/2,(c.z0+c.z1)/2],
+              [c.x0+sx*.25,c.z0+sz*.25],
+              [c.x0+sx*.75,c.z0+sz*.75]
+            ];
+            for (const [nx,nz] of samples) {
+              if (!Number.isFinite(nx)||!Number.isFinite(nz)) continue;
+              if (navNodes.some(n => Math.hypot(n[0]-nx,n[2]-nz)<3.5)) continue;
+              navNodes.push([nx,c.y1+0.12,nz]);
+              if (navNodes.length>=90) break;
+            }
+            if (navNodes.length>=90) break;
+          }
+          window.__MAP_NAV_NODES = navNodes;
           for (const c of floorPieces) {
             const cx = (c.x0+c.x1)/2, cz = (c.z0+c.z1)/2, cy = c.y1 + 0.1;
             if (spawns.some(s => Math.hypot(s[0]-cx, s[2]-cz) < 4)) continue;
             spawns.push([cx, cy, cz]);
-            if (spawns.length >= 10) break;
+            if (spawns.length >= 24) break;
           }
           if (!spawns.length) {
             const b0 = new THREE.Box3().setFromObject(scene);
@@ -146,7 +186,8 @@
 
           console.log('[map-loader] ' + MAP_FILE + ' loaded ·', colliders.length,
                       'colliders ·', spawns.length, 'spawn candidates · floor snapped to y=0 (was ' + floorY.toFixed(2) + ')');
-          resolve({ scene, colliders, spawns });
+          window.MAP_LOAD_PROGRESS = 1;
+          resolve({ scene, colliders, spawns, navNodes });
         } catch (err) { reject(err); }
       }, reject);
     }))
