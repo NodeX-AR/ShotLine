@@ -15,14 +15,9 @@
     return;
   }
 
-  const MAP_FILE   = new URL('./models/map.glb', document.baseURI).href;
-  const MAP_SCALE  = 1;
-  // map.glb was authored with its playable floor around Y=-15.97. Keep X/Z
-  // exactly as authored, but lift the complete level so the main floor is Y=0.
-  // This is a level-origin correction, not a resize.
-  // Keep the authored level geometry together. The gameplay world is
-  // normalized once, using the actual lowest main floor of this GLB.
-  const MAP_FLOOR_Y = -15.9719;
+  const MAP_FILE   = 'models/map.glb';
+  const MAP_URL = MAP_FILE + '?v=3';
+  const MAP_SCALE  = 1;   // already authored at human/game scale (~93 x 32 x 64 units) — no correction needed
   const MAP_ROT_Y  = 0;   // radians, in case the model faces the wrong way once you can see it
 
   // Merge coincident vertices within this distance when splitting a mesh
@@ -84,38 +79,16 @@
     return comps;
   }
 
-  window.MAP_LOAD_PROGRESS = 0;
-  window.MAP_GLB_PROMISE = fetch(MAP_FILE, { cache: 'no-store' })
-    .then(async r => {
+  window.MAP_GLB_PROMISE = fetch(MAP_URL, { cache: 'reload' })
+    .then(r => {
       if (!r.ok) throw new Error('HTTP ' + r.status + ' for ' + MAP_FILE);
-      const total = Number(r.headers.get('content-length')) || 0;
-      if (!r.body || !r.body.getReader) {
-        const fallback = await r.arrayBuffer();
-        window.MAP_LOAD_PROGRESS = 0.82;
-        return fallback;
-      }
-      const reader = r.body.getReader(), chunks = [];
-      let received = 0;
-      while (true) {
-        const part = await reader.read();
-        if (part.done) break;
-        chunks.push(part.value); received += part.value.byteLength;
-        // Download phase occupies 0–82%; parsing and collider creation follow.
-        window.MAP_LOAD_PROGRESS = total ? Math.min(0.82, (received / total) * 0.82) : Math.min(0.78, window.MAP_LOAD_PROGRESS + 0.025);
-      }
-      const merged = new Uint8Array(received);
-      let offset = 0;
-      for (const chunk of chunks) { merged.set(chunk, offset); offset += chunk.byteLength; }
-      window.MAP_LOAD_PROGRESS = 0.84;
-      return merged.buffer;
+      return r.arrayBuffer();
     })
     .then(buf => new Promise((resolve, reject) => {
-      window.MAP_LOAD_PROGRESS = Math.max(window.MAP_LOAD_PROGRESS || 0, 0.86);
       new THREE.GLTFLoader().parse(buf, '', gltf => {
         try {
           const scene = gltf.scene;
           scene.scale.multiplyScalar(MAP_SCALE);
-          scene.position.y -= MAP_FLOOR_Y;
           scene.rotation.y += MAP_ROT_Y;
           scene.updateMatrixWorld(true);
 
@@ -141,24 +114,46 @@
             }
           });
 
-          // The GLB is the complete playable world. Spawn points are generated
-          // from its actual triangle collider in main.js.
-          const navNodes = [];
-          window.__MAP_NAV_NODES = navNodes;
+          // Best-effort "main floor" detection: among thin, large-area
+          // pieces, the one with the lowest top surface. For a cave/interior
+          // level the walkable floor is usually the biggest flat surface
+          // near the bottom of the structure — this is a heuristic, not a
+          // guarantee, since there's no authored spawn-point data to go on.
+          const floorCandidates = colliders.filter(c => (c.y1-c.y0) < 0.6 && c._area > 3)
+                                            .sort((a,b) => a.y1 - b.y1);
+          const floorY = floorCandidates.length ? floorCandidates[0].y1 : 0;
+          for (const c of colliders) { c.y0 -= floorY; c.y1 -= floorY; }
+          scene.position.y -= floorY;
+          scene.updateMatrixWorld(true);
+
+          // Spawn points: spread across a few of the biggest floor-like
+          // pieces near the (now-zeroed) ground level, deduped so they
+          // aren't all clustered on the same slab.
+          const spawns = [];
+          const floorPieces = colliders.filter(c => (c.y1-c.y0) < 0.6 && Math.abs(c.y1) < 3 && c._area > 2)
+                                        .sort((a,b) => b._area - a._area);
+          for (const c of floorPieces) {
+            const cx = (c.x0+c.x1)/2, cz = (c.z0+c.z1)/2, cy = c.y1 + 0.1;
+            if (spawns.some(s => Math.hypot(s[0]-cx, s[2]-cz) < 4)) continue;
+            spawns.push([cx, cy, cz]);
+            if (spawns.length >= 10) break;
+          }
+          if (!spawns.length) {
+            const b0 = new THREE.Box3().setFromObject(scene);
+            spawns.push([(b0.min.x+b0.max.x)/2, 0.1, (b0.min.z+b0.max.z)/2]);
+          }
 
           for (const c of colliders) delete c._area;
 
-          const mapBox = new THREE.Box3().setFromObject(scene);
-          const mapCenter = mapBox.getCenter(new THREE.Vector3());
           console.log('[map-loader] ' + MAP_FILE + ' loaded ·', colliders.length,
-                      'visual map geometry ready · bounds', mapBox.min.toArray(), mapBox.max.toArray());
-          window.MAP_LOAD_PROGRESS = 1;
-          resolve({ scene, colliders, spawns: [], navNodes, bounds: mapBox, center: mapCenter });
+                      'colliders ·', spawns.length, 'spawn candidates · floor snapped to y=0 (was ' + floorY.toFixed(2) + ')');
+          window.__GLB_MAP_SPAWNS = spawns.slice();
+          resolve({ scene, colliders, spawns });
         } catch (err) { reject(err); }
       }, reject);
     }))
     .catch(err => {
       console.error('[map-loader] failed, procedural-only will run:', err);
-      throw err;
+      return null;
     });
 })();
