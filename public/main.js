@@ -2378,7 +2378,7 @@ function botFire(b,t){const pref=botPref(b);const w=WEAPONS.find(x=>x.key===b.we
   const cd=Math.hypot(b.x-camera.position.x,b.z-camera.position.z);
   if(cd<140){const mx=b.x-Math.sin(b.yaw)*0.7,mz=b.z-Math.cos(b.yaw)*0.7;tracer(mx,b.y+1.25,mz,ox+dx*h.t,oy+dy*h.t,oz+dz*h.t,0.03);sfxShot(w.key,0.30*clamp(1-cd/140,0,1));
     if(h.world){puff(ox+dx*h.t,oy+dy*h.t,oz+dz*h.t,'dust',1);bulletHole(ox+dx*h.t,oy+dy*h.t,oz+dz*h.t,dx,dy,dz);}}
-  if(h.f===player&&mode==='single'&&P.pet&&P.pet.alive){const pp=petTarget(player,{x:0,y:0,z:0}),tp=raySphere(ox,oy,oz,dx,dy,dz,pp.x,pp.y,pp.z,0.34);if(tp>=0&&tp<h.t){hurtPetLocal(w.dmg*dmgMul(w,tp)*0.8);return;}}
+  if(h.f===player&&mode==='single'&&P.pet&&P.pet.alive){const pp=petTarget(player,{x:0,y:0,z:0}),tp=raySphere(ox,oy,oz,dx,dy,dz,pp.x,pp.y,pp.z,0.55);const petState=P.pet;petState.blockCounter=(petState.blockCounter||0)+1;if((tp>=0&&tp<h.t)||petState.blockCounter%3!==0){if(petState.blockCounter%3!==0){hurtPetLocal(Math.max(5,w.dmg*0.42));}else if(tp>=0&&tp<h.t){hurtPetLocal(Math.max(5,w.dmg*0.42));}if(petState.alive)return;}}
   if(h.f&&!h.f.remote){const mul=dmgMul(w,h.t);const dmg=w.dmg*mul*(h.head?w.head:1);damage(h.f,dmg,b,h.head);if(h.f.isPlayer&&Math.random()<0.08)BotChat.event('pressured',{bot:b});}
   else if(h.world&&Math.random()<0.02)BotChat.event('whiff',{bot:b});}
 function updateBot(b,dt){
@@ -2927,53 +2927,58 @@ function updatePowerHud(){
 }
 function coinsHudSet(total,delta){const n=$('coinsHudNum');if(n)n.textContent=Number(total).toLocaleString();const h=$('coinsHud');if(h&&delta){h.classList.remove('pop');void h.offsetWidth;h.classList.add('pop');}}
 
-/* ============ BUDDY DRONE (pet): follows you, soaks bullets, heals you, restocks grenades ============ */
+/* ============ MYSTIC FOX COMPANION: pixel fox, firebolts, damageable ============ */
 const drones=new Map();
-function petTarget(f,o){const c=Math.cos(f.yaw||0),sn=Math.sin(f.yaw||0);o.x=f.x+0.75*c-0.55*sn;o.y=f.y+1.5;o.z=f.z-0.75*sn-0.55*c;return o;}
+function petTarget(f,o){const c=Math.cos(f.yaw||0),sn=Math.sin(f.yaw||0);o.x=f.x+0.95*c-0.65*sn;o.y=f.y+0.65;o.z=f.z-0.95*sn-0.65*c;return o;}
 function makeDrone(){
-  const g=new THREE.Group(),mat=(c,r,m)=>new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:m,emissive:0x000000});
-  const white=mat(0xe8f0f6,0.35,0.6),dark=mat(0x2a3a46,0.4,0.7);
-  const core=new THREE.Mesh(new THREE.SphereGeometry(0.13,16,12),white);g.add(core);
-  const band=new THREE.Mesh(new THREE.TorusGeometry(0.135,0.018,8,28),dark);band.rotation.x=Math.PI/2;g.add(band);
-  const eye=new THREE.Mesh(new THREE.SphereGeometry(0.045,10,8),new THREE.MeshBasicMaterial({color:0x6fe3ff}));eye.position.set(0,0.015,0.115);g.add(eye);
-  const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:FX_TEX,color:0x6fe3ff,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,opacity:0.8}));glow.scale.set(0.36,0.36,1);glow.position.copy(eye.position);g.add(glow);
-  const ring=new THREE.Mesh(new THREE.TorusGeometry(0.21,0.012,6,32),new THREE.MeshBasicMaterial({color:0x6fe3ff,transparent:true,opacity:0.8,blending:THREE.AdditiveBlending,depthWrite:false}));ring.rotation.x=Math.PI/2;g.add(ring);
-  for(const sd of [-1,1]){const p=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,0.09,8),white);p.rotation.z=Math.PI/2;p.position.set(sd*0.17,0,-0.02);g.add(p);}
-  const ant=new THREE.Mesh(new THREE.CylinderGeometry(0.004,0.004,0.1,5),white);ant.position.set(0.05,0.17,-0.03);g.add(ant);
-  const tip=new THREE.Mesh(new THREE.SphereGeometry(0.016,6,5),new THREE.MeshBasicMaterial({color:0x43ff9a}));tip.position.set(0.05,0.225,-0.03);g.add(tip);
-  const nadeM=new THREE.Mesh(new THREE.SphereGeometry(0.05,10,8),new THREE.MeshStandardMaterial({color:0x35422f,roughness:0.55,metalness:0.35}));nadeM.position.set(0,-0.18,0.02);nadeM.visible=false;g.add(nadeM);
-  g.frustumCulled=false;scene.add(g);
-  return {g,core,ring,glow,tip,white,nadeM,x:0,y:0,z:0,init:false,flash:0,fetch:0,dinged:false,seed:Math.random()*6.28,lx:0,lz:0};
+  const g=new THREE.Group(),mat=(c,em=0x000000)=>new THREE.MeshStandardMaterial({color:c,roughness:.86,emissive:em,emissiveIntensity:0.5});
+  const fur=mat(0xd87832),cream=mat(0xf2d7a2),dark=mat(0x3c241b),black=mat(0x161820),eyeM=new THREE.MeshBasicMaterial({color:0xffb54a});
+  const part=(geo,m,x,y,z,rx=0,ry=0,rz=0)=>{const o=new THREE.Mesh(geo,m);o.position.set(x,y,z);o.rotation.set(rx,ry,rz);g.add(o);return o;};
+  // Blocky Minecraft-inspired fox silhouette; all parts are independent for a lively tail/ear animation.
+  const body=part(new THREE.BoxGeometry(.55,.38,.82),fur,0,0,0);
+  const chest=part(new THREE.BoxGeometry(.34,.31,.22),cream,0,-.025,-.35);
+  const head=part(new THREE.BoxGeometry(.43,.38,.43),fur,0,.19,-.43);
+  const muzzle=part(new THREE.BoxGeometry(.22,.14,.24),cream,0,.105,-.72);
+  part(new THREE.BoxGeometry(.11,.09,.06),black,0,.11,-.86);
+  const earL=part(new THREE.ConeGeometry(.095,.23,4),fur,-.14,.48,-.48,0,0,.08),earR=part(new THREE.ConeGeometry(.095,.23,4),fur,.14,.48,-.48,0,0,-.08);
+  part(new THREE.BoxGeometry(.07,.07,.025),eyeM,-.115,.23,-.654);part(new THREE.BoxGeometry(.07,.07,.025),eyeM,.115,.23,-.654);
+  const legs=[];for(const x of [-.18,.18])for(const z of [-.25,.25])legs.push(part(new THREE.BoxGeometry(.14,.27,.15),dark,x,-.29,z));
+  const tail=part(new THREE.BoxGeometry(.25,.25,.63),fur,0,.07,.58,-.55,0,0);
+  const tailTip=part(new THREE.BoxGeometry(.26,.26,.25),cream,0,.22,.79,-.55,0,0);
+  const flameMat=new THREE.MeshBasicMaterial({color:0xff5a16,transparent:true,opacity:.95});
+  const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:FX_TEX,color:0xff7b24,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,opacity:.55}));glow.scale.set(.8,.8,1);glow.position.set(0,.1,-.65);g.add(glow);
+  g.scale.setScalar(1.05);g.frustumCulled=false;scene.add(g);
+  return {g,body,head,tail,tailTip,legs,glow,fur,init:false,flash:0,attackT:1.5+Math.random()*2.5,seed:Math.random()*6.28,fire:0,hp:100};
 }
-function petFetch(f){const d=drones.get(f);if(d){d.fetch=1.2;d.dinged=false;}}
+function petFetch(f){/* legacy action intentionally disabled: fox does not carry grenades */}
 function disposeDrone(d){scene.remove(d.g);d.g.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material&&o.material.dispose)o.material.dispose();});}
 const _pt={x:0,y:0,z:0};
+function foxFireAttack(f,d){
+  if(!f.isPlayer||mode!=='single'||!f.alive)return;
+  let target=null,bd=42;
+  for(const b of botPool){if(!b.alive||b===f)continue;const dd=Math.hypot(b.x-d.x,b.z-d.z);if(dd<bd&&!losBlocked(d.x,d.y+.35,d.z,b.x,b.y+1,b.z)){target=b;bd=dd;}}
+  if(!target)return;
+  const sx=d.x,sy=d.y+.28,sz=d.z,tx=target.x,ty=target.y+1,tz=target.z;
+  const orb=new THREE.Mesh(new THREE.IcosahedronGeometry(.18,1),new THREE.MeshBasicMaterial({color:0xff6a18}));scene.add(orb);
+  const light=new THREE.PointLight(0xff5b16,2.2,5);orb.add(light);let elapsed=0;const duration=Math.max(.18,bd/35),ox=sx,oy=sy,oz=sz;
+  const tick=()=>{if(!orb.parent)return;const dt0=1/60;elapsed+=dt0;const k=Math.min(1,elapsed/duration);orb.position.set(ox+(tx-ox)*k,oy+(ty-oy)*k+Math.sin(k*Math.PI)*.5,oz+(tz-oz)*k);if(k>=1){scene.remove(orb);orb.geometry.dispose();orb.material.dispose();if(target.alive){addPFX(blastFX(tx,ty,tz,.8));fxLight(tx,ty,tz,0xff641c,3,.25);damage(target,16,f,false,'foxfire');}return;}requestAnimationFrame(tick);};requestAnimationFrame(tick);
+}
 function updateDrones(dt){
   player.hasPet=!!(P.pet&&P.pet.alive);
-  if(mode==='single'&&player.hasPet&&player.alive&&player.hp<100&&state==='playing')player.hp=Math.min(100,player.hp+2*dt);
-  for(const f of fighters){
-    const want=f.hasPet&&f.alive&&state!=='menu';let d=drones.get(f);
-    if(!want){if(d){disposeDrone(d);drones.delete(f);}continue;}
-    if(!d){d=makeDrone();drones.set(f,d);}
-    petTarget(f,_pt);let tx=_pt.x,ty=_pt.y,tz=_pt.z;
-    if(d.fetch>0){d.fetch-=dt;const k=1-Math.max(0,d.fetch)/1.2,bump=Math.sin(Math.min(1,k)*Math.PI),yw=f.yaw||0;
-      tx+=((f.x-Math.sin(yw)*0.5)-tx)*bump;ty+=((f.y+1.15)-ty)*bump;tz+=((f.z-Math.cos(yw)*0.5)-tz)*bump;
-      d.nadeM.visible=k>0.2&&k<0.8;
-      if(!d.dinged&&k>0.5){d.dinged=true;if(f.isPlayer){toast('+1 grenade','good');buzz(12);sfxTone(1200,0.08,0.12,'sine',1800);}}}
-    else d.nadeM.visible=false;
-    if(!d.init){d.x=tx;d.y=ty;d.z=tz;d.init=true;}
-    const kk=1-Math.exp(-dt*9);d.x+=(tx-d.x)*kk;d.y+=(ty-d.y)*kk;d.z+=(tz-d.z)*kk;
-    d.g.position.set(d.x,d.y+Math.sin(T*3+d.seed)*0.045,d.z);
-    const vx=(tx-d.x),vz=(tz-d.z);d.g.rotation.y=(f.yaw||0)+Math.PI;d.g.rotation.z=clamp((vx*Math.cos(f.yaw||0)-vz*Math.sin(f.yaw||0))*0.9,-0.4,0.4);
-    d.ring.rotation.z+=dt*3.2;d.ring.scale.setScalar(1+Math.sin(T*5+d.seed)*0.04);d.glow.material.opacity=0.65+0.25*Math.sin(T*6+d.seed);d.tip.visible=((T*2)|0)%2===0;
-    if(d.flash>0){d.flash=Math.max(0,d.flash-dt*4);d.white.emissive.setRGB(d.flash,d.flash*0.1,d.flash*0.1);}
+  for(const f of fighters){const want=f.hasPet&&f.alive&&state!=='menu';let d=drones.get(f);
+    if(!want){if(d){disposeDrone(d);drones.delete(f);}continue;}if(!d){d=makeDrone();drones.set(f,d);}
+    petTarget(f,_pt);const tx=_pt.x,ty=_pt.y,tz=_pt.z;if(!d.init){d.x=tx;d.y=ty;d.z=tz;d.init=true;}
+    const kk=1-Math.exp(-dt*7);d.x+=(tx-d.x)*kk;d.y+=(ty-d.y)*kk;d.z+=(tz-d.z)*kk;
+    d.g.position.set(d.x,d.y+Math.sin(T*3.5+d.seed)*.055,d.z);d.g.rotation.y=(f.yaw||0)+Math.PI;d.tail.rotation.x=-.55+Math.sin(T*5+d.seed)*.24;d.head.rotation.y=Math.sin(T*2+d.seed)*.1;
+    d.legs.forEach((l,i)=>{l.rotation.x=Math.sin(T*9+d.seed+i*Math.PI)*.18;});d.glow.material.opacity=.35+.35*Math.sin(T*7+d.seed);
+    if(d.flash>0){d.flash=Math.max(0,d.flash-dt*3);d.fur.emissive.setRGB(d.flash,.1*d.flash,0);}
+    if(f.isPlayer&&mode==='single'&&state==='playing'){d.attackT-=dt;if(d.attackT<=0){foxFireAttack(f,d);d.attackT=2.8+Math.random()*3.7;}}
   }
   for(const [f,d] of drones)if(fighters.indexOf(f)<0){disposeDrone(d);drones.delete(f);}
-  const ph=$('petHud');if(ph){const on=!!(P.pet&&P.pet.alive)&&state==='playing';ph.classList.toggle('hidden',!on);if(on){const b=$('petBar');if(b)b.style.width=Math.max(0,P.pet.hp)+'%';}}
+  const ph=$('petHud');if(ph){const on=!!(P.pet&&P.pet.alive)&&state==='playing';ph.classList.toggle('hidden',!on);if(on){const b=$('petBar');if(b)b.style.width=Math.max(0,P.pet.hp)+'%';const label=ph.querySelector('b');if(label)label.textContent='Mystic Fox';}}
 }
-function petBurst(f){const d=drones.get(f),x=d?d.g.position.x:f.x,y=d?d.g.position.y:f.y+1.5,z=d?d.g.position.z:f.z;addPFX(blastFX(x,y-0.6,z,1.6));fxLight(x,y,z,0x6fe3ff,4,0.35);sfxExplosion(0.25*clamp(1-Math.hypot(camera.position.x-x,camera.position.z-z)/40,0,1));if(d){disposeDrone(d);drones.delete(f);}f.hasPet=false;}
-function hurtPetLocal(dmg){const pt=P.pet;if(!pt||!pt.alive)return;pt.hp-=dmg;const d=drones.get(player);if(d)d.flash=1;
-  if(pt.hp<=0){pt.alive=false;pt.hp=0;petBurst(player);banner('DRONE DESTROYED','#ff6a6a');toast('Your drone was destroyed','warn');buzz([30,40,30]);}}
+function petBurst(f){const d=drones.get(f),x=d?d.g.position.x:f.x,y=d?d.g.position.y:f.y+.5,z=d?d.g.position.z:f.z;addPFX(blastFX(x,y,z,1.4));fxLight(x,y,z,0xff762b,4,.35);if(d){disposeDrone(d);drones.delete(f);}f.hasPet=false;}
+function hurtPetLocal(dmg){const pt=P.pet;if(!pt||!pt.alive)return;pt.hp-=dmg;const d=drones.get(player);if(d)d.flash=1;if(pt.hp<=0){pt.alive=false;pt.hp=0;petBurst(player);banner('FOX DOWN','#ff6a6a');toast('Your Mystic Fox needs a revive','warn');buzz([30,40,30]);}}
 function raySphere(ox,oy,oz,dx,dy,dz,cx,cy,cz,r){const mx=cx-ox,my=cy-oy,mz=cz-oz,pr=mx*dx+my*dy+mz*dz;if(pr<0)return -1;const d2=mx*mx+my*my+mz*mz-pr*pr;if(d2>r*r)return -1;return pr-Math.sqrt(r*r-d2);}
 /* ============ PROJECTILES (bazooka rockets + grenades) ============ */
 const projectiles=[];
@@ -3032,9 +3037,10 @@ function updateProjectiles(dt){
         }
       }else{pr.x+=pr.vx*dt;pr.y+=pr.vy*dt;pr.z+=pr.vz*dt;}
     }
-    if(pr.kind==='grenade'&&window.MAP_COLLIDER){
-      const gh=window.MAP_COLLIDER.groundHeight(pr.x,pr.z,pr.y+0.4,5);
-      if(gh.found&&pr.y<gh.y+0.07){pr.y=gh.y+0.07;if(pr.vy<0){pr.vy=-pr.vy*0.38;pr.vx*=0.72;pr.vz*=0.72;if(pr.vy<0.7)pr.vy=0;}}
+    if(pr.kind==='grenade'){
+      let floorY=0.08;
+      if(window.MAP_COLLIDER){const gh=window.MAP_COLLIDER.groundHeight(pr.x,pr.z,pr.y+0.4,5);if(gh.found)floorY=gh.y+0.07;}
+      if(pr.y<floorY){pr.y=floorY;if(pr.vy<0){pr.vy=-pr.vy*0.38;pr.vx*=0.72;pr.vz*=0.72;if(pr.vy<1.0)pr.vy=0;}}
     }
     if(pr.y<-20){pr.exploded=true;scene.remove(pr.mesh);projectiles.splice(i,1);continue;}
     if(pr.kind==='grenade'){
@@ -3174,7 +3180,7 @@ function updatePlayer(dt){
   VM.update(dt,{cur:P.cur,adsT:P.adsT,sprintK:P.sprintSway,moveK:Math.min(1,p.speed/6.2),bob:P.bob,swayX:P.swayX,swayY:P.swayY,strafe:rt,landDip:P.landDip,onGround:p.onGround,swap:P.swap,reload01:rl01,lastFire:p.lastFire||-1,time:T,onEvent:vmEvent,frozen:paused()});
   flash.visible=P.flash>0;muzzleLight.intensity=P.flash>0?2.2:0;viewMuzzle.intensity=P.flash>0?2.5:0;
   const scopeW=(w.key==='sniper'||w.key==='dmr');const scoped=scopeW&&P.adsT>0.55;const dotW=(w.key==='rifle'||w.key==='smg');
-  gunRoot.visible=viewMode==='fp'&&!p.climb && !(scopeW && P.adsT>0.35);
+  gunRoot.visible=viewMode==='fp'&&!p.climb && !(scopeW && P.adsT>0.72);
   laser.visible=laserOn&&gunRoot.visible&&P.adsT<0.05&&!p.climb;
   const sc=$('scope');sc.classList.toggle('hidden',!scoped);
   if(scoped){sc.dataset.k=w.key;sc.style.opacity=clamp((P.adsT-0.55)/0.25,0,1).toFixed(2);

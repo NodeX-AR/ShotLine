@@ -561,6 +561,41 @@ kbd{font:600 .85em var(--font);padding:1px 7px;border:1px solid var(--line2);bor
 }
 @media (pointer:coarse) and (max-height:380px){#mobileHud{--g:7px}#mag{font-size:26px}}
 
+
+/* Shotline lobby refresh: premium mobile-shooter composition */
+#menu{background:radial-gradient(ellipse at 72% 42%,rgba(255,92,32,.17),transparent 38%),radial-gradient(ellipse at 54% 100%,rgba(47,145,255,.13),transparent 42%),linear-gradient(135deg,#070b12 0%,#111b28 52%,#080b11 100%)}
+#menu::before{height:65%;opacity:.72;filter:saturate(1.2)}
+#menu .lb-main{padding-top:clamp(18px,4vh,42px)}
+#menu .tab-panel[data-tab="play"]{max-width:1180px}
+#menu .play-grid{grid-template-columns:minmax(300px,.82fr) minmax(360px,1.18fr);gap:clamp(16px,3vw,34px);align-items:stretch}
+#menu .deploy{order:2;align-self:center;padding:clamp(20px,3vw,34px);border-color:rgba(255,255,255,.14);background:linear-gradient(145deg,rgba(20,30,43,.94),rgba(7,12,19,.88));box-shadow:0 24px 80px rgba(0,0,0,.38)}
+#menu .operator{order:1;min-height:420px;justify-content:flex-end;position:relative;overflow:hidden;padding:clamp(20px,3vw,34px);border-color:rgba(255,255,255,.1);background:radial-gradient(ellipse at 50% 38%,rgba(255,123,44,.19),transparent 38%),linear-gradient(155deg,rgba(17,29,42,.54),rgba(4,8,14,.82));box-shadow:inset 0 1px rgba(255,255,255,.06)}
+#menu .operator:before{content:"SHOTLINE / FIELD OPERATIVE";position:absolute;left:24px;top:22px;color:rgba(224,236,249,.58);font:700 11px var(--font);letter-spacing:.24em}
+#menu .operator:after{content:"";position:absolute;left:12%;right:12%;top:9%;height:65%;border-radius:50%;background:radial-gradient(ellipse,rgba(255,123,44,.12),transparent 65%);pointer-events:none}
+#menu .op-top,#menu .op-stats,#menu .op-load,#menu .op-guest{position:relative;z-index:1}
+#menu .op-top canvas{width:86px;height:172px;border-radius:14px;box-shadow:0 0 35px rgba(255,113,48,.12)}
+#menu .op-name{font-size:clamp(22px,2.6vw,32px)}
+#menu #playMulti{min-height:76px;margin-top:8px;background:linear-gradient(105deg,#ff6a2b,#ff9d3e 58%,#ffbd58);color:#1c1009;border:1px solid rgba(255,221,174,.6);box-shadow:0 12px 34px rgba(255,106,43,.2);font-size:17px}
+#menu #playMulti .btn-s{color:rgba(38,20,8,.75)}
+#menu #playSolo{min-height:62px;background:rgba(255,255,255,.045);border-color:rgba(255,255,255,.15)}
+#menu .field input,#menu .field select{background:rgba(0,0,0,.28)}
+#menu .tab-btn{transition:color .18s ease,background .18s ease,transform .18s ease}
+#menu .tab-btn:hover{color:#fff;transform:translateY(-1px)}
+#menu .card{backdrop-filter:blur(12px)}
+#petHud{color:#ffd4b2;border-color:rgba(255,126,48,.45)}#petHud svg{stroke:#ff9b53}#petHud .bar i{background:linear-gradient(90deg,#ff6a2b,#ffc16a)}
+@media(max-width:760px){#menu .play-grid{grid-template-columns:1fr;gap:12px}#menu .deploy{order:1}#menu .operator{order:2;min-height:300px}#menu #playMulti{position:relative}#menu .op-top canvas{width:66px;height:132px}}
+
+
+.profile-companion{position:relative;isolation:isolate;flex:0 0 116px!important;height:142px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;border:1px solid rgba(255,126,48,.3);border-radius:14px;background:radial-gradient(ellipse at 50% 58%,rgba(255,110,35,.19),transparent 64%),linear-gradient(155deg,rgba(31,42,54,.85),rgba(7,11,17,.95));overflow:hidden}
+.profile-companion:before,.profile-companion:after{content:"";position:absolute;inset:12px;border:1px solid rgba(255,151,75,.12);transform:rotate(45deg);z-index:-1}
+.profile-companion:after{transform:rotate(0);inset:0;background:linear-gradient(transparent 49%,rgba(255,255,255,.035) 50%,transparent 51%);background-size:100% 8px;border:0}
+.companion-glow{position:absolute;width:72px;height:72px;border-radius:50%;background:#ff7025;filter:blur(28px);opacity:.24;animation:foxGlow 3.7s ease-in-out infinite alternate}
+.companion-fox{font-size:58px;line-height:1;filter:drop-shadow(0 8px 8px rgba(255,99,28,.22));animation:foxIdle 3.3s ease-in-out infinite;transform-origin:50% 85%}
+.profile-companion span{font:800 9px var(--font);letter-spacing:.14em;color:#ffc08a;margin-top:5px}.profile-companion small{font:600 7px var(--font);letter-spacing:.12em;color:rgba(255,255,255,.5)}
+@keyframes foxIdle{0%,100%{transform:translateY(0) rotate(-3deg)}38%{transform:translateY(-7px) rotate(3deg)}62%{transform:translateY(-3px) rotate(0) scale(1.03)}80%{transform:translateY(0) rotate(4deg)}}
+@keyframes foxGlow{from{opacity:.13;transform:scale(.8)}to{opacity:.34;transform:scale(1.2)}}
+@media(max-width:430px){.profile-companion{flex-basis:88px!important;height:118px}.companion-fox{font-size:44px}}
+
 </style>
 </head>
 <body>
@@ -613,7 +648,7 @@ kbd{font:600 .85em var(--font);padding:1px 7px;border:1px solid var(--line2);bor
   <div id="powerHud" class="hidden"><div id="powerRing"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.2 6.3L21 12l-6.8 2.7L12 21l-2.2-6.3L3 12l6.8-2.7z"/></svg></div><div><b id="powerName">Power</b><small id="powerKey">Q</small></div></div>
   <div id="pflash" aria-hidden="true"></div>
   <div id="pbanner" aria-hidden="true"></div>
-  <div id="petHud" class="hidden"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M3 12h3M18 12h3M12 3v3M12 18v3"/></svg><div><b>Drone</b><div class="bar"><i id="petBar"></i></div></div></div>
+  <div id="petHud" class="hidden"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M3 12h3M18 12h3M12 3v3M12 18v3"/></svg><div><b>Mystic Fox</b><div class="bar"><i id="petBar"></i></div></div></div>
   <!-- Damage vignette -->
   <div id="vig" aria-hidden="true"></div>
 
@@ -842,6 +877,7 @@ kbd{font:600 .85em var(--font);padding:1px 7px;border:1px solid var(--line2);bor
       <div class="settings-group"><h3>Skin</h3>
         <div class="skin-pick">
           <canvas id="pfPrev" width="96" height="192" aria-label="Skin preview"></canvas>
+          <div class="profile-companion" aria-label="Mystic Fox companion preview"><div class="companion-glow"></div><div class="companion-fox">🦊</div><span>MYSTIC FOX</span><small>FIRE COMPANION</small></div>
           <div>
             <label class="field">Upload skin<small>Minecraft 64×64 PNG</small><input id="pfSkin" type="file" accept="image/png"></label>
             <label class="toggle-row"><span>Slim arms (Alex style)</span><input id="pfSlim" type="checkbox"></label>
