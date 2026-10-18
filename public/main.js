@@ -798,6 +798,17 @@ const GunLib=(function(){
       b.add('pol',PF([[0.0,0.034],[0.078,0.034],[0.086,0.006],[0.112,-0.138],[0.054,-0.150],[0.032,-0.05],[0.0,-0.024]],0.030,0.003),0,0,0);
       b.add('rub',R(0.032,0.10,0.010,0.003),0,-0.078,0.098,-0.36,0,0);b.add('pol',R(0.0125,0.005,0.062,0.002),0,-0.038,-0.024);b.add('pol',R(0.0125,0.030,0.006,0.002),0,-0.025,-0.055);b.add('pol',R(0.0125,0.030,0.006,0.002),0,-0.024,0.004);
       b.add('blk',R(0.004,0.006,0.028,0.001),-0.0158,0.026,0.012);b.add('blk',R(0.004,0.010,0.010,0.001),-0.0158,-0.020,0.030);
+      // ---- detail pass (anchors kept) ----
+      // grip checkering on both panels and a backstrap ridge
+      for(let i=0;i<5;i++){b.add('blk',R(0.0030,0.004,0.024,0.0008),-0.0158,-0.040-i*0.012,0.040);b.add('blk',R(0.0030,0.004,0.024,0.0008),0.0158,-0.040-i*0.012,0.040);}
+      b.add('blk',R(0.010,0.072,0.006,0.001),0,-0.050,0.094);
+      // magazine base plate and slide-stop lever
+      b.add('alu',R(0.030,0.006,0.040,0.002),0,-0.150,0.040);
+      b.add('stl',R(0.004,0.008,0.016,0.001),-0.0140,0.020,-0.104);
+      // rear sight notch and front sight, with a barrel bushing ring at the muzzle
+      b.add('blk',R(0.012,0.004,0.008,0.001),0,0.0835,0.050);b.add('blk',R(0.006,0.005,0.006,0.001),0,0.0845,-0.148);
+      b.add('stl',C(0.0095,0.0095,0.010,12),0,0.052,-0.176);
+
       if(D){slots(b,'blk',3,0,0.0245,-0.12,-0.075,0.026,0.0022,0.005);b.add('blk',R(0.006,0.006,0.006,0.001),-0.016,0.010,-0.05);}
       eng('R-9  9mm',0.09,0.014,-0.0136,0.058,-0.02,-H);
       const t=P('trigger',[0,-0.014,-0.012]);t.add('blk',R(0.006,0.024,0.008,0.001),0,-0.014,-0.012);t.add('blk',R(0.0035,0.010,0.010,0.001),0,-0.005,-0.016);
@@ -838,6 +849,23 @@ const GunLib=(function(){
       b.add('stl',R(0.016,0.014,0.03,0.003),0,0.091,0.075);b.add('stl',R(0.030,0.008,0.014,0.002),0,0.091,0.088);
       b.add('blk',R(0.030,0.010,0.064,0.002),0,0.098,-0.06);b.add('blk',R(0.036,0.006,0.080,0.002),0,0.148,-0.06);b.add('blk',R(0.004,0.034,0.080,0.001),-0.0165,0.126,-0.06);b.add('blk',R(0.004,0.034,0.080,0.001),0.0165,0.126,-0.06);b.add('blk',R(0.037,0.006,0.080,0.002),0,0.1075,-0.06);
       b.add('gls',R(0.030,0.032,0.002,0.0005),0,0.127,-0.098);b.add('blk',R(0.038,0.038,0.008,0.003),0,0.127,-0.102);
+      // ---- detail pass (anchors kept; grips and sight line unchanged) ----
+      // gas tube over the handguard and gas block at the front of the receiver
+      b.add('stl',C(0.0045,0.0045,0.27,8),0,0.094,-0.36);b.add('stl',R(0.016,0.016,0.020,0.002),0,0.094,-0.23);
+      b.add('stl',R(0.012,0.012,0.010,0.002),0,0.094,-0.49);
+      // handguard vent slots on both sides
+      if(D)for(let i=0;i<5;i++){b.add('blk',R(0.0034,0.012,0.022,0.001),-0.0258,0.046,-0.30-i*0.034);b.add('blk',R(0.0034,0.012,0.022,0.001),0.0258,0.046,-0.30-i*0.034);}
+      // front sight post on the top rail, with protective wings
+      b.add('blk',R(0.008,0.020,0.008,0.001),0,0.090,-0.60);b.add('blk',R(0.004,0.012,0.012,0.001),-0.006,0.086,-0.60);b.add('blk',R(0.004,0.012,0.012,0.001),0.006,0.086,-0.60);
+      // dust cover over the ejection port, with the port itself as a dark slot
+      b.add('alu',R(0.026,0.010,0.150,0.002),0,0.098,-0.04);b.add('blk',R(0.002,0.016,0.064,0.001),0.0186,0.056,-0.045);
+      // safety selector and magazine release on the receiver
+      b.add('stl',R(0.004,0.012,0.022,0.001),0.0228,0.018,0.030);b.add('stl',R(0.004,0.006,0.018,0.001),0.0228,0.032,0.030);
+      b.add('stl',R(0.005,0.010,0.012,0.001),-0.0215,-0.020,-0.020);
+      // sling loop on the stock back and a second one under the forend
+      b.add('stl',R(0.014,0.012,0.012,0.002),0,-0.060,0.355);b.add('stl',R(0.012,0.010,0.012,0.002),0,-0.054,-0.420);
+      // cheek weld and comb ridge along the stock top
+      b.add('polT',R(0.030,0.012,0.12,0.003),0,0.044,0.26);
       eng('VX-9  5.56',0.10,0.014,-0.0186,0.02,-0.01,-H);
       const ch=P('bolt');ch.add('blk',R(0.020,0.014,0.030,0.002),0,0.093,0.10);ch.add('blk',R(0.006,0.010,0.020,0.001),-0.013,0.093,0.10);
       const t=P('trigger',[0,-0.02,-0.012]);t.add('blk',R(0.006,0.022,0.008,0.001),0,-0.028,-0.012);
@@ -916,6 +944,14 @@ const GunLib=(function(){
       b.add('wd',PF([[0.05,0.06],[0.30,0.058],[0.345,0.035],[0.345,-0.085],[0.30,-0.10],[0.20,-0.075],[0.09,-0.045],[0.05,-0.02]],0.036,0.004),0,0,0);
       b.add('rub',R(0.040,0.140,0.016,0.004),0,-0.014,0.352);
       for(let i=0;i<4;i++){b.add('!r',CX(0.0095,0.0095,0.024,8),-0.0225,0.030+i*0.0,-0.01+i*0.0)}
+      // ---- detail pass (anchors kept) ----
+      // ghost-ring rear sight on the receiver, and a bead at the muzzle
+      b.add('blk',R(0.024,0.010,0.010,0.002),0,0.082,0.06);b.add('blk',C(0.0055,0.0055,0.006,8),0,0.094,0.06);
+      b.add('blk',SP(0.0042,8,6),0,0.0745,-0.715);
+      // loading gate with spring, safety button on the tang
+      b.add('stl',R(0.004,0.022,0.030,0.001),0.0215,-0.012,-0.09);b.add('blk',C(0.006,0.006,0.008,10),0.0225,0.030,0.10);
+      // heat shield ribs on the barrel and a mag-tube cap ring
+      for(let i=0;i<3;i++)b.add('blk',C(0.0140,0.0140,0.004,12),0,0.048,-0.50-i*0.035);
       eng('BREAKER 12',0.11,0.014,-0.0216,0.03,0.10,-H);
       const pm=P('pump');pm.add('wd',R(0.048,0.048,0.20,0.010),0,0.006,-0.34);if(D)for(let i=0;i<7;i++)pm.add('blk',R(0.050,0.003,0.006,0.001),0,0.006,-0.26-i*0.026);
       const bo=P('bolt');bo.add('stl',R(0.010,0.012,0.03,0.001),-0.0215,0.045,0.0);
@@ -935,6 +971,16 @@ const GunLib=(function(){
       b.add('pol',PF([[0.020,0.0],[0.020,-0.095],[0.046,-0.135],[0.052,-0.05],[0.030,0.01]],0.028,0.004),0,-0.02,-0.14);
       b.add('blk',R(0.030,0.028,0.046,0.005),0,-0.006,-0.11);
       b.add('alu',R(0.008,0.004,0.070,0.002),0,-0.052,-0.30);
+      // ---- detail pass (anchors kept) ----
+      // hazard bands on the tube, rear blast ring and the warhead tip
+      for(let i=0;i<4;i++){b.add('rub',C(0.0535,0.0535,0.035,16),0,0.03,-0.22-i*0.13);}
+      b.add('rub',C(0.058,0.058,0.02,16),0,0.03,0.22);
+      b.add('alu',C(0.020,0.048,0.035,16),0,0.03,-0.96);
+      // carrying handle over the tube, and a front sight ring with its post
+      b.add('blk',R(0.012,0.030,0.10,0.003),0,0.088,-0.12);b.add('blk',R(0.034,0.008,0.036,0.002),0,0.112,-0.12);
+      b.add('blk',R(0.010,0.024,0.010,0.002),0,0.086,-0.70);
+      // trigger guard and safety on the grip housing
+      b.add('stl',R(0.004,0.006,0.046,0.001),-0.0175,-0.010,-0.11);b.add('stl',R(0.006,0.008,0.012,0.002),0.0175,0.004,-0.14);
       eng('RPG-Z7',0.11,0.013,-0.0285,0.05,-0.52,-H);
       const t=P('trigger',[0,-0.01,-0.11]);t.add('blk',R(0.006,0.020,0.007,0.001),0,-0.026,-0.11);
       A.hip=[0.14,-0.20,-0.30];A.muzzle=[0,0.03,-0.90];A.sightY=0.10;A.adsZ=-0.28;A.magPos=[0,0,0];
@@ -942,6 +988,13 @@ const GunLib=(function(){
       A.pouch=[-0.2,-0.42,0.05];A.magDrop=[0.0,-0.5,0.0];break;}
     case 'fist':{
       body.add('blk',R(0.004,0.004,0.004,0.001),0,0,0);
+      // ---- detail pass: knuckle tape and wrist wraps at the hand anchors ----
+      for(const hx of [0.11,-0.11]){
+        for(let i=0;i<3;i++)body.add('tape',R(0.040,0.024,0.006,0.002),hx,0.012-i*0.010,-0.185);
+        body.add('tape',R(0.046,0.030,0.018,0.003),hx,0.0,-0.10);
+        body.add('tape',R(0.046,0.030,0.006,0.002),hx,0.0,-0.075);
+      }
+
       A.hip=[0,-0.2,-0.35];A.muzzle=[0,0,-0.4];A.sightY=0.05;A.adsZ=-0.25;A.magPos=[0,0,0];
       A.rGrip=[0.11,0.0,-0.14];A.rRot=[0,0,-H];A.lHold=[-0.11,0.0,-0.14];A.lRot=[0,H*0.5,H*0.5];A.lMag=[0,0,0];A.lMagRot=[0,0,0];A.charge=[0,0,0];A.chargeRot=[0,0,0];
       A.pouch=[-0.2,-0.4,0.05];A.magDrop=[0,-0.5,0];break;}
@@ -959,6 +1012,26 @@ const GunLib=(function(){
       b.add('blk',C(0.023,0.022,0.24,16),0,0.156,-0.05);b.add('blk',C(0.036,0.023,0.08,16),0,0.156,-0.22);b.add('blk',C(0.027,0.027,0.06,16),0,0.156,0.095);
       b.add('gls',C(0.033,0.033,0.002,16),0,0.156,-0.259);b.add('gls',C(0.020,0.020,0.002,16),0,0.156,0.126);
       b.add('blk',CX(0.011,0.011,0.036,10),0,0.184,-0.05);b.add('stl',CV(0.010,0.010,0.012,10),0,0.204,-0.05);b.add('blk',CX(0.009,0.009,0.032,10),0.03,0.156,-0.05);
+      // ---- detail pass (anchors above are untouched, so grips and sight line still line up) ----
+      // fluted barrel: four grooves along the barrel, dark so they read as relief
+      for(const [fx,fy] of [[0.0235,0],[-0.0235,0],[0,0.0235],[0,-0.0235]])b.add('blk',R(0.0045,0.0045,0.34,0.001),fx,0.046+fy,-0.62);
+      // sunshade and scope rings (the rings sit on the rail, the shade wraps the objective)
+      b.add('blk',C(0.031,0.029,0.035,16),0,0.156,-0.27);
+      b.add('blk',C(0.038,0.038,0.018,16),0,0.128,-0.12);b.add('blk',C(0.038,0.038,0.018,16),0,0.128,0.02);
+      b.add('stl',R(0.012,0.006,0.012,0.002),0,0.100,-0.12);b.add('stl',R(0.012,0.006,0.012,0.002),0,0.100,0.02);
+      // elevation and windage turret caps with ticks
+      b.add('blk',CV(0.0135,0.0135,0.006,12),0,0.2175,-0.05);b.add('blk',CX(0.0125,0.0125,0.006,12),0.0485,0.156,-0.05);
+      for(let i=0;i<6;i++)b.add('!w',R(0.0008,0.0007,0.0016,0.0002),0.0075*Math.cos(i),0.2195,-0.05+0.0075*Math.sin(i));
+      // bipod folded under the forend: hinge block, two legs, rubber feet
+      b.add('blk',R(0.040,0.012,0.022,0.003),0,-0.030,-0.70);
+      for(const sx of [-0.016,0.016]){b.add('stl',CV(0.0045,0.0045,0.082,8),sx,-0.075,-0.70);b.add('rub',CV(0.0068,0.0068,0.010,8),sx,-0.118,-0.70);}
+      b.add('blk',R(0.046,0.007,0.010,0.002),0,-0.049,-0.70);
+      // cheek riser and stock hook, so the cheek weld has a real shape
+      b.add('polT',R(0.040,0.022,0.11,0.004),0,0.102,0.31);
+      b.add('rub',R(0.036,0.030,0.012,0.003),0,0.045,0.44);
+      // grip checkering and a trigger-guard ring
+      for(let i=0;i<5;i++)b.add('blk',R(0.034,0.004,0.004,0.001),0,-0.078+i*0.010,0.065);
+      b.add('blk',R(0.004,0.030,0.004,0.001),-0.021,-0.030,-0.03);b.add('blk',R(0.004,0.030,0.004,0.001),0.021,-0.030,-0.03);
       eng('LONGSHOT  .50',0.14,0.014,-0.0226,0.02,-0.05,-H);
       const bo=P('bolt',[0,0.06,0.05]);bo.add('stl',C(0.011,0.011,0.09,10),0,0.060,0.08);bo.add('blk',C(0.014,0.014,0.03,10),0,0.060,0.135);
       const bh=P('boltHandle',[-0.021,0.060,0.075]);bh.add('stl',R(0.008,0.008,0.05,0.002),-0.05,0.060,0.075,0,0,0);bh.add('blk',SP(0.011,10,8),-0.078,0.060,0.075);
@@ -1041,6 +1114,19 @@ const HandLib=(function(){
 })();
 
 /* ============ VM ============ */
+/* Per-gun animation sets. Each gun has its own hand-tuned values for ADS speed and
+ * movement, spring stiffness (how heavy the gun feels), sprint carry pose, sway
+ * strength and bolt-cycle time. Values for rifle and sniper match the previous
+ * shared behaviour so they don't change. */
+const ANIM={
+  pistol: {ads:12,adsMove:3.6,k:230,c:19,sprint:[-0.04,-0.09,0.02,-0.24,0.62,-0.18],sway:1.0,bolt:0.16},
+  rifle:  {ads:11,adsMove:3.6,k:230,c:19,sprint:[-0.05,-0.11,0.02,-0.26,0.72,-0.20],sway:1.0,bolt:0.16},
+  sniper: {ads:7, adsMove:2.6,k:150,c:15,sprint:[-0.05,-0.12,0.03,-0.30,0.80,-0.22],sway:0.6,bolt:1.0},
+  shotgun:{ads:9, adsMove:3.2,k:150,c:15,sprint:[-0.06,-0.12,0.03,-0.28,0.76,-0.22],sway:0.9,bolt:0.7},
+  bazooka:{ads:6, adsMove:2.4,k:120,c:12,sprint:[-0.07,-0.14,0.03,-0.32,0.80,-0.24],sway:0.8,bolt:0.9},
+  fist:   {ads:14,adsMove:4.2,k:260,c:22,sprint:[-0.02,-0.04,0.00,-0.10,0.30,-0.10],sway:0.5,bolt:0.2}
+};
+const animFor=(key)=>ANIM[key]||ANIM.rifle;
 const VM=(function(){
   const KINDS=['pistol','rifle','sniper','shotgun','bazooka','fist'];
   const rig=[];let cam=null,rootG=null,active=0;
@@ -1499,11 +1585,11 @@ const VM=(function(){
       r.pistolMixer.update(dt);
     }
     updateWeaponGLBParts(r,S,dt);
-    const kz=kind==='sniper'||kind==='shotgun'?150:230,cz=kind==='sniper'||kind==='shotgun'?15:19;let s;
+    const AP=animFor(kind);const kz=AP.k,cz=AP.c;let s;
     s=spring(rk.z,rk.vz,dt,kz,cz);rk.z=s[0];rk.vz=s[1];s=spring(rk.p,rk.vp,dt,kz*0.7,cz*0.8);rk.p=s[0];rk.vp=s[1];
     s=spring(rk.y,rk.vy,dt,kz,cz);rk.y=s[0];rk.vy=s[1];s=spring(rk.r,rk.vr,dt,150,13);rk.r=s[0];rk.vr=s[1];
     s=spring(rk.x,rk.vx,dt,150,14);rk.x=s[0];rk.vx=s[1];s=spring(rk.ry,rk.vry,dt,150,13);rk.ry=s[0];rk.vry=s[1];
-    const dur=kind==='sniper'?1.0:(kind==='shotgun'?0.7:0.16);
+    const dur=AP.bolt;
     r.slideT=Math.max(0,r.slideT-dt/(kind==='pistol'?0.13:0.10));
     r.trigT=Math.max(0,r.trigT-dt/0.09);r.boltT=Math.max(0,r.boltT-dt/dur);r.pumpT=Math.max(0,r.pumpT-dt/dur);
     if(kind==='pistol'&&r.sliderBone){
@@ -1522,11 +1608,11 @@ const VM=(function(){
     let px=hip[0]+(ads[0]-hip[0])*e,py=hip[1]+(ads[1]-hip[1])*e,pz=hip[2]+(ads[2]-hip[2])*eo;
     py+=Math.sin(Math.PI*a)*0.018;
     let rx=0,ry=0.05*(1-e),rz=-0.05*(1-e)+Math.sin(Math.PI*a)*0.05;
-    const sp=S.sprintK;px+=(-0.05)*sp;py+=(-0.11)*sp;pz+=(0.02)*sp;rx+=-0.26*sp;ry+=0.72*sp;rz+=-0.20*sp;
+    const sp=S.sprintK,SPo=AP.sprint;px+=SPo[0]*sp;py+=SPo[1]*sp;pz+=SPo[2]*sp;rx+=SPo[3]*sp;ry+=SPo[4]*sp;rz+=SPo[5]*sp;
     const bt=S.time;py+=Math.sin(bt*1.25)*0.0025*(1-e*0.7);px+=Math.sin(bt*0.83)*0.0015*(1-e*0.7);
     const mv=S.moveK*(S.onGround?1:0.15),bp=S.bob,bk=(1-e*0.75);
     px+=Math.cos(bp)*0.007*mv*bk*(1+sp);py+=-Math.abs(Math.sin(bp))*0.012*mv*bk*(1+sp*1.4);rz+=Math.cos(bp)*0.025*mv*bk*(1+sp*1.5);rx+=Math.abs(Math.sin(bp))*0.02*mv*bk;
-    px+=S.swayX*1.0;py+=S.swayY*1.0;ry+=-S.swayX*3.2;rx+=S.swayY*3.0;
+    px+=S.swayX*AP.sway;py+=S.swayY*AP.sway;ry+=-S.swayX*3.2*AP.sway;rx+=S.swayY*3.0*AP.sway;
     px+=S.strafe*0.012*(1-e);rz+=-S.strafe*0.03*(1-e);pz+=S.landDip*0.35;py+=-S.landDip*0.7;rx+=S.landDip*0.4;
     if(!S.onGround){py+=0.012;rx+=0.03;}
     const dr=S.swap;if(dr>0){const d=dr*dr;py+=-0.30*d;px+=0.10*d;rx+=0.55*d;ry+=-0.35*d;rz+=-0.2*d;}
@@ -2621,6 +2707,9 @@ function syncHomeProfile(){
   if(lv)lv.textContent='LV '+String(level).padStart(2,'0');
   if(sn)sn.textContent=name.toUpperCase();
   if(av)av.textContent=(name.slice(0,2)||'OP').toUpperCase();
+  const co=$('homeCoins'),ge=$('homeGems');
+  if(co)co.textContent=((window.ACCT&&window.ACCT.me&&window.ACCT.me.money)||0).toLocaleString();
+  if(ge)ge.textContent=((window.ACCT&&window.ACCT.me&&window.ACCT.me.gems)||0).toLocaleString();
 }
 function openHomeTab(tab){
   const b=document.querySelector('.tab-btn[data-tab="'+tab+'"]');
@@ -2686,6 +2775,14 @@ $('adminPass').addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='En
 $('playSolo').addEventListener('click',()=>{closePlayModes();startGame('single')});
 $('playMulti').addEventListener('click',()=>{closePlayModes();startGame('multi')});
 $('homePlayBtn')&&$('homePlayBtn').addEventListener('click',openPlayModes);
+document.querySelectorAll('.home-play,.home-shop,.home-settings,.home-profile,.mnav-btn,.mg-nav').forEach(el=>el.addEventListener('pointerdown',()=>{try{buzz(6);}catch(e){}},{passive:true}));
+// Free Fire-style lobby HUD: every tile opens the matching tab or the mode picker.
+document.querySelectorAll('.ff-home [data-home-tab]:not(.mnav-btn)').forEach(btn=>btn.addEventListener('click',()=>{
+  const tab=btn.getAttribute('data-home-tab');openHomeTab(tab);
+}));
+$('homeModeBtn')&&$('homeModeBtn').addEventListener('click',openPlayModes);
+$('homeLuckBtn')&&$('homeLuckBtn').addEventListener('click',openPlayModes);
+document.querySelectorAll('.ff-home .ff-start,.ff-home .ff-mode,.ff-home .ff-luck').forEach(el=>el.addEventListener('pointerdown',()=>{try{buzz(8);}catch(e){}},{passive:true}));
 $('closePlayModes')&&$('closePlayModes').addEventListener('click',closePlayModes);
 $('homeShopBtn')&&$('homeShopBtn').addEventListener('click',()=>openHomeTab('shop'));
 $('homeSettingsBtn')&&$('homeSettingsBtn').addEventListener('click',()=>openHomeTab('settings'));
@@ -3446,10 +3543,10 @@ function updatePlayer(dt){
   if(P.camShake){P.camShake=Math.max(0,P.camShake-dt*6);P.camShakeYaw*=Math.max(0,1-dt*8);P.camShakePitch*=Math.max(0,1-dt*8);}
   if(p.invuln>0)p.invuln-=dt;$('shield').classList.toggle('hidden',!(p.invuln>0));
   const fw=(isDown('forward')?1:0)-(isDown('back')?1:0),rt=(isDown('right')?1:0)-(isDown('left')?1:0);
-  const ads=isAds();P.adsT=clamp(P.adsT+((ads?1:-1)*dt*(w.key==='sniper'?7:11)),0,1);
+  const ads=isAds();P.adsT=clamp(P.adsT+((ads?1:-1)*dt*animFor(w.key).ads),0,1);
   const recentlyFired=(T-P.lastShotTime)<SPRINT_LOCKOUT;
   let spd=6.2;const sprinting=isDown('sprint')&&fw>0&&!ads&&!p.climb&&!recentlyFired;
-  if(sprinting)spd=9.2;else if(ads)spd=w.key==='sniper'?2.6:3.6;
+  if(sprinting)spd=9.2;else if(ads)spd=animFor(w.key).adsMove;
   if(P.boostT>0)spd*=1.35;if(P.slowT>0)spd*=P.slowK||0.55;
   let mx=-Math.sin(yaw)*fw+Math.cos(yaw)*rt,mz=-Math.cos(yaw)*fw-Math.sin(yaw)*rt;
   const ml=Math.hypot(mx,mz);if(ml>0){mx/=ml;mz/=ml;}
@@ -3503,8 +3600,8 @@ function updatePlayer(dt){
   const sc=$('scope');sc.classList.toggle('hidden',!scoped);
   if(scoped){sc.dataset.k=w.key;sc.style.opacity=clamp((P.adsT-0.55)/0.25,0,1).toFixed(2);
     const hh=castRay(camera.position.x,camera.position.y,camera.position.z,-Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),-Math.cos(yaw)*Math.cos(pitch),600,player);
-    setText('scopeRange',hh.t<600?Math.round(hh.t)+' m':'— m');setText('scopeZoom',sniper?(P.zoom?'16×':'8×'):'4×');
-    setText('scopeHold',sniper?(P.gasp>0?'OUT OF BREATH':'SHIFT · hold breath '+P.breath.toFixed(1)+'s'):'');}
+    setText('scopeRange',hh.t<600?Math.round(hh.t)+' m':'— m');const mag=Math.tan(BASE_FOV*Math.PI/360)/Math.tan(camera.fov*Math.PI/360);setText('scopeZoom',(sniper?mag:4).toFixed(1)+'×');
+    setText('scopeHold',sniper?(P.gasp>0?'OUT OF BREATH':'HOLD SHIFT · breath '+P.breath.toFixed(1)+'s')+'  ·  SCROLL zoom':'');}
   $('reddot').classList.toggle('hidden',!(dotW&&P.adsT>0.6));
   $('crosshair').style.display=(scoped||(dotW&&P.adsT>0.6))?'none':'block';
   const gap=4+Math.tan(currentSpread())/Math.tan(camera.fov*Math.PI/360)*(window.innerHeight/2);
@@ -3652,6 +3749,52 @@ function spawn(f){
   else{BotChat.event('respawn',{bot:f});}
 }
 
+
+/* ---- Lobby director: idle stunts and cinematic camera for the menu operator ----
+ * Every 8-12 s one stunt plays. Each has a timeline and drives the operator's
+ * facing, a hop/flip of the operator model, the camera push, and the pet. */
+const LOBBY={t:5,cur:null,p:0,d:0,last:'',out:{yaw:0,hop:0,flip:0,camR:1,camH:0,fov:80}};
+const LOBBY_STUNTS={turn:1.9,flip:1.3,hero:3.4,swagger:2.6,pet:2.0,pose:3.0};
+const lobbySmooth=x=>x*x*(3-2*x);
+function lobbyStart(name,player){
+  LOBBY.cur=name;LOBBY.p=0;LOBBY.d=LOBBY_STUNTS[name];LOBBY.last=name;
+  if(name==='pet'||name==='flip'||name==='pose'){
+    const pd=drones.get(player);
+    if(pd&&pd.ai){pd.ai.mode='idle';pd.ai.act='play';pd.ai.dur=1.9;pd.ai.hops=2;pd.ai.hopCd=0.1;}
+  }
+}
+function lobbyFinish(name,player){
+  // landing effects: dust ring, warm light, and a small camera settle
+  if(name==='flip'||name==='turn'||name==='pose'){
+    puff(player.x,player.y+0.05,player.z,'dust',9);
+    fxLight(player.x,player.y+0.6,player.z,0xffb070,3,0.45);
+  }
+}
+function lobbyUpdate(dt,player){
+  const o=LOBBY.out;o.yaw=0;o.hop=0;o.flip=0;o.camR=1;o.camH=0;o.fov=80+Math.sin(T*0.37)*1.2;
+  if(!LOBBY.cur){
+    LOBBY.t-=dt;
+    if(LOBBY.t<=0){
+      const keys=Object.keys(LOBBY_STUNTS).filter(k=>k!==LOBBY.last);
+      lobbyStart(keys[(Math.random()*keys.length)|0],player);
+      LOBBY.t=rnd(8,12);
+    }
+    return o;
+  }
+  LOBBY.p+=dt/LOBBY.d;
+  const p=Math.min(1,LOBBY.p),e=lobbySmooth(p),bell=Math.sin(Math.PI*p);
+  switch(LOBBY.cur){
+    case 'turn':   o.yaw=e*TAU;break;
+    case 'flip':   o.flip=-e*TAU;o.hop=bell*1.0;break;
+    case 'hero':   o.camR=1-0.38*bell;o.camH=-0.35*bell;o.fov=o.fov-20*bell;o.yaw=e*0.6;break;
+    case 'swagger':o.yaw=Math.sin(p*TAU*1.5)*0.45;o.camR=1-0.12*bell;break;
+    case 'pet':    o.camR=1-0.08*bell;break;
+    case 'pose':   o.camH=0.55*bell;o.fov=o.fov-9*bell;o.yaw=e*0.25;break;
+  }
+  if(p>=1){lobbyFinish(LOBBY.cur,player);LOBBY.cur=null;}
+  return o;
+}
+
 let lastMs=performance.now(),hudT=0,menuAng=0;
 function step(dt){
   T+=dt;
@@ -3665,13 +3808,20 @@ function step(dt){
     // Find a real walkable point on the supplied GLB near its main floor.
     // Do not use an arbitrary median spawn or (0,0,0): both can land inside
     // walls/upper rooms on this multi-level underground map.
-    let home=null;
-    if(window.MAP_COLLIDER)home=findLobbyHome();
-    if(!home&&window.__MAP_SPAWN_POINTS&&window.__MAP_SPAWN_POINTS.length)home=findLobbyHome(window.__MAP_SPAWN_POINTS);
+    // The lobby point is searched once and cached: the search costs ~75 ms, which
+    // must never run every frame (it caused stutter on mobile).
+    if(window.__LOBBY_HOME===undefined){
+      let home=null;
+      if(window.MAP_COLLIDER)home=findLobbyHome();
+      if(!home&&window.__MAP_SPAWN_POINTS&&window.__MAP_SPAWN_POINTS.length)home=findLobbyHome(window.__MAP_SPAWN_POINTS);
+      window.__LOBBY_HOME=home||null;
+    }
+    const home=window.__LOBBY_HOME;
     if(home){player.x=home[0];player.y=home[1];player.z=home[2];}
     else {player.x=0;player.y=0.06;player.z=0;}
     player.speed=0;player.vx=player.vy=player.vz=0;
-    player.yaw=menuAng+Math.PI;
+    const dirO=lobbyUpdate(dt,player);
+    player.yaw=menuAng+Math.PI+dirO.yaw;
     player.hasPet=!!(window.ACCT&&window.ACCT.me&&(window.ACCT.me.items||[]).includes('pet_buddy'));
     if(player.hasPet&&(!P.pet||!P.pet.alive))P.pet={alive:true,hp:100};
     for(const bot of botPool){bot.alive=false;if(bot.mesh)bot.mesh.visible=false;}
@@ -3680,10 +3830,10 @@ function step(dt){
       CH.animate(player,dt,T,0,false,false,0);
     }
     if(glbMapOk){
-      const r=6.8;
+      const r=6.8*LOBBY.out.camR;
       const focusY=player.y+1.05;
       // Pull the orbit camera in when a wall of the GLB map is between it and the operator.
-      let cdx=Math.cos(menuAng)*r,cdz=Math.sin(menuAng)*r,cyy=player.y+2.15+Math.sin(menuAng*0.7)*0.18;
+      let cdx=Math.cos(menuAng)*r,cdz=Math.sin(menuAng)*r,cyy=player.y+2.15+Math.sin(menuAng*0.7)*0.18+LOBBY.out.camH;
       if(window.MAP_COLLIDER&&window.MAP_COLLIDER.raycast){
         const vx=cdx,vy=cyy-focusY,vz=cdz,L=Math.hypot(vx,vy,vz)||1;
         const hit=window.MAP_COLLIDER.raycast(player.x,focusY,player.z,vx/L,vy/L,vz/L,L);
@@ -3691,6 +3841,7 @@ function step(dt){
       }
       camera.position.set(player.x+cdx,cyy,player.z+cdz);
       camera.lookAt(player.x,focusY,player.z);
+      if(Math.abs(camera.fov-LOBBY.out.fov)>0.02){camera.fov=LOBBY.out.fov;camera.updateProjectionMatrix();}
     } else {
       camera.position.set(player.x+Math.cos(menuAng)*7.5,player.y+3.1,player.z+Math.sin(menuAng)*7.5);
       camera.lookAt(player.x,player.y+1,player.z);
@@ -3708,7 +3859,9 @@ function step(dt){
     for(let j=i+1;j<fighters.length;j++){const b=fighters[j];if(!b.alive||Math.abs(a.y-b.y)>1.6||(a.remote&&b.remote))continue;
       const dx=b.x-a.x,dz=b.z-a.z,d2=dx*dx+dz*dz;
       if(d2<0.64&&d2>1e-6){const d=Math.sqrt(d2),p=(0.8-d)/2/d;if(!a.remote){a.x-=dx*p;a.z-=dz*p;}if(!b.remote){b.x+=dx*p;b.z+=dz*p;}}}}
-  syncMeshes(dt);BotChat.tick(dt);chatTick(dt);
+  syncMeshes(dt);
+  if(state==='menu'&&player.mesh&&player.mesh.visible){player.mesh.rotation.x=LOBBY.out.flip;player.mesh.position.y+=LOBBY.out.hop;}
+  BotChat.tick(dt);chatTick(dt);
   if(((T*4)|0)!==(((T-dt)*4)|0)){const cx=camera.position.x,cz=camera.position.z;for(const c of chunkMeshes)c.m.visible=Math.hypot(c.x-cx,c.z-cz)<620;}
   for(const m of medkits){m.ring.visible=m.active;if(m.active){m.mesh.rotation.y+=dt*1.6;m.mesh.position.y=0.75+Math.sin(T*2.4+m.x)*0.1;}}
   updateFx(dt);updateCasings(dt);updateDebris(dt);updateProjectiles(dt);updatePowers(dt);
