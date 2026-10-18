@@ -503,51 +503,16 @@ function parking(cx,cz){Q(cx-BLOCK/2,cx+BLOCK/2,cz-BLOCK/2,cz+BLOCK/2,0.012,'asp
 function forest(cx,cz){Q(cx-BLOCK/2,cx+BLOCK/2,cz-BLOCK/2,cz+BLOCK/2,0.01,'grass',0xdddddd);const n=13+((rand()*8)|0);for(let i=0;i<n;i++){const x=cx+wr(-13,13),z=cz+wr(-13,13);if(isFree(x,z,1.5)){tree(x,z,wr(1,1.8));occupy(x,x,z,z,1.2);}}}
 function plaza(cx,cz){Q(cx-BLOCK/2,cx+BLOCK/2,cz-BLOCK/2,cz+BLOCK/2,0.012,'pave',0xd0cdc4);G(cylGeo,cx,0.3,cz,5,0.6,5,0,0x8f8f88);G(cylGeo,cx,0.1,cz,4.2,0.2,4.2,0,0x2f4a5a);B(cx,0,cz,7,5.5,7,0,'flat',NV);B(cx,0.6,cz,1.2,4.5,1.2,0xa8a69e,'concrete',NC);B(cx,5.1,cz,2,0.3,2,0xa8a69e,'concrete',NC);for(const [a,b] of [[-1,-1],[1,-1],[-1,1],[1,1]]){sandbags(cx+a*10,cz+b*10,6);tree(cx+a*12,cz+b*6,1.2);}occupy(cx-BLOCK/2,cx+BLOCK/2,cz-BLOCK/2,cz+BLOCK/2,0);}
 function yard(cx,cz){for(let i=0;i<6;i++){const x=cx+wr(-9,9),z=cz+wr(-9,9);if(isFree(x,z,4))container(x,z,rand()<0.5,wpick([0xb3452f,0x2f6f9f,0x3f8a58,0xc79a2f,0x5a5a5a]));}for(let i=0;i<3;i++){const x=cx+wr(-10,10),z=cz+wr(-10,10);if(isFree(x,z,4)){G(cylGeo,x,3,z,3,6,3,0,0xc8c8c0);B(x,0,z,4.8,6,4.8,0,'flat',NV);occupy(x-3,x+3,z-3,z+3,0.5);}}}
-// Drop default procedural city and colliders when GLB map is active
+// The supplied map.glb is the ONLY playable world. Never fall back to the
+// legacy procedural city: if the GLB is unavailable, fail visibly instead of
+// silently putting the player into the old map.
 const cityGroup=new THREE.Group();scene.add(cityGroup);
 if(!glbMapOk){
-  ground.visible=true;
-  (function generateCity(){
-  for(let i=-EXT-1;i<=EXT;i++){const s=(i+0.5)*STEP_B;occupy(s-3.2,s+3.2,-MAP,MAP,0);occupy(-MAP,MAP,s-3.2,s+3.2,0);}
-  for(let ix=-EXT;ix<=EXT;ix++)for(let iz=-EXT;iz<=EXT;iz++){
-    const cx=ix*STEP_B,cz=iz*STEP_B,d=Math.hypot(cx,cz),h=BLOCK/2;
-    B(cx,0,cz-h-0.9,BLOCK+3.6,0.12,1.8,0xa8a59d,'pave');B(cx,0,cz+h+0.9,BLOCK+3.6,0.12,1.8,0xa8a59d,'pave');
-    B(cx-h-0.9,0,cz,1.8,0.12,BLOCK,0xa8a59d,'pave');B(cx+h+0.9,0,cz,1.8,0.12,BLOCK,0xa8a59d,'pave');
-    const ex=ix*STEP_B+STEP_B/2,ez=iz*STEP_B+STEP_B/2;
-    Q(ex-3.2,ex+3.2,ez-3.2,ez+3.2,0.035,'asphalt',0xffffff);
-    if(rand()<0.55)lamp(cx+h+1.5,cz+h+1.5);
-    if(ix===0&&iz===0){plaza(cx,cz);continue;}
-    if(d>MAP-40)continue;
-    const dtn=d<170,res=d<330,r=rand();
-    if(cx>120&&cz<-100&&d>150&&r<0.6){yard(cx,cz);continue;}
-    if(r<0.07)park(cx,cz);
-    else if(r<0.12)parking(cx,cz);
-    else if(r<0.2||(d>400&&r<0.4))ruin(cx,cz,BLOCK-2,BLOCK-2);
-    else if(d>360&&r<0.65)forest(cx,cz);
-    else{Q(cx-h,cx+h,cz-h,cz+h,0.008,'concrete',0xb0aea6);lots(cx,cz,dtn,res);}
-    if(rand()<0.24){const x=cx+wr(-h-1,h+1);if(rand()<0.55)car(x,cz+(rand()<0.5?1:-1)*(h+3.8),true,wpick(CARC),rand()<0.35);}
-    if(rand()<0.24){const z=cz+wr(-h-1,h+1);if(rand()<0.55)car(cx+(rand()<0.5?1:-1)*(h+3.8),z,false,wpick(CARC),rand()<0.35);}
-    if(rand()<0.10){const x=cx+wr(-h*0.7,h*0.7),z=cz+(rand()<0.5?1:-1)*(h+4.5);bus(x,z,true,wpick(BUSC));}
-    if(rand()<0.10){const z=cz+wr(-h*0.7,h*0.7),x=cx+(rand()<0.5?1:-1)*(h+4.5);bus(x,z,false,wpick(BUSC));}
-    if(rand()<0.16){const x=cx+wr(-h,h),z=cz+wr(-h,h);if(isFree(x,z,1.5))planks(x,z,rand()<0.5);}
-    if(rand()<0.15){const x=cx+wr(-h,h),z=cz+wr(-h,h);if(isFree(x,z,2))oilCluster(x,z,2+(rand()*4|0));}
-  }
-  for(let i=0;i<10;i++){const a=rand()*TAU,r=rand()*MAP*0.7,x=Math.cos(a)*r,z=Math.sin(a)*r;if(isFree(x,z,4))tankWreck(x,z);}
-  for(let i=0;i<30;i++){const a=rand()*TAU,r=rand()*MAP*0.85,x=Math.cos(a)*r,z=Math.sin(a)*r;if(isFree(x,z,3))sandbags(x,z,5+((rand()*5)|0));}
-  for(let i=0;i<120;i++){const a=rand()*TAU,r=rand()*MAP*0.85,x=Math.cos(a)*r,z=Math.sin(a)*r;if(!isFree(x,z,1.5))continue;if(rand()<0.5)barrel(x,z);else dumpster(x,z);}
-  for(let i=0;i<30;i++){const a=rand()*TAU,r=rand()*MAP*0.85,x=Math.cos(a)*r,z=Math.sin(a)*r;if(isFree(x,z,2.5))planks(x,z,rand()<0.5);}
-  for(let i=0;i<20;i++){const a=rand()*TAU,r=rand()*MAP*0.85,x=Math.cos(a)*r,z=Math.sin(a)*r;if(isFree(x,z,3))oilCluster(x,z,3+(rand()*4|0));}
-  for(let i=0;i<300;i++){const x=wr(-MAP+12,MAP-12),z=wr(-MAP+12,MAP-12);if(Math.hypot(x,z)>330&&isFree(x,z,2)){tree(x,z,wr(1,1.8));occupy(x,x,z,z,1.5);}}
-  })();
-  (function roads(){const rt=mkTex(tRoad());rt.repeat.set(1,(MAP*2+120)/8);
-    let rm;
-    if(isMobile) rm=new THREE.MeshLambertMaterial({map:rt,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
-    else rm=new THREE.MeshStandardMaterial({map:rt,bumpMap:rt,bumpScale:0.7,roughness:0.85,metalness:0.05,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
-    const geo=new THREE.PlaneGeometry(6.4,MAP*2+120);
-    for(let i=-EXT-1;i<=EXT;i++){const s=(i+0.5)*STEP_B;const a=new THREE.Mesh(geo,rm);a.rotation.x=-Math.PI/2;a.position.set(s,0.02,0);a.receiveShadow=true;scene.add(a);const b=new THREE.Mesh(geo,rm);b.rotation.set(-Math.PI/2,0,Math.PI/2);b.position.set(0,0.02,s);b.receiveShadow=true;scene.add(b);}})();
-  finalizeWorld();
+  ground.visible=false;
+  sky.visible=false;
+  cityGroup.visible=false;
 } else {
-  // Built-in map active: completely drop default city procedural collision & geometry
+  // GLB is the only world. Remove every legacy procedural collider/list.
   ground.visible=false;
   sky.visible=false;
   scene.background=new THREE.Color(0x090e13);
@@ -558,7 +523,7 @@ if(!glbMapOk){
   ENTER.length=0;
   roofSpots.length=0;
 }
-cityGroup.visible=!glbMapOk;
+cityGroup.visible=false;
 
 window.MAP_READY = true;  // tells the loading screen world is up
 window.ASSET_STATE.map = true;
@@ -3087,13 +3052,13 @@ function makeDrone(){
   const legs=[];
   for(const sx of [-1,1])for(const sz of [-1,1]){
     const leg=new THREE.Group();leg.position.set(sx*.17,.25,sz*.17);
-    const upper=new THREE.Mesh(new THREE.CapsuleGeometry(.045,.17,5,8),orange);upper.position.y=-.07;leg.add(upper);
+    const upper=new THREE.Mesh(new THREE.CylinderGeometry(.045,.045,.17,8,1),orange);upper.position.y=-.07;leg.add(upper);
     const paw=new THREE.Mesh(new THREE.SphereGeometry(.065,10,8),dark);paw.scale.set(1,.5,1.2);paw.position.set(0,-.18,.025);leg.add(paw);
     g.add(leg);legs.push(leg);
   }
   const tail=new THREE.Group();tail.position.set(0,.43,-.48);g.add(tail);
-  const tailBase=new THREE.Mesh(new THREE.CapsuleGeometry(.105,.34,7,10),orange);tailBase.rotation.x=-.9;tail.add(tailBase);
-  const tailMid=new THREE.Mesh(new THREE.CapsuleGeometry(.095,.28,7,10),cream);tailMid.position.set(0,.17,-.15);tailMid.rotation.x=-.55;tail.add(tailMid);
+  const tailBase=new THREE.Mesh(new THREE.CylinderGeometry(.105,.105,.34,10,1),orange);tailBase.rotation.x=-.9;tail.add(tailBase);
+  const tailMid=new THREE.Mesh(new THREE.CylinderGeometry(.095,.095,.28,10,1),cream);tailMid.position.set(0,.17,-.15);tailMid.rotation.x=-.55;tail.add(tailMid);
   const tailTip=new THREE.Mesh(new THREE.SphereGeometry(.10,12,9),cream);tailTip.position.set(0,.27,-.25);tail.add(tailTip);
   const collar=new THREE.Mesh(new THREE.TorusGeometry(.145,.018,8,28),dark);collar.rotation.x=Math.PI/2;collar.position.set(0,.55,.33);g.add(collar);
   const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:FX_TEX,color:0xff9a45,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,opacity:.22}));glow.scale.set(.22,.22,1);glow.position.set(0,.71,.54);g.add(glow);

@@ -15,7 +15,7 @@
     return;
   }
 
-  const MAP_FILE   = 'models/map.glb';
+  const MAP_FILE   = new URL('./models/map.glb', document.baseURI).href;
   const MAP_SCALE  = 1;   // already authored at human/game scale (~93 x 32 x 64 units) — no correction needed
   const MAP_ROT_Y  = 0;   // radians, in case the model faces the wrong way once you can see it
 
@@ -193,6 +193,6 @@
     }))
     .catch(err => {
       console.error('[map-loader] failed, procedural-only will run:', err);
-      return null;
+      throw err;
     });
 })();
