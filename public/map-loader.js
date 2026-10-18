@@ -16,7 +16,13 @@
   }
 
   const MAP_FILE   = new URL('./models/map.glb', document.baseURI).href;
-  const MAP_SCALE  = 1;   // already authored at human/game scale (~93 x 32 x 64 units) — no correction needed
+  const MAP_SCALE  = 1;
+  // map.glb was authored with its playable floor around Y=-15.97. Keep X/Z
+  // exactly as authored, but lift the complete level so the main floor is Y=0.
+  // This is a level-origin correction, not a resize.
+  // Keep the authored level geometry together. The gameplay world is
+  // normalized once, using the actual lowest main floor of this GLB.
+  const MAP_FLOOR_Y = -15.9719;
   const MAP_ROT_Y  = 0;   // radians, in case the model faces the wrong way once you can see it
 
   // Merge coincident vertices within this distance when splitting a mesh
@@ -109,6 +115,7 @@
         try {
           const scene = gltf.scene;
           scene.scale.multiplyScalar(MAP_SCALE);
+          scene.position.y -= MAP_FLOOR_Y;
           scene.rotation.y += MAP_ROT_Y;
           scene.updateMatrixWorld(true);
 
@@ -134,12 +141,14 @@
             }
           });
 
-          // Keep the GLB in its authored world coordinates. The main game\'s\n          // triangle collider performs multi-level floor detection and spawn\n          // generation after the scene is loaded. The previous heuristic that\n          // snapped the lowest thin surface to y=0 could select an underside\n          ///decorative surface on this map and offset the entire level.\n          const spawns = [];\n          const navNodes = [];\n          window.__MAP_NAV_NODES = navNodes;\n\n          for (const c of colliders) delete c._area;
+          // The GLB is kept at authored X/Z coordinates. Its authored playable floor\n          // is lifted to Y=0 so the character controller, lobby and bots share\n          // the same world origin. No old procedural city is used.\n          const spawns = [];\n          const navNodes = [];\n          window.__MAP_NAV_NODES = navNodes;\n\n          for (const c of colliders) delete c._area;
 
+          const mapBox = new THREE.Box3().setFromObject(scene);
+          const mapCenter = mapBox.getCenter(new THREE.Vector3());
           console.log('[map-loader] ' + MAP_FILE + ' loaded ·', colliders.length,
-                      'visual map geometry ready; gameplay spawn/nav handled by triangle collider');
+                      'visual map geometry ready · bounds', mapBox.min.toArray(), mapBox.max.toArray());
           window.MAP_LOAD_PROGRESS = 1;
-          resolve({ scene, colliders, spawns, navNodes });
+          resolve({ scene, colliders, spawns, navNodes, bounds: mapBox, center: mapCenter });
         } catch (err) { reject(err); }
       }, reject);
     }))

@@ -396,7 +396,7 @@ if(window.MAP_GLB_PROMISE){
   try{
     const md=await window.MAP_GLB_PROMISE;
     if(md&&md.scene){
-      scene.add(md.scene);glbMapData=md;window.__GLB_SPAWNS=md.spawns||[];window.__MAP_NAV_NODES=md.navNodes||window.__MAP_NAV_NODES||[];scene.fog=new THREE.Fog(L(0x111820),42,230);sun.intensity=0.55;for(const q of mapLights)q.l.intensity=q.intensity;
+      scene.add(md.scene);glbMapData=md;window.__GLB_SPAWNS=md.spawns||[];window.__MAP_NAV_NODES=md.navNodes||window.__MAP_NAV_NODES||[];scene.fog=new THREE.Fog(L(0x111820),70,360);sun.intensity=0.55;for(const q of mapLights)q.l.intensity=q.intensity;
       window.MAP_COLLIDER=new GLBMeshCollider(md.scene);
       window.__MAP_SPAWN_POINTS=window.MAP_COLLIDER.spawnPoints||[];
       glbMapOk=true;
@@ -2181,8 +2181,31 @@ document.querySelectorAll('#wslots span').forEach((s,i)=>{s.style.display=i<WEAP
   }catch(e){console.warn('[hands] material sync failed',e);}
 })();
 VM.init(gunRoot,viewCamera);guns.push(...VM.rig.map(r=>r.g));
+// Activate the cached weapon immediately after all first-person rigs exist.
+try{if(P.cur!==0)setGun(P.cur);}catch(e){console.warn('[weapon-cache] activation failed',e);}
 VM.rig.forEach(r=>{r.g.add(viewMuzzle);});
 WEAPONS.forEach((w,i)=>{w.flashZ=VM.rig[i].A.muzzle[2];});
+// High-detail operator attachments: add rail covers, muzzle rings and compact
+// optics to the existing weapon bodies without replacing their animation rigs.
+(function(){
+  try{
+    VM.rig.forEach((r,i)=>{
+      if(!r||!r.g)return;
+      const kind=WEAPONS[i].key;
+      if(kind==='fist')return;
+      const dark=new THREE.MeshStandardMaterial({color:0x171a1d,roughness:.38,metalness:.72,envMap:GX.env(),envMapIntensity:.55});
+      const steel=new THREE.MeshStandardMaterial({color:0x34383b,roughness:.28,metalness:.82,envMap:GX.env(),envMapIntensity:.65});
+      const rail=new THREE.Mesh(new THREE.BoxGeometry(.075,.018,.28),dark);rail.position.set(0,.095,-.28);r.g.add(rail);
+      const muzzle=new THREE.Mesh(new THREE.CylinderGeometry(.035,.042,.055,16),steel);muzzle.rotation.x=Math.PI/2;muzzle.position.set(0,.028,(r.A.muzzle[2]||-.7)+.025);r.g.add(muzzle);
+      if(kind!=='shotgun'&&kind!=='bazooka'){
+        const optic=new THREE.Group();
+        const body=new THREE.Mesh(new THREE.BoxGeometry(.075,.045,.14),dark);body.position.z=-.01;optic.add(body);
+        const glass=new THREE.Mesh(new THREE.CylinderGeometry(.015,.015,.003,12),new THREE.MeshStandardMaterial({color:0x66a6b8,roughness:.12,metalness:.25,emissive:0x16323a,emissiveIntensity:.7}));glass.rotation.x=Math.PI/2;glass.position.set(0,.024,-.082);optic.add(glass);
+        optic.position.set(0,.145,-.29);r.g.add(optic);
+      }
+    });
+  }catch(e){console.warn('[weapon-detail] attachment pass failed',e);}
+})();
 gunRoot.add(flash);gunRoot.visible=false;
 
 /* Border - removed: map is small enough now that a shrinking play-zone isn't needed.
@@ -2198,6 +2221,9 @@ let yaw=0,pitch=0,deadT=0;let locked=false,fallback=false,starting=false;let sen
 let mouseL=false,mouseR=false,mousePressed=false;
 let manualPause=false;
 const P={cur:0,ammo:WEAPONS.map(w=>w.mag),reload:0,reloadTotal:1,nextFire:0,heat:0,adsT:0,swap:0,kick:0,flash:0,bob:0,swayX:0,swayY:0,hitT:0,dmgT:0,dmgDirT:0,toastT:0,fovB:0,recoilX:0,recoilY:0,idleSway:0,lastShotTime:0,sprintSway:0,lastHitAt:-999,regenning:false,landDip:0,stepD:0,breath:4,gasp:0,swayYaw:0,swayPitch:0,cycle:0,streak:0,roll:0,zoom:0,climbT:0,nearLadder:false,slideBack:0,boltCycle:0,camShake:0,camShakeYaw:0,camShakePitch:0};
+// Remember the last weapon the player actually selected. The cache is per-browser
+// and only stores the weapon key, so a deleted/unknown weapon safely falls back.
+try{const saved=localStorage.getItem('shotline.lastWeapon');const idx=WEAPONS.findIndex(w=>w.key===saved);if(idx>=0)P.cur=idx;}catch(e){}
 const fx=[],feedItems=[],medkits=[];window.__dbg=null;let chatOpen=false;let adminPromptMode='admin';
 // Pool tracer/impact-puff meshes instead of allocating+adding a new Object3D
 // per shot — with several bots firing fast weapons at once this avoided a
@@ -2706,7 +2732,7 @@ function doRespawn(){spawn(player);P.ammo=WEAPONS.map(w=>w.mag);P.reload=0;P.hea
   if(camera.fov!==BASE_FOV){camera.fov=BASE_FOV;camera.updateProjectionMatrix();}
   setGun(0);state='playing';$('death').classList.add('hidden');gunRoot.visible=true;requestLock(false);
   if(mode==='multi'&&net.ws&&net.ws.readyState===1)net.ws.send(JSON.stringify({t:'spawn'}));}
-function setGun(i){i=clamp(i,0,WEAPONS.length-1);P.cur=i;FPA.setWeapon(WEAPONS[i].key);const vr=VM.setActive(i);vr.g.add(flash);flash.position.set(vr.A.muzzle[0],vr.A.muzzle[1],vr.A.muzzle[2]-0.03);viewMuzzle.position.set(vr.A.muzzle[0],vr.A.muzzle[1]+0.02,vr.A.muzzle[2]+0.12);vr.g.add(laser);laser.position.set(vr.A.muzzle[0],vr.A.muzzle[1],vr.A.muzzle[2]-LASER_LEN/2);setText('wname',WEAPONS[i].name);document.querySelectorAll('#wslots span').forEach((s,k)=>s.classList.toggle('on',k===i));P.swap=1;P.reload=0;}
+function setGun(i){i=clamp(i,0,WEAPONS.length-1);P.cur=i;try{localStorage.setItem('shotline.lastWeapon',WEAPONS[i].key);}catch(e){}FPA.setWeapon(WEAPONS[i].key);const vr=VM.setActive(i);vr.g.add(flash);flash.position.set(vr.A.muzzle[0],vr.A.muzzle[1],vr.A.muzzle[2]-0.03);viewMuzzle.position.set(vr.A.muzzle[0],vr.A.muzzle[1]+0.02,vr.A.muzzle[2]+0.12);vr.g.add(laser);laser.position.set(vr.A.muzzle[0],vr.A.muzzle[1],vr.A.muzzle[2]-LASER_LEN/2);setText('wname',WEAPONS[i].name);document.querySelectorAll('#wslots span').forEach((s,k)=>s.classList.toggle('on',k===i));P.swap=1;P.reload=0;}
 function startReload(){const w=WEAPONS[P.cur];if(w.melee)return;if(P.reload>0||P.ammo[P.cur]>=w.mag)return;P.reload=w.reload;P.reloadTotal=w.reload;sfxReload();}
 function currentSpread(){const w=WEAPONS[P.cur];let s=lerp(w.hip,w.ads,P.adsT);const mv=Math.hypot(player.vx,player.vz);if(!player.onGround)s*=2.4;else if(mv>1)s*=1+Math.min(mv/8,1)*0.6;s+=P.heat*w.hip*0.9*(1-P.adsT*0.6);return s;}
 const _v=new THREE.Vector3();
@@ -3028,7 +3054,20 @@ function coinsHudSet(total,delta){const n=$('coinsHudNum');if(n)n.textContent=Nu
 
 /* ============ BUDDY DRONE (pet): follows you, soaks bullets, heals you, restocks grenades ============ */
 const drones=new Map();
-function petTarget(f,o){const c=Math.cos(f.yaw||0),sn=Math.sin(f.yaw||0);o.x=f.x+0.75*c-0.55*sn;o.y=f.y+1.5;o.z=f.z-0.75*sn-0.55*c;return o;}
+function petTarget(f,o){
+  const c=Math.cos(f.yaw||0),sn=Math.sin(f.yaw||0);
+  o.x=f.x+0.82*c-0.62*sn;
+  o.z=f.z-0.82*sn-0.62*c;
+  // Never let the fox inherit a bad player height. Sample the actual GLB
+  // floor underneath the fox and place its feet directly on that surface.
+  let gy=f.y;
+  if(window.MAP_COLLIDER){
+    const h=window.MAP_COLLIDER.groundHeight(o.x,o.z,f.y+1.5,3.5);
+    if(h.found)gy=h.y;
+  }
+  o.y=gy+0.025;
+  return o;
+}
 function makeDrone(){
   // Fox companion: compact quadruped silhouette with a proper head, ears,
   // articulated legs and a large animated tail. It keeps the old drone API so
@@ -3087,7 +3126,7 @@ function updateDrones(dt){
     else d.nadeM.visible=false;
     if(!d.init){d.x=tx;d.y=ty;d.z=tz;d.init=true;}
     const kk=1-Math.exp(-dt*9);d.x+=(tx-d.x)*kk;d.y+=(ty-d.y)*kk;d.z+=(tz-d.z)*kk;
-    const bob=Math.sin(T*5+d.seed)*0.025;
+    const bob=Math.sin(T*5+d.seed)*0.006;
     d.g.position.set(d.x,d.y+bob,d.z);
     const vx=(tx-d.x),vz=(tz-d.z);d.g.rotation.y=(f.yaw||0)+Math.PI;d.g.rotation.z=clamp((vx*Math.cos(f.yaw||0)-vz*Math.sin(f.yaw||0))*0.45,-0.25,0.25);
     const speed=Math.hypot(vx,vz);
@@ -3419,9 +3458,22 @@ function step(dt){
     // triangle-collider spawn point instead.
     player.alive=true;player.onGround=true;
     const homePts=(window.__MAP_SPAWN_POINTS&&window.__MAP_SPAWN_POINTS.length)?window.__MAP_SPAWN_POINTS:[];
-    const home=homePts.length?homePts[Math.floor(homePts.length/2)]:null;
+    // Use the actual central/main-floor area of map.glb for the lobby instead
+    // of taking the median spawn, which could put the operator on a distant
+    // upper room or an unrelated level. The GLB's authored main floor is
+    // -19.3832 before the global +15.9719 normalization => -3.4113.
+    const homeY=-3.4113;
+    let home=null,homeScore=Infinity;
+    for(const p of homePts){
+      const dy=Math.abs(p[1]-homeY), dxz=Math.hypot(p[0],p[2]);
+      const score=dy*12+dxz;
+      if(dy<1.2 && score<homeScore){home=p;homeScore=score;}
+    }
+    if(!home && homePts.length){
+      for(const p of homePts){const score=Math.abs(p[1]-homeY)*10+Math.hypot(p[0],p[2]);if(score<homeScore){home=p;homeScore=score;}}
+    }
     if(home){player.x=home[0];player.y=home[1]+0.02;player.z=home[2];}
-    else {player.x=0;player.y=0.02;player.z=0;}
+    else {player.x=0;player.y=homeY+0.02;player.z=0;}
     player.speed=0;player.vx=player.vy=player.vz=0;
     player.yaw=menuAng+Math.PI;
     player.hasPet=!!(window.ACCT&&window.ACCT.me&&(window.ACCT.me.items||[]).includes('pet_buddy'));
@@ -3431,7 +3483,7 @@ function step(dt){
       CH.animate(player,dt,T,0,false,false,0);
     }
     if(glbMapOk){
-      const r=7.2;
+      const r=11.5;
       const focusY=player.y+1.05;
       camera.position.set(player.x+Math.cos(menuAng)*r,player.y+3.0+Math.sin(menuAng*0.7)*0.35,player.z+Math.sin(menuAng)*r);
       camera.lookAt(player.x,focusY,player.z);
