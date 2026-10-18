@@ -3413,10 +3413,17 @@ function step(dt){
   T+=dt;
   if(state==='menu'){
     menuAng+=dt*0.055;
-    // The lobby is a real 3D operator showcase, not a flat character card.
-    // Keep the operator alive/animated only while the menu is visible.
-    player.alive=true;player.onGround=true;player.x=0;player.y=0.02;player.z=0;
-    player.speed=0;player.vx=player.vy=player.vz=0;player.yaw=menuAng+Math.PI;
+    // The lobby is a real 3D operator showcase on the ACTUAL GLB map. Never
+    // assume (0,0,0) is playable: this map has multiple levels and its origin
+    // is not guaranteed to be an open floor. Anchor the showcase to a real
+    // triangle-collider spawn point instead.
+    player.alive=true;player.onGround=true;
+    const homePts=(window.__MAP_SPAWN_POINTS&&window.__MAP_SPAWN_POINTS.length)?window.__MAP_SPAWN_POINTS:[];
+    const home=homePts.length?homePts[Math.floor(homePts.length/2)]:null;
+    if(home){player.x=home[0];player.y=home[1]+0.02;player.z=home[2];}
+    else {player.x=0;player.y=0.02;player.z=0;}
+    player.speed=0;player.vx=player.vy=player.vz=0;
+    player.yaw=menuAng+Math.PI;
     player.hasPet=!!(window.ACCT&&window.ACCT.me&&(window.ACCT.me.items||[]).includes('pet_buddy'));
     for(const bot of botPool){bot.alive=false;if(bot.mesh)bot.mesh.visible=false;}
     if(player.mesh){
@@ -3424,12 +3431,13 @@ function step(dt){
       CH.animate(player,dt,T,0,false,false,0);
     }
     if(glbMapOk){
-      const r=10.5;
-      camera.position.set(Math.cos(menuAng)*r,3.15+Math.sin(menuAng*0.7)*0.45,Math.sin(menuAng)*r);
-      camera.lookAt(0,1.05,0);
+      const r=7.2;
+      const focusY=player.y+1.05;
+      camera.position.set(player.x+Math.cos(menuAng)*r,player.y+3.0+Math.sin(menuAng*0.7)*0.35,player.z+Math.sin(menuAng)*r);
+      camera.lookAt(player.x,focusY,player.z);
     } else {
-      camera.position.set(Math.cos(menuAng)*7.5,3.1,Math.sin(menuAng)*7.5);
-      camera.lookAt(0,1,0);
+      camera.position.set(player.x+Math.cos(menuAng)*7.5,player.y+3.1,player.z+Math.sin(menuAng)*7.5);
+      camera.lookAt(player.x,player.y+1,player.z);
     }
     camera.updateMatrixWorld(true);
     if(camera.fov!==62){camera.fov=62;camera.updateProjectionMatrix();}
