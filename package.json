@@ -1,6 +1,15 @@
 {
-  "name": "Shotline — London",
-  "description": "Tactical browser FPS set in fallen London with realistic graphics, climbable building staircases, detailed furniture, enhanced weapon handling, and fluid combat animations.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "name": "shotline-arena",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Shotline — a browser FPS with a Cloudflare Durable Object game server",
+  "scripts": {
+    "dev": "wrangler dev --port 3000 --ip 0.0.0.0",
+    "build": "mkdir -p dist && cp -r public/* dist/",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "wrangler": "^3.90.0"
+  }
 }

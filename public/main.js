@@ -137,6 +137,10 @@ const maxAniso=renderer.capabilities.getMaxAnisotropy?renderer.capabilities.getM
 renderer.setSize(window.innerWidth,window.innerHeight);renderer.autoClear=false;
 $('game').appendChild(renderer.domElement);
 const canvasEl=renderer.domElement;
+/* Ultra combat feedback: non-blocking optics pulse, independent of weapon/view rendering. */
+const ultraOptics=document.getElementById('ultra-optics');
+let ultraPulseCooldown=0;
+function ultraPulse(strength=1){if(!ultraOptics)return;ultraPulseCooldown=0.24;ultraOptics.style.opacity=String(Math.max(0.15,Math.min(1,0.32*strength)));ultraOptics.classList.remove('pulse');void ultraOptics.offsetWidth;ultraOptics.classList.add('pulse');}
 if(isMobile)$('grain').style.display='none';
 const scene=new THREE.Scene();
 const FOG=0xb4a794;scene.fog=new THREE.Fog(L(FOG),70,560);
@@ -3396,7 +3400,7 @@ function kill(v,a,head,cause){
   if(mode==='single'&&a&&a.isBot&&!v.isPlayer&&Math.random()<0.55)BotChat.event('kill',{bot:a,head});
   if(v.isPlayer){onPlayerDeath(fall?null:a,head,fall?'fall':'');if(mode==='multi'&&net.ws&&net.ws.readyState===1&&fall)net.ws.send(JSON.stringify({t:'died',cause:'fall'}));}
   else v.respawnAt=T+4;
-  if(a&&a.isPlayer&&a!==v){sfxKill();showHit(head,true);toast('Eliminated '+v.name,'good');}}
+  if(a&&a.isPlayer&&a!==v){sfxKill();showHit(head,true);ultraPulse(head?1.0:0.72);toast('Eliminated '+v.name,'good');}}
 function onPlayerDeath(a,head,cause){state='dead';player._fpOn=undefined;deadT=0;player._deadYaw=undefined;if(player.mesh)player.mesh.visible=true;P.reload=0;mouseL=false;mouseR=false;player.climb=null;player.mantle=null;
   if(cause==='fall')$('killer').textContent='You fell from a great height';
   else if(a)$('killer').textContent='Taken out by '+a.name+(head?' — headshot':'');
@@ -3502,7 +3506,7 @@ function step(dt){
   if(state==='menu')updateSun(0,0);else updateSun(camera.position.x,camera.position.z);
   updateBorder(dt);
   if(state==='playing'||state==='dead'||state==='ended'){
-    const hp=Math.max(0,Math.ceil(player.hp));setText('hpnum',String(hp));
+    const hp=Math.max(0,Math.ceil(player.hp));document.body.classList.toggle('ultra-critical',hp>0&&hp<=20&&state==='playing');setText('hpnum',String(hp));
     const hf=$('hpfill');hf.style.width=hp+'%';hf.classList.toggle('low',hp<=30);
     setText('mag',WEAPONS[P.cur].melee?'—':String(P.ammo[P.cur]));$('mag').classList.toggle('empty',!WEAPONS[P.cur].melee&&P.ammo[P.cur]===0);
     setText('reloadmsg',P.reload>0?'Reloading…':(!WEAPONS[P.cur].melee&&P.ammo[P.cur]===0?'Press R to reload':''));
@@ -3522,6 +3526,7 @@ function step(dt){
       setText('mn',String(fighters.filter(f=>f.alive||f.isPlayer).length));
       if(!$('board').classList.contains('hidden'))renderBoard();}}}
 function frame(ms){requestAnimationFrame(frame);let dt=clamp((ms-lastMs)/1000,0,0.05);lastMs=ms;
+  ultraPulseCooldown=Math.max(0,ultraPulseCooldown-dt);if(ultraOptics&&ultraOptics.classList.contains('pulse')&&ultraPulseCooldown<=0){ultraOptics.classList.remove('pulse');ultraOptics.style.opacity='';}
   if(paused()&&mode!=='multi')dt=0;
   step(dt);if(player.mesh&&viewMode==='fp'&&player.alive)player.mesh.visible=false;renderer.clear();renderer.render(scene,camera);
   if(gunRoot.visible&&(state==='playing'||state==='dead')){renderer.clearDepth();renderer.render(viewScene,viewCamera);}}
