@@ -195,13 +195,15 @@ body.touch{touch-action:none;-webkit-touch-callout:none}
 #mFire{--c:255,106,43;width:var(--F);height:var(--F);right:var(--sx);bottom:var(--sb);background:radial-gradient(circle at 38% 30%,rgba(255,150,70,.95),rgba(205,62,22,.92));border-color:#ffb58a;box-shadow:0 0 20px rgba(255,106,43,.45),0 3px 12px rgba(0,0,0,.5)}
 #mFire .micon{width:52%;height:52%}
 #mFire.on{background:#ffb070;color:#2a0f04;transform:scale(.97)}
-#mAds,#mJump,#mReload,#mNade,#mPower,#mSprint{width:var(--B);height:var(--B)}
+#mAds,#mJump,#mReload,#mNade,#mPower,#mSprint,#mPet{width:var(--B);height:var(--B)}
 #mAds{--c:68,170,255;right:calc(var(--sx) + var(--F) + var(--g));bottom:calc(var(--sb) + (var(--F) - var(--B))/2);background:rgba(20,60,110,.7)}
 #mJump{--c:67,224,160;right:calc(var(--sx) + (var(--F) - var(--B))/2);bottom:calc(var(--sb) + var(--F) + var(--g));background:rgba(20,70,55,.7)}
 #mReload{--c:190,225,240;right:calc(var(--sx) + var(--F) + var(--g));bottom:calc(var(--sb) + var(--F) + var(--g))}
 #mNade{--c:224,168,60;right:calc(var(--sx) + var(--F) + var(--B) + var(--g)*2);bottom:calc(var(--sb) + (var(--F) - var(--B))/2);background:rgba(70,55,20,.7)}
 #mPower{--c:67,224,160;right:calc(var(--sx) + var(--F) + var(--B) + var(--g)*2);bottom:calc(var(--sb) + var(--F) + var(--g));background:rgba(20,50,45,.72);overflow:hidden}
 #mSprint{--c:67,224,160;right:calc(var(--sx) + (var(--F) - var(--B))/2);bottom:calc(var(--sb) + var(--F) + var(--B) + var(--g)*2);background:rgba(20,60,50,.7)}
+#mPet{--c:255,135,55;right:calc(var(--sx) + var(--F) + var(--B) + var(--g)*2);bottom:calc(var(--sb) + var(--F) + var(--B) + var(--g)*2);background:rgba(85,38,14,.78)}
+#petHud{cursor:pointer;pointer-events:auto;touch-action:manipulation}#petHud .pet-toggle{font:700 10px var(--font);opacity:.85}#touchLayoutEditor{position:fixed;inset:0;z-index:9999;background:rgba(4,8,13,.92);display:none;color:#eef6ff;padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px);box-sizing:border-box;touch-action:none}#touchLayoutEditor.open{display:block}#touchLayoutEditor .tle-head{display:flex;align-items:center;justify-content:space-between;gap:12px}#touchLayoutEditor .tle-stage{position:absolute;inset:76px 12px 72px;border:1px dashed rgba(111,227,255,.5);border-radius:16px;background:linear-gradient(135deg,rgba(18,34,47,.5),rgba(7,12,19,.3));touch-action:none}#touchLayoutEditor .tle-item{position:absolute;display:flex;align-items:center;justify-content:center;min-width:42px;min-height:42px;border:1px solid #6fe3ff;border-radius:12px;background:rgba(20,50,70,.9);color:white;font:700 11px var(--font);touch-action:none;user-select:none}#touchLayoutEditor .tle-foot{position:absolute;bottom:calc(env(safe-area-inset-bottom) + 12px);left:16px;right:16px;font-size:12px;color:#b8c9d8}
 #mPower::before{content:"";position:absolute;inset:0;border-radius:50%;background:conic-gradient(rgba(0,0,0,.6) calc(var(--p,0)*1%),transparent 0)}
 #mPower.cooling,#mNade.cooling{opacity:.5;filter:grayscale(.5)}
 .mw{font:700 10px 'Chakra Petch',sans-serif;letter-spacing:.03em;color:var(--text);background:rgba(14,22,30,.62);border:1.5px solid rgba(190,225,240,.4);border-radius:8px;padding:5px 8px;min-width:34px;text-align:center;pointer-events:auto;touch-action:none;text-shadow:0 1px 2px #000;backdrop-filter:blur(4px)}
@@ -445,7 +447,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:15
 #powerRing::after{content:"";position:absolute;inset:4px;border-radius:50%;background:#0b131b}
 #powerRing svg{position:relative;z-index:1;width:20px;height:20px;fill:var(--pc);stroke:none}
 #powerHud.ready #powerRing{box-shadow:0 0 12px var(--pc)}
-#petHud{position:absolute;left:calc(max(18px,env(safe-area-inset-left)) + 276px);bottom:calc(max(18px,env(safe-area-inset-bottom)) + 58px);display:flex;align-items:center;gap:8px;padding:6px 14px 6px 10px;color:#9fe8ff;font-size:12px;font-weight:600;letter-spacing:.06em;background:rgba(10,16,23,.8);border:1px solid rgba(111,227,255,.3);border-radius:999px}
+#petHud{appearance:none;border:1px solid rgba(111,227,255,.3);font:inherit;text-align:left;position:absolute;left:calc(max(18px,env(safe-area-inset-left)) + 276px);bottom:calc(max(18px,env(safe-area-inset-bottom)) + 58px);display:flex;align-items:center;gap:8px;padding:6px 14px 6px 10px;color:#9fe8ff;font-size:12px;font-weight:600;letter-spacing:.06em;background:rgba(10,16,23,.8);border:1px solid rgba(111,227,255,.3);border-radius:999px}
 #petHud svg{width:20px;height:20px;stroke:#9fe8ff;fill:none;stroke-width:1.8;stroke-linecap:round}
 #petHud .bar{width:80px;height:5px;margin-top:3px}#petHud .bar i{background:#6fe3ff}
 #pbanner{position:fixed;left:50%;top:28%;transform:translateX(-50%);z-index:13;pointer-events:none;opacity:0;white-space:nowrap;font-weight:800;letter-spacing:.2em;text-transform:uppercase;font-size:clamp(16px,3.4vh,30px);color:#fff;text-shadow:0 0 16px var(--pc,#fff),0 2px 6px #000}
@@ -610,7 +612,7 @@ kbd{font:600 .85em var(--font);padding:1px 7px;border:1px solid var(--line2);bor
   <div id="powerHud" class="hidden"><div id="powerRing"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.2 6.3L21 12l-6.8 2.7L12 21l-2.2-6.3L3 12l6.8-2.7z"/></svg></div><div><b id="powerName">Power</b><small id="powerKey">Q</small></div></div>
   <div id="pflash" aria-hidden="true"></div>
   <div id="pbanner" aria-hidden="true"></div>
-  <div id="petHud" class="hidden"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M3 12h3M18 12h3M12 3v3M12 18v3"/></svg><div><b>Fox</b><div class="bar"><i id="petBar"></i></div></div></div>
+  <button id="petHud" class="hidden" type="button" aria-label="Deploy or recall fox companion"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M3 12h3M18 12h3M12 3v3M12 18v3"/></svg><div><b id="petHudTitle">FOX COMPANION</b><div class="bar"><i id="petBar"></i></div><small class="pet-toggle" id="petHudAction">DEPLOY</small></div></button>
   <!-- Damage vignette -->
   <div id="vig" aria-hidden="true"></div>
 
@@ -875,7 +877,7 @@ kbd{font:600 .85em var(--font);padding:1px 7px;border:1px solid var(--line2);bor
 
   <!-- CONTROLS (cheat sheet) -->
   <section class="tab-panel hidden" data-tab="controls">
-    <div class="card">
+    <div id="controlsPcContent" class="card">
       <div class="keys">
         <b><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></b>
         <span>Move · <kbd>Shift</kbd> sprint · <kbd>Space</kbd> jump</span>
@@ -887,6 +889,12 @@ kbd{font:600 .85em var(--font);padding:1px 7px;border:1px solid var(--line2);bor
         <b><kbd>Esc</kbd></b><span>Pause / Menu</span>
       </div>
       <p class="note">Desktop with mouse and keyboard · Touch controls auto-enable on mobile.</p>
+    </div>
+    <div id="controlsTouchContent" class="card" style="display:none">
+      <h3 style="margin-top:0">Touch controls</h3>
+      <p class="note">Left thumb: move with the joystick. Drag the right side to look. Use FIRE, ADS, JUMP, RELOAD and FOX on-screen buttons.</p>
+      <button id="openTouchLayoutFromControls" class="btn primary" style="width:100%;padding:12px">Customize button layout</button>
+      <p class="note">In the editor, drag a control to move it. Pinch with two fingers to resize. Tap Save layout when finished.</p>
     </div>
   </section>
 
@@ -938,9 +946,9 @@ kbd{font:600 .85em var(--font);padding:1px 7px;border:1px solid var(--line2);bor
           Button size <span id="mScaleVal" style="color:var(--accent);font-weight:700">70%</span>
           <input id="mScale" type="range" min="50" max="140" value="70">
         </label>
-        <label class="toggle-row"><span>Layout edit mode</span><input id="optLayout" type="checkbox"></label>
+        <button id="openTouchLayout" class="btn primary" style="font-size:14px;padding:10px;width:100%">Customize touch layout</button>
         <button id="resetLayout" class="btn ghost" style="font-size:14px;padding:9px">Reset button positions</button>
-        <p class="note" style="margin-top:6px">Enable <b>Layout edit mode</b>, then drag any button to reposition. Tap <b>✕</b> in-game to pause.</p>
+        <p class="note" style="margin-top:6px">Open the layout editor to drag controls. Use two fingers on a control to resize it, then save your layout.</p>
         <label class="toggle-row" style="margin-top:10px"><span>Third-person view</span><input id="optViewTP" type="checkbox"></label>
         <p class="note" style="margin-top:6px">Switches between first-person and third-person camera. On PC, press <b>V</b> instead.</p>
       </div>
@@ -1012,6 +1020,8 @@ kbd{font:600 .85em var(--font);padding:1px 7px;border:1px solid var(--line2);bor
   </div>
 </div>
 
+<div id="touchLayoutEditor" aria-hidden="true"><div class="tle-head"><div><b>TOUCH LAYOUT</b><div style="font-size:12px;color:#a8bdce">Drag to move · pinch to resize</div></div><button id="closeTouchLayout" class="btn primary">Save layout</button></div><div class="tle-stage" id="tleStage"></div><div class="tle-foot">Preview editor · your layout is saved on this device.</div></div>
+
 <!-- ==========================================================================
      MOBILE TOUCH CONTROLS
      ========================================================================== -->
@@ -1052,6 +1062,7 @@ kbd{font:600 .85em var(--font);padding:1px 7px;border:1px solid var(--line2);bor
     <button id="mJump"   class="mbtn" data-act="jump"   aria-label="Jump" title="Jump"><svg class="micon" viewBox="0 0 24 24"><path d="M12 19V6"/><path d="M6 11l6-6 6 6"/></svg></button>
     <button id="mReload" class="mbtn" data-act="reload" aria-label="Reload" title="Reload"><svg class="micon" viewBox="0 0 24 24"><path class="f" d="M12 6.4c1.3 1 2 2.3 2 3.6v5.2h-4V10c0-1.3.7-2.6 2-3.6z"/><rect class="f" x="10" y="15.6" width="4" height="2.2" rx=".6"/><path d="M4.95 9.43A7.5 7.5 0 0 1 18.5 8.25"/><path class="f" d="M20.32 7.2L19.8 10.5 16.68 9.3z"/><path d="M19.05 14.57A7.5 7.5 0 0 1 5.5 15.75"/><path class="f" d="M3.68 16.8L4.2 13.5 7.32 14.7z"/></svg></button>
     <button id="mSprint" class="mbtn" data-act="sprint" aria-label="Toggle sprint" title="Sprint"><svg class="micon" viewBox="0 0 24 24"><path d="M5 6l6 6-6 6"/><path d="M13 6l6 6-6 6"/></svg></button>
+    <button id="mPet" class="mbtn" data-act="pet" aria-label="Deploy or recall fox companion" title="Fox companion"><svg class="micon" viewBox="0 0 24 24"><path d="M4 9 6 3l5 4h2l5-4 2 6-2 8-6 4-6-4z"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/></svg></button>
   </div>
 </div>
 

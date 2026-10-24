@@ -7,8 +7,9 @@ const H={sub:false,visible:false};
 const TAU=Math.PI*2,clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),ease=p=>p*p*(3-2*p);
 let T3,renderer,scene,cam,root,hero=null,mixer=null,fox=null,ring1,ring2,sparks,clock,raf=0,built=false,skinKey='',beam;
 let t=0,dragX=0,spinV=0,heroYaw=0.25,emote=null,emoteT=0,emoteNext=2.2,foxSeq=0,foxState=null,foxT=0,foxAng=0,tap=null;
-const bones={};
-let petDeployed=false,petHealth=100,petHealClock=0,petReleaseT=0;
+const bones={},boneBase=new Map();let hipsBaseY=0;
+// Lobby companion is preview-only; deployment controls exist in-match, not on the home screen.
+let foxWander={x:1.0,z:0.55,tx:1.0,tz:0.55,wait:0};
 const EV=new (window.THREE?THREE.Euler:Object)(),QV=window.THREE?new THREE.Quaternion():null;
 
 /* ---------------- DOM ---------------- */
@@ -26,7 +27,6 @@ function buildDom(){
   '<div class="hm-gun" id="hmGun"></div>'+
   '<button class="hm-play" id="hmPlay"><span class="hm-play-t">PLAY NOW</span><span class="hm-play-s">Choose a mode</span><i class="hm-shine"></i></button>'+
   '<button class="hm-char" id="hmChar" aria-label="Switch character"><span class="hm-char-i" id="hmCharI">♂</span><span class="hm-char-t"><small>CHARACTER</small><b id="hmCharN">Shadow Operative</b></span><span class="hm-char-s">⇄</span></button>'+
-  '<button class="hm-pet" id="hmPet" aria-label="Deploy Cinder fox"><span class="hm-pet-ring"><svg viewBox="0 0 44 44" aria-hidden="true"><circle class="hm-pet-track" cx="22" cy="22" r="18"/><circle class="hm-pet-health" id="hmPetHealth" cx="22" cy="22" r="18"/></svg><span class="hm-pet-icon" id="hmPetIcon">▣</span></span><span class="hm-pet-copy"><b id="hmPetTitle">CINDER · BOXED</b><small id="hmPetDesc">Tap to deploy companion</small></span></button>'+
   '<div class="hm-hint">Drag to rotate · tap a model to animate</div>';
   document.body.appendChild(d);
   $('hmPlay').onclick=()=>openSub('play','play');
@@ -35,7 +35,6 @@ function buildDom(){
   $('hmShop').onclick=()=>openSub('shop');
   $('hmRanks').onclick=()=>openSub('ranks');
   $('hmChar').onclick=()=>H.setChar(H.char()==='male'?'female':'male',true);
-  $('hmPet').onclick=togglePet;
 }
 
 /* ---------------- 3D stage ---------------- */
@@ -64,23 +63,8 @@ function buildStage(){
   sparks=new T3.Points(pg,new T3.PointsMaterial({map:spriteTex(),size:0.09,transparent:true,depthWrite:false,blending:T3.AdditiveBlending,color:0xffaa66}));sparks.userData.spd=spd;root.add(sparks);
   // fox
   fox=FoxLib.create(T3);fox.g.scale.setScalar(1.0);root.add(fox.g);fox.g.position.set(1.0,0,0.55);
-  fox.g.visible=false;
+  fox.g.visible=true;
   built=true;resize();
-}
-function refreshPetButton(){
-  const b=$('hmPet');if(!b)return;
-  b.classList.toggle('deployed',petDeployed);
-  $('hmPetTitle').textContent=petDeployed?'CINDER · DEPLOYED':'CINDER · BOXED';
-  $('hmPetDesc').textContent=petDeployed?'Tap to recall · Fire companion':'Tap to release your fire fox';
-  $('hmPetIcon').textContent=petDeployed?'◆':'▣';
-  const c=$('hmPetHealth');if(c)c.style.strokeDashoffset=String(113.1*(1-petHealth/100));
-  b.setAttribute('aria-label',petDeployed?'Recall Cinder fox':'Deploy Cinder fox');
-}
-function togglePet(){
-  if(!fox)return;
-  if(petDeployed){petDeployed=false;petHealClock=0;fox.g.visible=false;}
-  else if(petHealth>0){petDeployed=true;petReleaseT=0;fox.g.visible=true;fox.g.position.set(0.1,0,1.2);fox.play('pounce');}
-  refreshPetButton();
 }
 function heroSkin(){
   if(window.TACTICAL_GEN&&TACTICAL_GEN.ready())return {tex:null,key:'char:'+(window.__charPref||'male')};
@@ -94,7 +78,7 @@ function buildHero(){
   hero=(window.TACTICAL_GEN&&TACTICAL_GEN.ready())?TACTICAL_GEN.build(window.__charPref||'male'):SOLDIER_GEN.build({});if(!(window.TACTICAL_GEN&&TACTICAL_GEN.ready()))SOLDIER_GEN.applySkin(hero.scene,sk.tex);
   hero.scene.scale.setScalar(1);root.add(hero.scene);
   mixer=new T3.AnimationMixer(hero.scene);mixer.clipAction(hero.animations[0]).play();
-  hero.scene.traverse(o=>{if(o.name)bones[o.name.replace(/^mixamorig:?/i,'').replace(/^mixamorig/,'')]=o;});
+  hero.scene.traverse(o=>{if(o.name){bones[o.name.replace(/^mixamorig:?/i,'').replace(/^mixamorig/,'')]=o;if(o.isBone)boneBase.set(o,o.quaternion.clone());}});const hb=bones.Hips||bones.hips;if(hb)hipsBaseY=hb.position.y;
   hero.scene.userData.hero=true;
 }
 
@@ -102,7 +86,10 @@ function buildHero(){
 const EMOTES={wave:1.9,cheer:1.7,pump:1.6,spin:1.25,flex:1.8,salute:1.5};
 function applyEmote(dt){
   if(!hero)return;
-  const b=bones;let w=0,e=emote,et=emoteT;
+  const b=bones;
+  // Emote poses are offsets from the bind pose, never accumulated frame-over-frame.
+  for(const [bn,q] of boneBase){if(/(RightArm|LeftArm|RightForeArm|LeftForeArm|Head|Spine|Hips)/i.test(bn.name||''))bn.quaternion.copy(q);}
+  const hips=b.Hips||b.hips;if(hips)hips.position.y=hipsBaseY;let w=0,e=emote,et=emoteT;
   const ang=(n,x,y,z,k)=>{const bn=b[n];if(!bn)return;EV.set(x*k,y*k,z*k);QV.setFromEuler(EV);bn.quaternion.multiply(QV);};
   if(e){const d=EMOTES[e];w=ease(clamp(et/0.28,0,1))*(1-ease(clamp((et-(d-0.3))/0.3,0,1)));
     if(e==='wave'){ang('RightArm',-0.4,0,-2.5,w);ang('RightForeArm',0,0,Math.sin(et*11)*0.55,w);ang('RightForeArm',-0.3,0,0,w);ang('Head',0,-0.25,0.1,w);}
@@ -115,25 +102,28 @@ function applyEmote(dt){
 }
 
 /* ---------------- fox director ---------------- */
-const SEQ=[['orbit',3.3],['stunt','flip'],['idle',0.8],['stunt','spin'],['orbit',2.6],['stunt','jump'],['stunt','dance'],['stunt','pounce'],['orbit',2.2],['stunt','howl'],['stunt','bow'],['stunt','flip'],['idle',1.2]];
+const SEQ=[['wander',3.6],['idle',1.7],['stunt','bow'],['wander',3.2],['idle',1.2],['stunt','howl'],['wander',4.1],['idle',1.5],['stunt','pounce']];
 const REST={x:1.0,z:0.55};
 function foxStep(dt){
   if(!fox)return;
   const g=fox.g;let speed=0;
   if(!foxState||foxT<=0){const s=SEQ[foxSeq++%SEQ.length];foxState=s[0];foxT=s[0]==='stunt'?fox.STUNTS[s[1]]+0.15:s[1];
-    if(s[0]==='stunt'){fox.play(s[1]);if(window.HOME&&['flip','jump','dance','howl'].includes(s[1])&&!emote&&Math.random()<0.7)startEmote(s[1]==='dance'?'pump':'cheer');}
-    if(s[0]==='orbit'){foxAng=Math.atan2(g.position.z,g.position.x);}}
+    if(s[0]==='stunt')fox.play(s[1]);
+    if(s[0]==='wander'){foxWander.tx=(Math.random()*2-1)*1.35;foxWander.tz=(Math.random()*2-1)*0.95;}
+  }
   foxT-=dt;
-  if(foxState==='orbit'){const R=petDeployed?2.0:1.25,w=petDeployed?1.7:2.9;foxAng+=w*dt;const px=Math.cos(foxAng)*R,pz=Math.sin(foxAng)*R;
-    const dx=px-g.position.x,dz=pz-g.position.z,dd=Math.hypot(dx,dz);
-    const k=Math.min(1,dt*6);g.position.x+=dx*k;g.position.z+=dz*k;speed=w*R;
-    const ty=Math.atan2(-(-Math.sin(foxAng)),-(Math.cos(foxAng)));  // tangent (counter-clockwise)
-    let da=ty-g.rotation.y;da=Math.atan2(Math.sin(da),Math.cos(da));g.rotation.y+=da*Math.min(1,dt*9);}
-  else{ // return to rest spot and face the camera
-    const dx=REST.x-g.position.x,dz=REST.z-g.position.z,dd=Math.hypot(dx,dz);
-    if(dd>0.08&&!fox.busy()){const sp=Math.min(5,dd*3+1);g.position.x+=dx/dd*sp*dt;g.position.z+=dz/dd*sp*dt;speed=sp;
-      const ty=Math.atan2(-dx,-dz);let da=ty-g.rotation.y;da=Math.atan2(Math.sin(da),Math.cos(da));g.rotation.y+=da*Math.min(1,dt*9);}
-    else{const ty=Math.PI+0.5;let da=ty-g.rotation.y;da=Math.atan2(Math.sin(da),Math.cos(da));g.rotation.y+=da*Math.min(1,dt*3);}
+  if(foxState==='wander'&&!fox.busy()){
+    let dx=foxWander.tx-g.position.x,dz=foxWander.tz-g.position.z,dd=Math.hypot(dx,dz);
+    if(dd<0.18){foxState='idle';foxT=0.7+Math.random()*1.0;fox.play('idle');}
+    else {const desired=Math.min(1.15,dd*1.15),step=Math.min(dd,desired*dt);g.position.x+=dx/dd*step;g.position.z+=dz/dd*step;speed=desired;
+      const ty=Math.atan2(dx,dz);let da=ty-g.rotation.y;da=Math.atan2(Math.sin(da),Math.cos(da));g.rotation.y+=da*Math.min(1,dt*4.5);}
+  } else if(foxState==='idle'&&!fox.busy()){
+    // Natural idle: small head/body attention shifts are supplied by FoxLib; don't orbit in place.
+    speed=0;
+  } else if(foxState==='stunt'){
+    // After a stunt, ease back toward the preview's nearby roaming area.
+    const dx=foxWander.tx-g.position.x,dz=foxWander.tz-g.position.z,dd=Math.hypot(dx,dz);
+    if(dd>0.25&&!fox.busy()){g.position.x+=dx/dd*Math.min(dd,0.65*dt);g.position.z+=dz/dd*Math.min(dd,0.65*dt);speed=0.65;}
   }
   fox.update(dt,{speed:fox.busy()?0:speed,sit:foxState==='idle'});
 }
@@ -239,7 +229,7 @@ function injectBack(){
   const t2=document.createElement('div');t2.id='subTitle';t2.className='sub-title';hdr.insertBefore(t2,b.nextSibling);
 }
 function init(){
-  buildDom();injectBack();injectChars();refreshChar();refreshPetButton();
+  buildDom();injectBack();injectChars();refreshChar();
   const m=$('menu');
   new MutationObserver(()=>{
     const hidden=m.classList.contains('hidden');
