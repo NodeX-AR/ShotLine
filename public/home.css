@@ -187,3 +187,101 @@
 #home .hm-hint{opacity:.65;text-shadow:0 2px 4px #000}
 @media(max-width:420px){#home .hm-title{font-size:24px}#home .hm-profile{max-width:40vw}#home .hm-pi{overflow:hidden;text-overflow:ellipsis}}
 @media(prefers-reduced-motion:reduce){#home *{animation:none!important;transition:none!important}}
+
+
+/* SHOTLINE ULTRA — tactical glass refinement (preserves existing gameplay DOM/IDs) */
+:root{
+  --hud-bg:rgba(5,10,15,.88);
+  --hud-cyan:#00f2ff;
+  --hud-red:#ff3e3e;
+  --hud-border:rgba(0,242,255,.3);
+  --glass:rgba(10,15,22,.76);
+  --font-main:'Chakra Petch',sans-serif;
+}
+#auth{
+  display:grid;
+  grid-template-columns:minmax(260px,1.05fr) minmax(320px,.8fr);
+  align-items:center;
+  gap:clamp(28px,6vw,100px);
+  padding:clamp(24px,6vw,90px);
+  overflow:auto;
+  background:
+    linear-gradient(115deg,rgba(0,242,255,.055),transparent 42%),
+    radial-gradient(ellipse at 78% 48%,rgba(0,110,140,.16),transparent 52%),
+    #05070a;
+}
+#auth .auth-hero{
+  position:relative;
+  max-width:720px;
+  justify-self:end;
+  padding:clamp(18px,3vw,42px);
+  border-left:2px solid var(--hud-cyan);
+  background:linear-gradient(90deg,rgba(0,242,255,.065),transparent);
+}
+#auth .auth-hero:after{
+  content:"COMBAT NETWORK // AUTH NODE 01";
+  display:block;
+  margin-top:30px;
+  color:rgba(0,242,255,.7);
+  font:600 11px var(--font-main);
+  letter-spacing:.22em;
+}
+#auth .auth-card{
+  width:min(100%,480px);
+  justify-self:start;
+  background:var(--glass);
+  border:1px solid var(--hud-border);
+  border-radius:0;
+  clip-path:polygon(0 0,calc(100% - 22px) 0,100% 22px,100% 100%,18px 100%,0 calc(100% - 18px));
+  box-shadow:inset 0 0 28px rgba(0,242,255,.045),0 24px 80px rgba(0,0,0,.35);
+  backdrop-filter:blur(18px) saturate(1.15);
+}
+#auth .btn{
+  border-radius:0;
+  text-transform:uppercase;
+  letter-spacing:.12em;
+  font-family:var(--font-main);
+  font-weight:700;
+}
+#auth .btn:not(.ghost){
+  background:linear-gradient(90deg,rgba(0,242,255,.22),rgba(0,242,255,.055));
+  border:1px solid var(--hud-cyan);
+  color:var(--hud-cyan);
+}
+#auth .btn:not(.ghost):hover{
+  background:var(--hud-cyan);
+  color:#020609;
+  box-shadow:0 0 26px rgba(0,242,255,.32);
+}
+#auth input{
+  border-radius:0;
+  border-color:rgba(0,242,255,.3);
+  background:rgba(2,8,13,.82);
+}
+#auth input:focus{outline:1px solid var(--hud-cyan);box-shadow:0 0 0 3px rgba(0,242,255,.1)}
+#menu .hud-header{
+  border-radius:0;
+  border-bottom:2px solid var(--hud-cyan);
+  background:var(--hud-bg);
+  clip-path:polygon(0 0,100% 0,100% calc(100% - 12px),calc(100% - 16px) 100%,0 100%);
+}
+#menu .hud-card,#menu .card{
+  border-radius:0;
+  border-color:var(--hud-border);
+  background:var(--glass);
+  backdrop-filter:blur(15px) saturate(1.15);
+}
+#menu .btn-tactical{
+  border-radius:0;
+  clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);
+}
+@media(max-width:760px){
+  #auth{grid-template-columns:1fr;gap:18px;padding:22px;align-content:center}
+  #auth .auth-hero{justify-self:stretch;padding:12px 18px}
+  #auth .auth-hero ul{display:none}
+  #auth .auth-hero:after{margin-top:12px}
+  #auth .auth-card{justify-self:stretch;width:100%;max-width:520px;margin:0 auto}
+}
+@media(prefers-reduced-motion:reduce){
+  #auth *,#menu *{scroll-behavior:auto!important}
+}
