@@ -11,10 +11,10 @@
   "public/google5f84ffc3a1119f27.html": "bd9dac8a813dead2b39539da8c1e7234bfc3d36d7461e4d9b04ae3224e98bbae",
   "public/male-data.js": "f8d75a28445f6c0e91cb29b9982e62ca916d0e0ca4b4a5bec6e98f87c6d4790c",
   "public/account.js": "0f1ac1bdd161704b7dafacccf6fca02d2fcc18cbf383912a14375dc2a8e0b393",
-  "public/main.js": "eb585657ed5b037e790514637f3b4bccc9c031abf4335e8ce502cd4c8fc83c03",
+  "public/main.js": "d307aea4bb0bd517de52def4c4fa81ad41541b831a418f42cff675ba1fc91461",
   "public/female-data.js": "fe8e3a0b7355d0eab3c143b4af4a1d35870a274f563b7948510aae2e25ee0d6b",
   "public/robot-data.js": "82235c23a8ef9ef994643e0bdb8d73dfc65bdd7cd498ed11e330069db5425668",
-  "public/index.html": "e0b1cfba36910d2466af9d89b79a2c917548390a9867254a5b8c3eff9816ebb8",
+  "public/index.html": "5792b1f68f0e4ea5541ac17ea5f3b58f4bbd4c37299ff437d2b333dabe8bea1f",
   "public/fox-data.js": "e56354b1c9839f73ad22c04cb9c6fc56557be05b8b586f491f968b4034060260",
   "public/soldier-gen.js": "3e405bff2b83b037762ba45fae2d1b35e6c50459b49c70126b4261fddd197c31",
   "public/home.js": "53c26d44ba7e57ea61698c579bce35b97af5674341c3c7732e5340da26c85c63",
@@ -26,5 +26,6 @@
   "tests/regression.cjs": "a163995294692591508ee0bad402b95f2cf487f2c7ccec82be79b070b842bf94",
   "src/index.js": "60333e057998265335b69c45009b362b010d9119fdb068b8ad1b680dcae12a79",
   "src/lib.js": "e9053eded7ba19616a0a7ee859c64ae285acadda0fc12f3c630dfeddc92eb373",
-  "src/api.js": "c64bacadbc68a2ab87b20eb44c86a433caa626021f925efae54492c1269fdb94"
+  "src/api.js": "c64bacadbc68a2ab87b20eb44c86a433caa626021f925efae54492c1269fdb94",
+  "ULTRA_PATCH_NOTES.md": "030d539023a96e2760a37f67712d34a72885a9f8ad614fd2f5f6dde783c83419"
 }
