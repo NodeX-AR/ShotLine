@@ -1115,7 +1115,11 @@ const VM=(function(){
   function fire(i,adsK){const r=rig[i],s=SHOT[r.kind]||SHOT.rifle,k=(1-0.45*(adsK||0)),rk=r.rk,rn=()=>Math.random()-0.5;
     rk.vz+=s.z*70*k;rk.vp+=s.p*9*k;rk.vy+=s.y*60*k;rk.vr+=rn()*s.rz*30*k;rk.vx+=rn()*s.x*60*k;rk.vry+=rn()*s.r*8*k;
     r.slideT=1;r.trigT=1;r.pumpT=(r.kind==='shotgun')?1:0;r.boltT=(r.kind==='sniper')?1:0;}
-  function spring(x,v,dt,k,c){const a=-k*x-c*v;v+=a*dt;x+=v*dt;return [x,v];}
+  function spring(x,v,dt,k,c){
+    const count=Math.max(1,Math.ceil(Math.max(0,dt)*120)),h=Math.max(0,dt)/count;
+    for(let i=0;i<count;i++){v+=(-k*x-c*v)*h;x+=v*h;}
+    return [x,v];
+  }
 
   function getBone(root, candidates){
     if(!root)return null;
@@ -1124,7 +1128,7 @@ const VM=(function(){
     root.traverse(o=>{
       if(found)return;
       if(o.isBone||o.type==='Bone'){
-        const ln=(o.name||'').toLowerCase();
+        const ln=(o.name||'').toLowerCase().replace(/mixamorig[:_]?/g,'');
         for(const n of candidates){if(ln===n.toLowerCase()||ln.endsWith(n.toLowerCase())){found=o;return;}}
       }
     });
@@ -1177,7 +1181,7 @@ const VM=(function(){
   window.ASSET_STATE.rifle=true;window.ASSET_STATE.sniper=true;
 
   /* ==================== FIRST-PERSON GLB ARMS ==================== */
-  const fp={ready:false,clone:null,bones:null,mixer:null,bindPose:{}};
+  const fp={ready:false,clone:null,bones:null,mixer:null,bindPose:{},source:null};
 
   /* Per-weapon FP hand config. Offsets are in GUN-LOCAL space, added on top of
      the grip anchor (A.rGrip for right hand, A.lHold for left).
@@ -1286,16 +1290,15 @@ const VM=(function(){
   const HAND_DBG={roll:0,xSign:1};
 
   function ikFP(a,t,l1,l2,pole,elbow,end){
-    _fpV1.subVectors(t,a); let dist=_fpV1.length();
-    const mx=l1+l2-0.003; if(dist>mx)dist=mx; if(dist<0.04)dist=0.04;
-    _fpV1.normalize();
-    const a1=(l1*l1-l2*l2+dist*dist)/(2*dist);
-    const h=Math.sqrt(Math.max(0,l1*l1-a1*a1));
-    _fpV3.copy(pole).addScaledVector(_fpV1,-pole.dot(_fpV1));
-    if(_fpV3.lengthSq()<1e-6)_fpV3.set(0,-1,0);
-    _fpV3.normalize();
-    elbow.copy(a).addScaledVector(_fpV1,a1).addScaledVector(_fpV3,h);
-    end.copy(a).addScaledVector(_fpV1,dist);
+    const origin=a.clone(),direction=t.clone().sub(origin);
+    const raw=direction.length();if(raw<1e-7)direction.set(0,0,-1);else direction.multiplyScalar(1/raw);
+    const dist=clamp(raw,Math.abs(l1-l2)+0.0001,Math.max(0.001,l1+l2-0.003));
+    const along=(l1*l1-l2*l2+dist*dist)/(2*dist);
+    const height=Math.sqrt(Math.max(0,l1*l1-along*along));
+    const bend=pole.clone().addScaledVector(direction,-pole.dot(direction));
+    if(bend.lengthSq()<1e-8){bend.set(0,1,0).addScaledVector(direction,-direction.y);if(bend.lengthSq()<1e-8)bend.set(1,0,0);}
+    bend.normalize();elbow.copy(origin).addScaledVector(direction,along).addScaledVector(bend,height);
+    end.copy(origin).addScaledVector(direction,dist);
   }
 
   function aimBone(bone,child,target){
@@ -1315,10 +1318,13 @@ const VM=(function(){
     if(!glb||!glb.scene)return;
     if(!THREE.SkeletonUtils||!THREE.SkeletonUtils.clone){console.warn('[VM] SkeletonUtils missing, FP GLB disabled');return;}
     try{
+      if(fp.clone){fp.clone.visible=false;fp.clone.removeFromParent();if(fp.mixer)fp.mixer.stopAllAction();}
+      fp.ready=false;
       const clone=THREE.SkeletonUtils.clone(glb.scene);
+      clone.traverse(o=>{if(o.isSkinnedMesh&&o.skeleton)o.skeleton.pose();});
       clone.rotation.y=0;
       clone.position.set(0,-1.55,-0.35);
-      const fpTint=(player && player.name===ADMIN_NAME)?new THREE.Color(0xff9b9b):new THREE.Color(0x2a2a2a);
+      const fpTint=new THREE.Color(0xffffff);
       clone.traverse(o=>{
         if((o.isSkinnedMesh||o.isMesh) && o.material){
           o.material=o.material.clone();
@@ -1338,26 +1344,14 @@ const VM=(function(){
             o.material.envMapIntensity=0.7;
             const sk=o.skeleton;
             const armIdx=[];
-            sk.bones.forEach((b,i)=>{ if(/Arm|Wrist|Shoulder|Index|Middle|Ring|Pinky|Thumb/i.test(b.name)) armIdx.push(i); });
-            const conds=armIdx.map(v=>`if(abs(vBone-${v}.0)<0.5) keep=true;`).join('\n');
-            o.material.onBeforeCompile=(shader)=>{
-              shader.vertexShader='varying float vBone;\n'+shader.vertexShader.replace(
+            sk.bones.forEach((b,i)=>{ if(/Arm|Hand|Wrist|Shoulder|Index|Middle|Ring|Pinky|Thumb/i.test(b.name)) armIdx.push(i); });
+            const isArm=armIdx.map(v=>`abs(b-${v}.0)<0.5`).join('||')||'false';
+            o.material.customProgramCacheKey=()=> 'selected-arms-'+armIdx.join('_');
+            o.material.onBeforeCompile=shader=>{
+              shader.vertexShader='varying float vArmWeight;\nfloat armWeight(float b){return ('+isArm+')?1.0:0.0;}\n'+shader.vertexShader.replace(
                 '#include <begin_vertex>',
-                `#include <begin_vertex>
-                 float mW=0.0; float mI=-1.0;
-                 if(skinWeight.x>mW){mW=skinWeight.x;mI=skinIndex.x;}
-                 if(skinWeight.y>mW){mW=skinWeight.y;mI=skinIndex.y;}
-                 if(skinWeight.z>mW){mW=skinWeight.z;mI=skinIndex.z;}
-                 if(skinWeight.w>mW){mW=skinWeight.w;mI=skinIndex.w;}
-                 vBone=mI;`
-              );
-              shader.fragmentShader='varying float vBone;\n'+shader.fragmentShader.replace(
-                'void main() {',
-                `void main() {
-                  bool keep=false;
-                  ${conds}
-                  if(!keep) discard;`
-              );
+                '#include <begin_vertex>\nvArmWeight=skinWeight.x*armWeight(skinIndex.x)+skinWeight.y*armWeight(skinIndex.y)+skinWeight.z*armWeight(skinIndex.z)+skinWeight.w*armWeight(skinIndex.w);');
+              shader.fragmentShader='varying float vArmWeight;\n'+shader.fragmentShader.replace('void main() {','void main() {\nif(vArmWeight<0.35)discard;');
             };
             o.material.needsUpdate=true;
           }
@@ -1397,7 +1391,7 @@ const VM=(function(){
         lF:B(['mixamorigLeftForeArm','LeftForeArm','LowerArmL','LeftLowerArm']),
         lH:B(['mixamorigLeftHand','LeftHand','WristL'])
       };
-      fp.clone=clone;fp.bones=bones;fp.mixer=mixer;fp.acts=acts;fp.w={idle:1,walk:0,run:0};fp.ready=true;
+      fp.clone=clone;fp.bones=bones;fp.mixer=mixer;fp.acts=acts;fp.w={idle:1,walk:0,run:0};fp.ready=Object.values(bones).every(Boolean);clone.visible=fp.ready;
       console.log('[VM] bone check',Object.entries(bones).map(([k,v])=>k+':'+(v?'OK':'MISSING')).join(' '));
       console.log('[VM] FP GLB arms active');
     }catch(e){console.warn('[VM] FP GLB setup failed:',e);}
@@ -1495,7 +1489,10 @@ const VM=(function(){
 
   function update(dt,S){
     const r=rig[S.cur],A=r.A,g=r.g,U=g.userData,rk=r.rk,kind=r.kind;
-    if(S.cur!==active)setActive(S.cur);
+    const vs=window.__MODEL_VARIANTS||{},selected=vs[window.__charPref||'male'];
+    if(selected&&selected.scene&&fp.source!==selected.scene){setGLB(selected);fp.source=selected.scene;}
+    setActive(S.cur);
+    if(fp.clone)fp.clone.visible=fp.ready&&gunRoot.visible&&state==='playing'&&viewMode==='fp'&&kind!=='fist';
     dt=Math.min(dt,0.05);
     if(kind==='pistol'&&r.pistolMixer){
       if(r.pistolLastFire!==S.lastFire){
@@ -1574,6 +1571,7 @@ const VM=(function(){
     const lp=LposO||A.lHold;Lh.root.position.set(lp[0],lp[1],lp[2]);
     Lh.root.rotation.set(A.lRot[0],A.lRot[1],A.lRot[2]);
     if(kind==='shotgun'&&!LposO){Lh.root.position.z=A.lHold[2]+Math.max(pump,Math.sin(Math.min(1,r.pumpT)*Math.PI)*(r.pumpT>0?1:0))*0.09;}
+    if(r.weaponGLB||r.pistolMesh){for(const child of g.children){if(child===Rh.root||child===Lh.root||child===r.weaponGLB||child===r.pistolMesh||child===flash||child===laser)continue;child.visible=false;}}
     HandLib.pose(Lh,Lg,Lg,Lg);
     rootG.updateMatrixWorld(true);
     const arm=(h,sx)=>{_a.set(0,0.004,0.104);h.root.localToWorld(_a);_b.set(sx,-0.85,0.60);_c.copy(_a).sub(_b).normalize();h.sleeve.position.copy(_a);h.sleeve.lookAt(_a.x+ -_c.x,_a.y+ -_c.y,_a.z+ -_c.z);h.sleeve.scale.set(1,1,0.5);h.cuff.position.copy(_a);h.cuff.quaternion.copy(h.sleeve.quaternion);};
@@ -1600,38 +1598,35 @@ const VM=(function(){
       const oneHanded=!!tune.oh;
       const lp=LposO||A.lHold;
 
-      /* The FP model is rotated 180° (faces the camera), so Mixamo's
-         RightArm ends up on the SCREEN'S LEFT and Mixamo's LeftArm on
-         the SCREEN'S RIGHT. So Mixamo-Left solves the shooting hand
-         (A.rGrip) and Mixamo-Right solves the support hand (A.lHold). */
+      /* Clone rotation is zero: anatomical right holds the trigger, left supports. */
 
-      /* ---- MIXAMO LEFT ARM = shooting hand (screen right) ---- */
-      if(bn.lA&&bn.lF&&bn.lH){
+      /* ---- Right shooting arm ---- */
+      if(bn.rA&&bn.rF&&bn.rH){
         const cfg=tune.r;
         const wristLocal=new THREE.Vector3(Rpos[0]+cfg.w[0],Rpos[1]+cfg.w[1],Rpos[2]+cfg.w[2]);
         const fLocal   =new THREE.Vector3(Rpos[0]+cfg.f[0],Rpos[1]+cfg.f[1],Rpos[2]+cfg.f[2]);
         const pLocal   =new THREE.Vector3(Rpos[0]+cfg.p[0],Rpos[1]+cfg.p[1],Rpos[2]+cfg.p[2]);
         g.localToWorld(wristLocal); g.localToWorld(fLocal); g.localToWorld(pLocal);
 
-        if(fp.bindPose[bn.lA.name])bn.lA.quaternion.copy(fp.bindPose[bn.lA.name]);
-        if(fp.bindPose[bn.lF.name])bn.lF.quaternion.copy(fp.bindPose[bn.lF.name]);
-        bn.lA.updateMatrixWorld(true);
-        bn.lA.getWorldPosition(_fpV1);
-        bn.lF.getWorldPosition(_fpV2);
-        bn.lH.getWorldPosition(_fpV3);
+        if(fp.bindPose[bn.rA.name])bn.rA.quaternion.copy(fp.bindPose[bn.rA.name]);
+        if(fp.bindPose[bn.rF.name])bn.rF.quaternion.copy(fp.bindPose[bn.rF.name]);
+        bn.rA.updateMatrixWorld(true);
+        bn.rA.getWorldPosition(_fpV1);
+        bn.rF.getWorldPosition(_fpV2);
+        bn.rH.getWorldPosition(_fpV3);
         const l1=_fpV1.distanceTo(_fpV2), l2=_fpV2.distanceTo(_fpV3);
         ikFP(_fpV1, wristLocal, l1, l2, new THREE.Vector3( 0.55,-1,0.35), _fpV4, _fpV5);
-        aimBone(bn.lA,bn.lF,_fpV4);
-        aimBone(bn.lF,bn.lH,_fpV5);
-        orientHand(bn.lH,wristLocal,fLocal,pLocal,(cfg.roll||0)+HAND_DBG.roll,HAND_DBG.xSign);
+        aimBone(bn.rA,bn.rF,_fpV4);
+        aimBone(bn.rF,bn.rH,_fpV5);
+        orientHand(bn.rH,wristLocal,fLocal,pLocal,(cfg.roll||0)+HAND_DBG.roll,HAND_DBG.xSign);
         const rc={};
         const rp=cfg.curl;
         rc.index=rp.index*Rg; rc.middle=rp.middle*Rg; rc.ring=rp.ring*Rg; rc.pinky=rp.pinky*Rg; rc.thumb=rp.thumb*Rg;
-        applyFingerCurl(bn.lH,'l',rc);
+        applyFingerCurl(bn.rH,'r',rc);
       }
 
-      /* ---- MIXAMO RIGHT ARM = support hand (screen left) ---- */
-      if(bn.rA&&bn.rF&&bn.rH){
+      /* ---- Left support arm ---- */
+      if(bn.lA&&bn.lF&&bn.lH){
         const cfg=tune.l;
         let wristLocal,fLocal,pLocal;
         if(oneHanded&&!reloading){
@@ -1645,29 +1640,47 @@ const VM=(function(){
           pLocal    =new THREE.Vector3(lp[0]+cfg.p[0],lp[1]+cfg.p[1],lp[2]+cfg.p[2]);
           g.localToWorld(wristLocal); g.localToWorld(fLocal); g.localToWorld(pLocal);
         }
-        if(fp.bindPose[bn.rA.name])bn.rA.quaternion.copy(fp.bindPose[bn.rA.name]);
-        if(fp.bindPose[bn.rF.name])bn.rF.quaternion.copy(fp.bindPose[bn.rF.name]);
-        bn.rA.updateMatrixWorld(true);
-        bn.rA.getWorldPosition(_fpV1);
-        bn.rF.getWorldPosition(_fpV2);
-        bn.rH.getWorldPosition(_fpV3);
+        if(fp.bindPose[bn.lA.name])bn.lA.quaternion.copy(fp.bindPose[bn.lA.name]);
+        if(fp.bindPose[bn.lF.name])bn.lF.quaternion.copy(fp.bindPose[bn.lF.name]);
+        bn.lA.updateMatrixWorld(true);
+        bn.lA.getWorldPosition(_fpV1);
+        bn.lF.getWorldPosition(_fpV2);
+        bn.lH.getWorldPosition(_fpV3);
         const l1=_fpV1.distanceTo(_fpV2), l2=_fpV2.distanceTo(_fpV3);
         ikFP(_fpV1, wristLocal, l1, l2, new THREE.Vector3(-0.55,-1,0.35), _fpV4, _fpV5);
-        aimBone(bn.rA,bn.rF,_fpV4);
-        aimBone(bn.rF,bn.rH,_fpV5);
-        orientHand(bn.rH,wristLocal,fLocal,pLocal,cfg.roll||0);
+        aimBone(bn.lA,bn.lF,_fpV4);
+        aimBone(bn.lF,bn.lH,_fpV5);
+        orientHand(bn.lH,wristLocal,fLocal,pLocal,cfg.roll||0);
         if(!oneHanded||reloading){
           const lc={};
           const lpp=cfg.curl;
           lc.index=lpp.index*Lg; lc.middle=lpp.middle*Lg; lc.ring=lpp.ring*Lg; lc.pinky=lpp.pinky*Lg; lc.thumb=lpp.thumb*Lg;
-          applyFingerCurl(bn.rH,'r',lc);
+          applyFingerCurl(bn.lH,'l',lc);
         }
       }
     }
     return r;
   }
   const tcache={};function tracks(kind,A){return tcache[kind]||(tcache[kind]=reloadFor(kind,A));}
-  return {init,update,fire,setActive,rig,muzzle,KINDS,samp,stepv,tracks,setGLB,upgradeVMPistol,get active(){return rig[active];}};
+  function actionHands(right,left){
+    if(!fp.ready||!fp.clone)return false;
+    fp.clone.visible=true;
+    fp.clone.traverse(o=>{if(o.isBone&&fp.bindPose[o.name])o.quaternion.copy(fp.bindPose[o.name]);});
+    fp.clone.updateMatrixWorld(true);
+    rig.forEach(r=>{r.g.visible=false;r.R.sleeve.visible=r.R.cuff.visible=r.Lh.sleeve.visible=r.Lh.cuff.visible=false;});
+    function solve(helper,A,F,H,side){
+      const wrist=helper.localToWorld(new THREE.Vector3(0,-0.69,0));
+      const forward=helper.localToWorld(new THREE.Vector3(0,-0.85,0));
+      const palm=helper.localToWorld(new THREE.Vector3(side*0.12,-0.69,0));
+      const shoulder=A.getWorldPosition(new THREE.Vector3()),elbow=F.getWorldPosition(new THREE.Vector3()),hand=H.getWorldPosition(new THREE.Vector3());
+      const outE=new THREE.Vector3(),outH=new THREE.Vector3();
+      ikFP(shoulder,wrist,shoulder.distanceTo(elbow),elbow.distanceTo(hand),new THREE.Vector3(side,-1,0.4),outE,outH);
+      aimBone(A,F,outE);aimBone(F,H,outH);orientHand(H,wrist,forward,palm,0);
+      applyFingerCurl(H,side>0?'r':'l',{index:.8,middle:.8,ring:.8,pinky:.8,thumb:.6});
+    }
+    const b=fp.bones;solve(right,b.rA,b.rF,b.rH,1);solve(left,b.lA,b.lF,b.lH,-1);return true;
+  }
+  return {init,update,fire,setActive,rig,muzzle,KINDS,samp,stepv,tracks,actionHands,setGLB,upgradeVMPistol,get active(){return rig[active];}};
 })();
 
 /* ============ CH ============ */
@@ -1707,9 +1720,9 @@ const CH=(function(){
     let found=null;
     root.traverse(o=>{
       if(found || !(o.isBone || o.type==='Bone'))return;
-      const ln=(o.name||'').toLowerCase();
+      const ln=(o.name||'').toLowerCase().replace(/mixamorig[:_]?/g,'');
       for(const n of candidates){
-        const cn=String(n).toLowerCase();
+        const cn=String(n).toLowerCase().replace(/mixamorig[:_]?/g,'');
         if(ln===cn || ln.endsWith(cn)){ found=o; break; }
       }
     });
@@ -1812,8 +1825,8 @@ const CH=(function(){
       root.traverse(o=>{
         if(found)return;
         if(o.isBone||o.type==='Bone'){
-          const ln=(o.name||'').toLowerCase();
-          for(const n of candidates){const cn=String(n).toLowerCase();if(ln===cn||ln.endsWith(cn)){found=o;return;}}
+          const ln=(o.name||'').toLowerCase().replace(/mixamorig[:_]?/g,'');
+          for(const n of candidates){const cn=String(n).toLowerCase().replace(/mixamorig[:_]?/g,'');if(ln===cn||ln.endsWith(cn)){found=o;return;}}
         }
       });
       return found;
@@ -1850,7 +1863,7 @@ const CH=(function(){
     const spineBone=bn.spine1||bn.spine||bn.spine2;if(!spineBone)return;
     // No animation clips are present in player.glb. Reset to the true bind
     // pose each frame so procedural IK never accumulates rotation drift.
-    if(!M.hasClips&&M.bindBones){
+    if(M.bindBones){
       for(const x of M.bindBones){x.b.position.copy(x.p);x.b.quaternion.copy(x.q);x.b.scale.copy(x.s);}
       m.updateMatrixWorld(true);
     }
@@ -1862,9 +1875,10 @@ const CH=(function(){
     if(M.acts.walk)M.acts.walk.setEffectiveTimeScale(Math.max(0.6,Math.min(1.7,sp/1.7)));
     if(M.acts.run)M.acts.run.setEffectiveTimeScale(Math.max(0.7,Math.min(2.0,sp/4.6)));
     if(M.acts.run_shoot)M.acts.run_shoot.setEffectiveTimeScale(Math.max(0.7,Math.min(2.0,sp/4.6)));
-    M.cur=wt;M.mixer.update(dt);m.updateMatrixWorld(true);
+    M.cur=wt;if(M.hasClips)M.mixer.update(dt);m.updateMatrixWorld(true);
     _ax.set(1,0,0).applyQuaternion(m.getWorldQuaternion(_rq));
-    const pp=Math.max(-0.48,Math.min(0.48,pitch));
+    M.aimPitch=(M.aimPitch||0)+(clamp(pitch,-0.48,0.48)-(M.aimPitch||0))*(1-Math.exp(-dt*12));
+    const pp=M.aimPitch;
     const reloadK=(f.rlT>0&&f.rlTotal>0)?Math.sin(Math.min(1,Math.max(0,1-f.rlT/f.rlTotal))*Math.PI):0;
     f.animKick=(T-f.lastFire)<0.08?1:Math.max(0,(f.animKick||0)-dt*7);
     if(bn.spine1)rotWorldB(bn.spine1,_ax,pp*0.28+reloadK*0.16-(f.animKick||0)*0.11);
@@ -1876,8 +1890,10 @@ const CH=(function(){
     // Procedural lower-body animation for the clip-less custom GLB.
     // The actual bind pose remains the neutral standing reference.
     if(!M.hasClips){
+      _ax.set(1,0,0).applyQuaternion(m.getWorldQuaternion(_rq));
       const ph=M.walkPhase=(M.walkPhase||0)+(sp*dt*(sprinting?1.65:1.25));
-      const amp=(air?0.12:(sprinting?0.58:0.42))*Math.min(1,norm*1.15);
+      M.gait=(M.gait||0)+(Math.min(1,norm*1.15)-(M.gait||0))*(1-Math.exp(-dt*10));
+      const amp=(air?0.12:(sprinting?0.58:0.42))*M.gait;
       const stride=Math.sin(ph)*amp;
       const knee=Math.max(0,-Math.cos(ph))* (sprinting?0.72:0.48)*Math.min(1,norm*1.25);
       const idle=norm<0.08&&!air?Math.sin(T*1.6)*0.012:0;
@@ -1889,6 +1905,20 @@ const CH=(function(){
       if(bn.lFoot)rotWorldB(bn.lFoot,_ax,stride*0.45+Math.max(0,Math.cos(ph))* (sprinting?0.72:0.48)*Math.min(1,norm*1.25)*0.35);
     }
     m.updateMatrixWorld(true);
+    if(!air&&window.MAP_COLLIDER){
+      for(const [key,U,L,F] of [['r',bn.rU,bn.rL,bn.rFoot],['l',bn.lU,bn.lL,bn.lFoot]]){
+        if(!U||!L||!F)continue;
+        const hip=U.getWorldPosition(new THREE.Vector3()),knee=L.getWorldPosition(new THREE.Vector3()),foot=F.getWorldPosition(new THREE.Vector3());
+        const ground=window.MAP_COLLIDER.groundHeight(foot.x,foot.z,f.y+0.3,0.6);
+        if(!ground||!Number.isFinite(ground.y)||Math.abs(ground.y-f.y)>0.35)continue;
+        const target=foot.clone();target.y=Math.max(foot.y,ground.y+0.07);
+        if(target.y-foot.y>0.28)continue;
+        const bend=new THREE.Vector3(0,0,-1).applyQuaternion(m.getWorldQuaternion(new THREE.Quaternion()));
+        const e=new THREE.Vector3(),end=new THREE.Vector3();
+        ikSolveB(hip,target,hip.distanceTo(knee),knee.distanceTo(foot),bend,e,end);
+        aimBoneB(U,L,e);aimBoneB(L,F,end);
+      }
+    }
     const doArm=(A,F,H,handRoot,poleLocal)=>{if(!A||!F||!H)return;A.getWorldPosition(_S);F.getWorldPosition(_E);H.getWorldPosition(_W);const l1=_S.distanceTo(_E),l2=_E.distanceTo(_W);_T.set(0,0.004,0.05);handRoot.localToWorld(_T);m.getWorldQuaternion(_rq);_P.copy(poleLocal).applyQuaternion(_rq);ikSolveB(_S,_T,l1,l2,_P,_EL,_END);aimBoneB(A,F,_EL);aimBoneB(F,H,_END);};
     if(bn.rA&&bn.rF&&bn.rH&&rg.hr&&rg.hr.root)doArm(bn.rA,bn.rF,bn.rH,rg.hr.root,new THREE.Vector3(-0.9,-0.4,-0.9));
     if(bn.lA&&bn.lF&&bn.lH&&rg.hl&&rg.hl.root)doArm(bn.lA,bn.lF,bn.lH,rg.hl.root,new THREE.Vector3( 0.9,-0.4,-0.9));
@@ -2529,42 +2559,11 @@ function updateBot(b,dt){
 
 
 function fpBodyApply(b,m,on){
-  const M=b.rig&&b.rig.model,bn=M&&M.bones;
-  // The third-person weapon is mounted on the body rig; never render it alongside the FP viewmodel.
+  m.visible=!on&&b.alive&&state==='playing';
   if(b.rig&&b.rig.gp)b.rig.gp.visible=!on;
-  if(!bn){m.visible=!on&&b.alive&&state==='playing';return;}   // procedural fallback body has no hideable head/arms
-  m.visible=b.alive?true:m.visible;
-  if(!b._fpU){
-    b._fpU={value:0};const U=b._fpU;
-    // 1) the scanned mesh is hidden from the camera in first person (fragments discarded) but still casts the player's shadow
-    m.traverse(o=>{if(!o.isSkinnedMesh)return;const mat=o.material;
-      mat.onBeforeCompile=sh=>{sh.uniforms.uHideArms=U;sh.fragmentShader=sh.fragmentShader.replace('void main() {','uniform float uHideArms;\nvoid main() {\n  if(uHideArms>0.5)discard;');};
-      mat.customProgramCacheKey=()=>'fpbody';mat.needsUpdate=true;});
-    // 2) clean legs + boots parented to the animated leg bones (they walk/run/jump with the player)
-    const g=new THREE.Group();g.visible=false;m.add(g);b._fpLegs=g;
-    const pants=new THREE.MeshStandardMaterial({color:0x17191d,roughness:0.78,metalness:0.05}),shoe=new THREE.MeshStandardMaterial({color:(window.__charPref==='female'?0xf1b9cc:0xcfd2d6),roughness:0.55,metalness:0.05}),sole=new THREE.MeshStandardMaterial({color:0x141517,roughness:0.9}),belt=new THREE.MeshStandardMaterial({color:0x0e0f11,roughness:0.6,metalness:0.2});
-    const bone=n=>m.getObjectByName('mixamorig'+n);
-    const seg=(parent,child,r0,r1,mat)=>{const v=child.position.clone(),len=v.length();const c=new THREE.Mesh(new THREE.CylinderGeometry(r0,r1,len*1.02,14,1),mat);c.position.copy(v).multiplyScalar(0.5);c.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),v.clone().normalize().multiplyScalar(-1).multiplyScalar(-1));c.quaternion.setFromUnitVectors(new THREE.Vector3(0,-1,0),v.clone().normalize());c.castShadow=false;parent.add(c);return c;};
-    for(const s of ['Left','Right']){
-      const up=bone(s+'UpLeg'),lo=bone(s+'Leg'),ft=bone(s+'Foot'),toe=bone(s+'ToeBase');if(!up||!lo||!ft)continue;
-      const k1=new THREE.Mesh(new THREE.SphereGeometry(0.1,14,10),pants);k1.position.set(0,0.02,0);up.add(k1);
-      seg(up,lo,0.098,0.078,pants);
-      const k2=new THREE.Mesh(new THREE.SphereGeometry(0.078,12,10),pants);lo.add(k2);
-      seg(lo,ft,0.077,0.056,pants);
-      const cuff=new THREE.Mesh(new THREE.CylinderGeometry(0.062,0.062,0.07,14),pants);cuff.position.set(0,-0.02,0);ft.add(cuff);
-      const sh=new THREE.Mesh(new THREE.BoxGeometry(0.11,0.085,0.29),shoe);sh.position.set(0,-0.05,0.07);ft.add(sh);
-      const so=new THREE.Mesh(new THREE.BoxGeometry(0.114,0.03,0.30),sole);so.position.set(0,-0.1,0.07);ft.add(so);
-      const tc=new THREE.Mesh(new THREE.SphereGeometry(0.058,12,8,0,Math.PI*2,0,Math.PI/2),shoe);tc.scale.set(1,0.8,1.2);tc.position.set(0,-0.05,0.185);ft.add(tc);
-    }
-    const hp=bone('Hips');if(hp){const w=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.17,0.2,18),pants);w.position.set(0,0.02,0);hp.add(w);const bl=new THREE.Mesh(new THREE.CylinderGeometry(0.172,0.172,0.045,18),belt);bl.position.set(0,0.1,0);hp.add(bl);}
-    // everything added above lives under the bones, so gather it in one visibility switch
-    g.userData.items=[];
-    for(const n of ['LeftUpLeg','LeftLeg','LeftFoot','RightUpLeg','RightLeg','RightFoot','Hips']){const bb=bone(n);if(!bb)continue;for(const c of bb.children)if(c.isMesh&&!c.isSkinnedMesh&&c.userData.fp!==false&&!c.isBone)g.userData.items.push(c);}
-  }
-  b._fpU.value=on?1:0;
-  if(b._fpLegs)for(const c of b._fpLegs.userData.items)c.visible=on;
   b._fpOn=on;
 }
+
 function deathBegin(b){
   b._dd={side:(hashStr(b.name||'x')%2)?1:-1,spin:rnd(-0.6,0.6),slide:rnd(0.25,0.55),flail:rnd(0.8,1.2)};
   const M=b.rig&&b.rig.model;
@@ -2840,6 +2839,14 @@ const FPA=(function(){
         pr[2]-=0.14*sn;pr[5]-=0.55*sn;pr[3]-=st.punchSide*0.12*sn;pr[4]+=0.04*sn;po[2]+=0.04*sn;po[5]+=0.05*sn;}}
       setPose(R,gr);setPose(Lh,gl);if(glow)glow.material.opacity=0;
     }
+    g.updateMatrixWorld(true);
+    const selectedHands=VM.actionHands(R,Lh);
+    for(const arm of [R,Lh])arm.traverse(o=>{
+      if(!o.isMesh)return;
+      let parent=o,prop=false;
+      while(parent&&parent!==arm){if(parent===nade){prop=true;break;}parent=parent.parent;}
+      if(!prop)o.visible=!selectedHands;
+    });
     if(st.pinT>0&&pinM){st.pinT-=dt;}
   }
   return {
@@ -3112,11 +3119,13 @@ function updateDrones(dt){
     if(d.flash>0){d.flash=Math.max(0,d.flash-dt*4);d.white.emissive.setRGB(d.flash,d.flash*0.1,d.flash*0.1);}
   }
   for(const [f,d] of drones)if(fighters.indexOf(f)<0){disposeDrone(d);drones.delete(f);}
-  const mPet=$('mPet');if(mPet){const own=!!P.pet&&state==='playing';mPet.style.display=own?'':'none';mPet.classList.toggle('boxed',!!(P.pet&&P.pet.deployed===false));}
-  const ph=$('petHud');if(ph){const owned=!!P.pet&&state==='playing';ph.classList.toggle('hidden',!owned);if(owned){const b=$('petBar');if(b)b.style.width=Math.max(0,P.pet.hp||100)+'%';const title=$('petHudTitle'),action=$('petHudAction');const deployed=P.pet.alive&&P.pet.deployed!==false;if(title)title.textContent=deployed?'CINDER · DEPLOYED':'CINDER · BOXED';if(action)action.textContent=deployed?'RECALL':'DEPLOY · HEALING';ph.classList.toggle('boxed',!deployed);}}
+  const mPet=$('mPet');if(mPet){const own=!!P.pet&&state==='playing';mPet.style.display=state==='playing'?'':'none';mPet.disabled=!own;mPet.classList.toggle('boxed',!!(P.pet&&P.pet.deployed===false));}
+  const ph=$('petHud');if(ph){const owned=!!P.pet&&state==='playing';ph.classList.toggle('hidden',state!=='playing');ph.disabled=!owned;if(!owned){setText('petHudTitle','CINDER · LOCKED');setText('petHudAction','UNLOCK IN SHOP');}if(owned){const b=$('petBar');if(b)b.style.width=clamp(P.pet.hp??100,0,100)+'%';const title=$('petHudTitle'),action=$('petHudAction');const deployed=P.pet.alive&&P.pet.deployed!==false;if(title)title.textContent=deployed?'CINDER · DEPLOYED':'CINDER · BOXED';if(action)action.textContent=deployed?'RECALL':'DEPLOY · HEALING';ph.classList.toggle('boxed',!deployed);}}
 }
 
+let lastPetToggle=-Infinity;
 function togglePetCompanion(){
+  const now=performance.now();if(now-lastPetToggle<350)return;lastPetToggle=now;
   if(!P.pet){toast('Fox companion is not unlocked yet — check the Shop','warn');return;}
   if(!P.pet.alive){toast('Cinder is recovering. A destroyed companion cannot be deployed.','warn');return;}
   P.pet.deployed=!(P.pet.deployed!==false);
@@ -3126,7 +3135,7 @@ function togglePetCompanion(){
   buzz(12);
 }
 const petHudToggle=$('petHud');if(petHudToggle)petHudToggle.addEventListener('click',togglePetCompanion);
-const mPetToggle=$('mPet');if(mPetToggle)mPetToggle.addEventListener('click',e=>{if(layoutMode)return;e.preventDefault();togglePetCompanion();});
+// Mobile companion taps use the existing data-act touch handler only.
 function petBurst(f){const d=drones.get(f),x=d?d.g.position.x:f.x,y=d?d.g.position.y:f.y+1.5,z=d?d.g.position.z:f.z;addPFX(blastFX(x,y-0.6,z,1.6));fxLight(x,y,z,0x6fe3ff,4,0.35);sfxExplosion(0.25*clamp(1-Math.hypot(camera.position.x-x,camera.position.z-z)/40,0,1));if(d){disposeDrone(d);drones.delete(f);}f.hasPet=false;}
 function hurtPetLocal(dmg){const pt=P.pet;if(!pt||!pt.alive)return;pt.hp-=dmg;const d=drones.get(player);if(d)d.flash=1;
   if(pt.hp<=0){pt.alive=false;pt.hp=0;petBurst(player);banner('DRONE DESTROYED','#ff6a6a');toast('Your drone was destroyed','warn');buzz([30,40,30]);}}
@@ -3514,7 +3523,7 @@ function step(dt){
       if(!$('board').classList.contains('hidden'))renderBoard();}}}
 function frame(ms){requestAnimationFrame(frame);let dt=clamp((ms-lastMs)/1000,0,0.05);lastMs=ms;
   if(paused()&&mode!=='multi')dt=0;
-  step(dt);renderer.clear();renderer.render(scene,camera);
+  step(dt);if(player.mesh&&viewMode==='fp'&&player.alive)player.mesh.visible=false;renderer.clear();renderer.render(scene,camera);
   if(gunRoot.visible&&(state==='playing'||state==='dead')){renderer.clearDepth();renderer.render(viewScene,viewCamera);}}
 fighters.forEach(f=>{if(!f.isPlayer)spawn(f);});
 window.__getPlayerSkin=()=>({tex:fighterSkin(player),name:player.name});
@@ -3553,7 +3562,7 @@ if(optViewTP)optViewTP.addEventListener('change',()=>setViewMode(optViewTP.check
 let layoutMode=false;
 const layoutPositions=(()=>{try{return JSON.parse(localStorage.getItem('shotline.layout')||'{}');}catch(e){return {};}})();
 const layoutSave=()=>{try{localStorage.setItem('shotline.layout',JSON.stringify(layoutPositions));}catch(e){}};
-function applySavedLayout(){for(const [id,pos] of Object.entries(layoutPositions)){const el=document.getElementById(id);if(!el)continue;if(pos.left!==undefined){el.style.left=pos.left+'px';el.style.right='auto';}if(pos.top!==undefined){el.style.top=pos.top+'px';el.style.bottom='auto';}if(pos.scale)el.style.transform='scale('+pos.scale+')';}}
+function applySavedLayout(){for(const [id,pos] of Object.entries(layoutPositions)){const el=document.getElementById(id);if(!el)continue;if(pos.left!==undefined){el.style.left=clamp(pos.left*(pos.vw?innerWidth/pos.vw:1),0,Math.max(0,innerWidth-(el.offsetWidth||64)*(pos.scale||1)))+'px';el.style.right='auto';}if(pos.top!==undefined){el.style.top=clamp(pos.top*(pos.vh?innerHeight/pos.vh:1),0,Math.max(0,innerHeight-(el.offsetHeight||64)*(pos.scale||1)))+'px';el.style.bottom='auto';}el.style.transformOrigin='top left';if(pos.scale)el.style.transform='scale('+pos.scale+')';}}
 function setLayoutMode(on){layoutMode=!!on;document.querySelectorAll('#mobileHud .mbtn, #mobileHud .mw').forEach(el=>{el.style.outline=on?'2px dashed var(--accent)':'';});}
 if(optLayout)optLayout.addEventListener('change',()=>setLayoutMode(optLayout.checked));
 (function(){const hud=$('mobileHud');if(!hud)return;let drag=null;
@@ -3609,14 +3618,14 @@ function haptic(ms){try{if(navigator.vibrate)navigator.vibrate(ms||8);}catch(e){
 // Temporary touch-layout studio. The real HUD stays untouched until Save; pinch changes per-control scale.
 (function(){
  const overlay=$('touchLayoutEditor'),stage=$('tleStage'),open=$('openTouchLayout'),close=$('closeTouchLayout');if(!overlay||!stage||!open||!close)return;
- const names={mExit:'PAUSE',mFire:'FIRE',mFireL:'FIRE L',mAds:'ADS',mJump:'JUMP',mReload:'RELOAD',mNade:'NADE',mPower:'POWER',mSprint:'SPRINT',mPet:'FOX',mw0:'PIS',mw1:'AK',mw2:'SNP',mw3:'SG',mw4:'RPG',mw5:'FST'};
+ const names={joyZone:'MOVE',mExit:'PAUSE',mFire:'FIRE',mFireL:'FIRE L',mAds:'ADS',mJump:'JUMP',mReload:'RELOAD',mNade:'NADE',mPower:'POWER',mSprint:'SPRINT',mPet:'FOX',mw0:'PIS',mw1:'AK',mw2:'SNP',mw3:'SG',mw4:'RPG',mw5:'FST'};
  let active=null,pointers=new Map(),initial=null;
- function build(){stage.innerHTML='';const ids=Object.keys(names);for(const id of ids){const el=$(id);if(!el)continue;const r=el.getBoundingClientRect(),item=document.createElement('div');item.className='tle-item';item.dataset.target=id;item.textContent=names[id];const saved=layoutPositions[id]||{};const sc=saved.scale||1;item.style.width=Math.max(44,r.width*sc)+'px';item.style.height=Math.max(44,r.height*sc)+'px';item.style.left=Math.max(0,Math.min(stage.clientWidth-48,(saved.left!==undefined?saved.left:r.left)-stage.getBoundingClientRect().left))+'px';item.style.top=Math.max(0,Math.min(stage.clientHeight-48,(saved.top!==undefined?saved.top:r.top)-stage.getBoundingClientRect().top))+'px';item.style.transform='scale(1)';item.style.transformOrigin='top left';stage.appendChild(item);}}
- function save(){const sr=stage.getBoundingClientRect();stage.querySelectorAll('.tle-item').forEach(item=>{const id=item.dataset.target,r=item.getBoundingClientRect(),el=$(id);if(!el)return;const x=parseFloat(item.style.left)||0,y=parseFloat(item.style.top)||0;const old=layoutPositions[id]||{};const scale=Math.max(.55,Math.min(1.8,(parseFloat(item.style.width)||r.width)/(el.offsetWidth||r.width)));layoutPositions[id]={left:Math.round(sr.left+x),top:Math.round(sr.top+y),scale};});layoutSave();applySavedLayout();}
- const openEditor=()=>{build();overlay.classList.add('open');overlay.setAttribute('aria-hidden','false');};open.addEventListener('click',openEditor);const openFromControls=$('openTouchLayoutFromControls');if(openFromControls)openFromControls.addEventListener('click',openEditor);
+ function build(){stage.innerHTML='';const ids=Object.keys(names);for(const [index,id] of ids.entries()){const el=$(id);if(!el)continue;const r=el.getBoundingClientRect(),item=document.createElement('div');item.className='tle-item';item.dataset.target=id;item.textContent=names[id];const saved=layoutPositions[id]||{};const sc=saved.scale||1;item.style.width=Math.max(44,(el.offsetWidth||64)*sc)+'px';item.style.height=Math.max(44,(el.offsetHeight||64)*sc)+'px';item.style.left=Math.max(0,Math.min(stage.clientWidth-48,(saved.left!==undefined?saved.left:(r.width?r.left:stage.getBoundingClientRect().left+12+(index%5)*(stage.clientWidth-24)/5))-stage.getBoundingClientRect().left))+'px';item.style.top=Math.max(0,Math.min(stage.clientHeight-48,(saved.top!==undefined?saved.top:(r.height?r.top:stage.getBoundingClientRect().top+12+Math.floor(index/5)*76))-stage.getBoundingClientRect().top))+'px';item.style.transform='scale(1)';item.style.transformOrigin='top left';stage.appendChild(item);}}
+ function save(){const sr=stage.getBoundingClientRect();stage.querySelectorAll('.tle-item').forEach(item=>{const id=item.dataset.target,r=item.getBoundingClientRect(),el=$(id);if(!el)return;const x=parseFloat(item.style.left)||0,y=parseFloat(item.style.top)||0;const old=layoutPositions[id]||{};const scale=Math.max(.55,Math.min(1.8,(parseFloat(item.style.width)||r.width)/(el.offsetWidth||64)));layoutPositions[id]={left:Math.round(sr.left+x),top:Math.round(sr.top+y),scale,vw:innerWidth,vh:innerHeight};});layoutSave();applySavedLayout();}
+ const openEditor=()=>{overlay.classList.add('open');overlay.setAttribute('aria-hidden','false');pointers.clear();active=null;initial=null;build();};open.addEventListener('click',openEditor);const openFromControls=$('openTouchLayoutFromControls');if(openFromControls)openFromControls.addEventListener('click',openEditor);
  close.addEventListener('click',()=>{save();overlay.classList.remove('open');overlay.setAttribute('aria-hidden','true');});
- stage.addEventListener('pointerdown',e=>{const item=e.target.closest('.tle-item');if(!item)return;e.preventDefault();item.setPointerCapture(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});active=item;if(pointers.size===1)initial={x:e.clientX,y:e.clientY,left:parseFloat(item.style.left)||0,top:parseFloat(item.style.top)||0,w:parseFloat(item.style.width)||48,h:parseFloat(item.style.height)||48};else if(pointers.size===2){const a=[...pointers.values()];initial={dist:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),w:parseFloat(item.style.width)||48,h:parseFloat(item.style.height)||48};}});
- stage.addEventListener('pointermove',e=>{if(!pointers.has(e.pointerId)||!active)return;pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pointers.size===1&&initial&&!('dist'in initial)){active.style.left=Math.max(0,Math.min(stage.clientWidth-40,initial.left+e.clientX-initial.x))+'px';active.style.top=Math.max(0,Math.min(stage.clientHeight-40,initial.top+e.clientY-initial.y))+'px';}else if(pointers.size>=2&&initial&&initial.dist){const a=[...pointers.values()],dist=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),k=Math.max(.65,Math.min(1.7,dist/initial.dist));active.style.width=Math.max(42,initial.w*k)+'px';active.style.height=Math.max(42,initial.h*k)+'px';}});
+ stage.addEventListener('pointerdown',e=>{const item=e.target.closest('.tle-item');if(!item||(active&&active!==item))return;e.preventDefault();item.setPointerCapture(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});active=item;if(pointers.size===1)initial={x:e.clientX,y:e.clientY,left:parseFloat(item.style.left)||0,top:parseFloat(item.style.top)||0,w:parseFloat(item.style.width)||48,h:parseFloat(item.style.height)||48};else if(pointers.size===2){const a=[...pointers.values()];initial={dist:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),w:parseFloat(item.style.width)||48,h:parseFloat(item.style.height)||48};}});
+ stage.addEventListener('pointermove',e=>{if(!pointers.has(e.pointerId)||!active)return;pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pointers.size===1&&initial&&!('dist'in initial)){active.style.left=Math.max(0,Math.min(stage.clientWidth-active.offsetWidth,initial.left+e.clientX-initial.x))+'px';active.style.top=Math.max(0,Math.min(stage.clientHeight-active.offsetHeight,initial.top+e.clientY-initial.y))+'px';}else if(pointers.size>=2&&initial&&initial.dist){const a=[...pointers.values()],dist=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),k=Math.max(.65,Math.min(1.7,dist/initial.dist));active.style.width=Math.max(42,initial.w*k)+'px';active.style.height=Math.max(42,initial.h*k)+'px';}});
  const end=e=>{pointers.delete(e.pointerId);if(!pointers.size){active=null;initial=null;}else if(pointers.size===1&&active){const a=[...pointers.values()][0];initial={x:a.x,y:a.y,left:parseFloat(active.style.left)||0,top:parseFloat(active.style.top)||0,w:parseFloat(active.style.width)||48,h:parseFloat(active.style.height)||48};}};stage.addEventListener('pointerup',end);stage.addEventListener('pointercancel',end);
 })();
 
@@ -3652,3 +3661,7 @@ setInterval(()=>{if(!isMobile)return;const show=(state==='playing')&&!chatOpen&&
   $('mobileHud').classList.toggle('hidden',!show);
   if(!show){lookId=null;endJoy();mSprintLatched=false;}},120);
 })();
+
+(function(){let touch=isMobile;function refresh(){for(const [a,b,display] of [['controlsPcContent','controlsTouchContent','block'],['keysPcContent','keysTouchContent','flex']]){if($(a))$(a).style.display=touch?'none':display;if($(b))$(b).style.display=touch?display:'none';}}document.addEventListener('pointerdown',e=>{if(e.pointerType==='touch'){touch=true;refresh();}},true);window.addEventListener('resize',refresh);refresh();})();
+
+window.addEventListener('resize',()=>{if(typeof applySavedLayout==='function')applySavedLayout();});

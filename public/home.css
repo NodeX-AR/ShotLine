@@ -175,3 +175,15 @@
   .hm-pet{bottom:max(12px,env(safe-area-inset-bottom));right:max(10px,env(safe-area-inset-right));}
   .hm-pet-copy small{max-width:125px}
 }
+
+/* Consolidated lobby treatment: readable panels, quieter backdrop. */
+#home{background:radial-gradient(ellipse at 50% 75%,#293c49 0%,#111c26 55%,#080e14 100%)}
+#home .hm-grid{opacity:.14;animation:none}#home .hm-ray{opacity:.22;animation:none}
+#home .hm-profile,#home .hm-ic,#home .hm-char,#home .hm-shop{background:rgba(12,23,32,.94);border:1px solid rgba(182,211,230,.25);border-radius:12px;box-shadow:0 8px 24px #0004}
+#home .hm-ic{min-width:48px;min-height:48px}
+#home .hm-play{border-radius:14px;box-shadow:0 8px 28px #0005;border:1px solid #ffd3a0;overflow:hidden}
+#home button{transition:filter .16s ease,box-shadow .16s ease}
+#home button:focus-visible{outline:2px solid #9edfff;outline-offset:3px}
+#home .hm-hint{opacity:.65;text-shadow:0 2px 4px #000}
+@media(max-width:420px){#home .hm-title{font-size:24px}#home .hm-profile{max-width:40vw}#home .hm-pi{overflow:hidden;text-overflow:ellipsis}}
+@media(prefers-reduced-motion:reduce){#home *{animation:none!important;transition:none!important}}

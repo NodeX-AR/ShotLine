@@ -74,10 +74,10 @@ function heroSkin(){
 function buildHero(){
   if(!window.SOLDIER_GEN||!built)return;
   const sk=heroSkin();if(sk.key===skinKey&&hero)return;skinKey=sk.key;
-  if(hero){root.remove(hero.scene);}
+  if(hero){root.remove(hero.scene);if(mixer)mixer.stopAllAction();}boneBase.clear();for(const key of Object.keys(bones))delete bones[key];
   hero=(window.TACTICAL_GEN&&TACTICAL_GEN.ready())?TACTICAL_GEN.build(window.__charPref||'male'):SOLDIER_GEN.build({});if(!(window.TACTICAL_GEN&&TACTICAL_GEN.ready()))SOLDIER_GEN.applySkin(hero.scene,sk.tex);
   hero.scene.scale.setScalar(1);root.add(hero.scene);
-  mixer=new T3.AnimationMixer(hero.scene);mixer.clipAction(hero.animations[0]).play();
+  mixer=new T3.AnimationMixer(hero.scene);if(hero.animations&&hero.animations[0])mixer.clipAction(hero.animations[0]).play();
   hero.scene.traverse(o=>{if(o.name){bones[o.name.replace(/^mixamorig:?/i,'').replace(/^mixamorig/,'')]=o;if(o.isBone)boneBase.set(o,o.quaternion.clone());}});const hb=bones.Hips||bones.hips;if(hb)hipsBaseY=hb.position.y;
   hero.scene.userData.hero=true;
 }
@@ -105,28 +105,26 @@ function applyEmote(dt){
 const SEQ=[['wander',3.6],['idle',1.7],['stunt','bow'],['wander',3.2],['idle',1.2],['stunt','howl'],['wander',4.1],['idle',1.5],['stunt','pounce']];
 const REST={x:1.0,z:0.55};
 function foxStep(dt){
-  if(!fox)return;
-  const g=fox.g;let speed=0;
-  if(!foxState||foxT<=0){const s=SEQ[foxSeq++%SEQ.length];foxState=s[0];foxT=s[0]==='stunt'?fox.STUNTS[s[1]]+0.15:s[1];
-    if(s[0]==='stunt')fox.play(s[1]);
-    if(s[0]==='wander'){foxWander.tx=(Math.random()*2-1)*1.35;foxWander.tz=(Math.random()*2-1)*0.95;}
+  if(!fox)return;dt=Math.min(dt,0.05);const g=fox.g;
+  if(!foxState){foxState='idle';foxT=2;foxWander.speed=0;}foxT-=dt;
+  if(foxT<=0&&!fox.busy()){
+    if(foxState==='wander'){foxState='idle';foxT=2.5+Math.random()*4;}
+    else if(Math.random()<0.12){const stunt=Math.random()<0.5?'bow':'howl';foxState='stunt';fox.play(stunt);foxT=(fox.STUNTS[stunt]||2)+.3;}
+    else{foxState='wander';foxT=6;const a=Math.random()*TAU,d=.6+Math.random()*.8;
+      foxWander.tx=clamp(g.position.x+Math.sin(a)*d,-1.4,1.4);foxWander.tz=clamp(g.position.z+Math.cos(a)*d,-.8,.9);}
   }
-  foxT-=dt;
+  const dx=foxWander.tx-g.position.x,dz=foxWander.tz-g.position.z,dist=Math.hypot(dx,dz);let desired=0;
   if(foxState==='wander'&&!fox.busy()){
-    let dx=foxWander.tx-g.position.x,dz=foxWander.tz-g.position.z,dd=Math.hypot(dx,dz);
-    if(dd<0.18){foxState='idle';foxT=0.7+Math.random()*1.0;fox.play('idle');}
-    else {const desired=Math.min(1.15,dd*1.15),step=Math.min(dd,desired*dt);g.position.x+=dx/dd*step;g.position.z+=dz/dd*step;speed=desired;
-      const ty=Math.atan2(dx,dz);let da=ty-g.rotation.y;da=Math.atan2(Math.sin(da),Math.cos(da));g.rotation.y+=da*Math.min(1,dt*4.5);}
-  } else if(foxState==='idle'&&!fox.busy()){
-    // Natural idle: small head/body attention shifts are supplied by FoxLib; don't orbit in place.
-    speed=0;
-  } else if(foxState==='stunt'){
-    // After a stunt, ease back toward the preview's nearby roaming area.
-    const dx=foxWander.tx-g.position.x,dz=foxWander.tz-g.position.z,dd=Math.hypot(dx,dz);
-    if(dd>0.25&&!fox.busy()){g.position.x+=dx/dd*Math.min(dd,0.65*dt);g.position.z+=dz/dd*Math.min(dd,0.65*dt);speed=0.65;}
+    if(dist<.1){foxState='idle';foxT=2.5+Math.random()*3;}
+    else{const delta=Math.atan2(Math.sin(Math.atan2(dx,dz)-g.rotation.y),Math.cos(Math.atan2(dx,dz)-g.rotation.y));
+      g.rotation.y+=clamp(delta,-dt*2.2,dt*2.2);desired=Math.min(.72,dist*1.6)*Math.max(0,Math.cos(delta));}
   }
-  fox.update(dt,{speed:fox.busy()?0:speed,sit:foxState==='idle'});
+  foxWander.speed=(foxWander.speed||0)+(desired-(foxWander.speed||0))*(1-Math.exp(-dt*5));
+  const speed=fox.busy()?0:foxWander.speed,step=Math.min(dist,speed*dt);
+  if(foxState==='wander'){g.position.x+=Math.sin(g.rotation.y)*step;g.position.z+=Math.cos(g.rotation.y)*step;}
+  fox.update(dt,{speed,sit:foxState==='idle'&&speed<.04});
 }
+
 function startEmote(n){emote=n;emoteT=0;}
 H.emote=startEmote;
 
@@ -144,7 +142,7 @@ function frame(){
   // emote scheduler
   if(emote){emoteT+=dt;if(emoteT>EMOTES[emote]){emote=null;emoteNext=3.2+Math.random()*2.5;}}else{emoteNext-=dt;if(emoteNext<=0){const k=Object.keys(EMOTES);startEmote(k[(Math.random()*k.length)|0]);}}
   heroYaw+=spinV*dt;spinV*=Math.pow(0.04,dt);
-  if(hero){hero.scene.rotation.y=heroYaw*0.35+Math.sin(t*0.5)*0.12+(emote==='spin'?0:0);
+  if(hero){const target=heroYaw*0.35+Math.sin(t*0.5)*0.07;hero.scene.rotation.y+=(target-hero.scene.rotation.y)*(1-Math.exp(-dt*7));
     applyEmote(dt);
     if(emote!=='spin')heroYaw+= -heroYaw*0.0; }
   foxStep(dt);

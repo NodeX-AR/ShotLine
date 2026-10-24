@@ -559,6 +559,13 @@ kbd{font:600 .85em var(--font);padding:1px 7px;border:1px solid var(--line2);bor
 }
 @media (pointer:coarse) and (max-height:380px){#mobileHud{--g:7px}#mag{font-size:26px}}
 
+
+button:focus-visible{outline:2px solid #9edfff;outline-offset:3px}
+#petHud:disabled,#mPet:disabled{opacity:.55;cursor:default}
+#petHud .bar i{transition:width .25s ease}
+#touchLayoutEditor .tle-item{transform-origin:top left}
+@media(pointer:coarse){#controlsPcContent,#keysPcContent{display:none!important}#controlsTouchContent{display:block!important}#keysTouchContent{display:flex!important}}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
 <link rel="stylesheet" href="home.css">
 </head>

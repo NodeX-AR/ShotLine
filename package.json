@@ -1,0 +1,6 @@
+{
+  "name": "Shotline — London",
+  "description": "Tactical browser FPS set in fallen London with realistic graphics, climbable building staircases, detailed furniture, enhanced weapon handling, and fluid combat animations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
