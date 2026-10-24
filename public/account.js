@@ -43,10 +43,21 @@ A.refresh=async function(){if(!A.token)return;const j=await api('me');if(j.ok)A.
 function changed(){A.listeners.forEach(f=>{try{f(A);}catch(e){console.warn(e);}});}
 function say(m,bad){const el=$('authMsg');if(el){el.textContent=m||'';el.style.color=bad?'#ff8a8a':'';}if(A.notify&&m&&!bad)A.notify(m);}
 async function api(path,body,method){
-  const h={'content-type':'application/json'};if(A.token)h.authorization='Bearer '+A.token;
-  try{const r=await fetch('/api/'+path,{method:method||(body===undefined?'GET':'POST'),headers:h,body:body===undefined?undefined:JSON.stringify(body)});
-    let j=null;try{j=await r.json();}catch(e){}return j||{ok:false,error:'Server error ('+r.status+')'};}
-  catch(e){return {ok:false,error:'Cannot reach the server'};}
+  const h={'content-type':'application/json','accept':'application/json'};if(A.token)h.authorization='Bearer '+A.token;
+  try{
+    const r=await fetch(new URL('/api/'+path,window.location.origin).href,{
+      method:method||(body===undefined?'GET':'POST'),headers:h,
+      body:body===undefined?undefined:JSON.stringify(body),credentials:'same-origin',cache:'no-store'
+    });
+    const type=(r.headers.get('content-type')||'').toLowerCase();
+    let j=null;
+    if(type.includes('application/json')){try{j=await r.json();}catch(e){}}
+    if(j&&typeof j==='object')return j;
+    if(!r.ok)return {ok:false,error:'Account service returned HTTP '+r.status+'. Check the deployed /api worker and database.'};
+    return {ok:false,error:'Account service did not return JSON. The /api route may be missing or serving the website page instead.'};
+  }catch(e){
+    return {ok:false,error:'Could not connect to the account service. Check your connection and that the game API is deployed.'};
+  }
 }
 A.api=api;
 A.skinUrl=(un,v)=>'/api/skin/'+encodeURIComponent(un)+'?v='+(v||0);
@@ -124,16 +135,26 @@ function wire(){
   $('authGuestBtn').onclick=()=>{setSession(null,null);enterMenu();};
   for(const b of document.querySelectorAll('[data-auth-back]'))b.onclick=()=>show('authChoice');
   $('authForgot').onclick=()=>show('authResetForm');
-  $('authLoginForm').onsubmit=async e=>{e.preventDefault();say('Signing in…');
-    const j=await api('login',{un:$('liUn').value.trim(),pw:$('liPw').value});
-    if(!j.ok){say(j.error||'Login failed',true);return;}
-    setSession(j.token,j.me);enterMenu();claimDaily(true);};
-  $('authSignupForm').onsubmit=async e=>{e.preventDefault();
+  $('authLoginForm').onsubmit=async e=>{e.preventDefault();const btn=$('authLoginForm').querySelector('[type="submit"]');if(btn&&btn.disabled)return;
+    if(btn){btn.disabled=true;btn.dataset.oldText=btn.textContent;btn.textContent='Signing in…';}
+    say('Signing in…');
+    try{const j=await api('login',{un:$('liUn').value.trim(),pw:$('liPw').value});
+      if(!j.ok){say(j.error||'Login failed',true);return;}
+      if(!j.token||!j.me){say('The server response was incomplete. Please try again.',true);return;}
+      setSession(j.token,j.me);enterMenu();claimDaily(true);
+    }finally{if(btn){btn.disabled=false;btn.textContent=btn.dataset.oldText||'Log in';}}
+  };
+  $('authSignupForm').onsubmit=async e=>{e.preventDefault();const btn=$('authSignupForm').querySelector('[type="submit"]');if(btn&&btn.disabled)return;
     if($('suPw').value!==$('suPw2').value){say('Passwords do not match',true);return;}
+    if($('suPw').value.length<6||$('suPw').value.length>64){say('Password must be 6–64 characters.',true);return;}
+    if(btn){btn.disabled=true;btn.dataset.oldText=btn.textContent;btn.textContent='Creating account…';}
     say('Creating account…');
-    const j=await api('signup',{un:$('suUn').value.trim(),pw:$('suPw').value});
-    if(!j.ok){say(j.error||'Sign-up failed',true);return;}
-    setSession(j.token,j.me);$('recCode').textContent=j.recovery;show('authRecovery');};
+    try{const j=await api('signup',{un:$('suUn').value.trim(),pw:$('suPw').value});
+      if(!j.ok){say(j.error||'Sign-up failed',true);return;}
+      if(!j.token||!j.me||!j.recovery){say('The server response was incomplete. Please try again.',true);return;}
+      setSession(j.token,j.me);$('recCode').textContent=j.recovery;show('authRecovery');
+    }finally{if(btn){btn.disabled=false;btn.textContent=btn.dataset.oldText||'Create account';}}
+  };
   $('recDone').onclick=()=>{enterMenu();claimDaily(true);};
   $('authResetForm').onsubmit=async e=>{e.preventDefault();say('Resetting…');
     const j=await api('reset',{un:$('rsUn').value.trim(),code:$('rsCode').value.trim(),pw:$('rsPw').value});

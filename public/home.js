@@ -8,6 +8,7 @@ const TAU=Math.PI*2,clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),ease=p=>p*p*(3-2*p)
 let T3,renderer,scene,cam,root,hero=null,mixer=null,fox=null,ring1,ring2,sparks,clock,raf=0,built=false,skinKey='',beam;
 let t=0,dragX=0,spinV=0,heroYaw=0.25,emote=null,emoteT=0,emoteNext=2.2,foxSeq=0,foxState=null,foxT=0,foxAng=0,tap=null;
 const bones={};
+let petDeployed=false,petHealth=100,petHealClock=0,petReleaseT=0;
 const EV=new (window.THREE?THREE.Euler:Object)(),QV=window.THREE?new THREE.Quaternion():null;
 
 /* ---------------- DOM ---------------- */
@@ -25,7 +26,8 @@ function buildDom(){
   '<div class="hm-gun" id="hmGun"></div>'+
   '<button class="hm-play" id="hmPlay"><span class="hm-play-t">PLAY NOW</span><span class="hm-play-s">Choose a mode</span><i class="hm-shine"></i></button>'+
   '<button class="hm-char" id="hmChar" aria-label="Switch character"><span class="hm-char-i" id="hmCharI">♂</span><span class="hm-char-t"><small>CHARACTER</small><b id="hmCharN">Shadow Operative</b></span><span class="hm-char-s">⇄</span></button>'+
-  '<div class="hm-hint">Tap the fox · drag to rotate</div>';
+  '<button class="hm-pet" id="hmPet" aria-label="Deploy Cinder fox"><span class="hm-pet-ring"><svg viewBox="0 0 44 44" aria-hidden="true"><circle class="hm-pet-track" cx="22" cy="22" r="18"/><circle class="hm-pet-health" id="hmPetHealth" cx="22" cy="22" r="18"/></svg><span class="hm-pet-icon" id="hmPetIcon">▣</span></span><span class="hm-pet-copy"><b id="hmPetTitle">CINDER · BOXED</b><small id="hmPetDesc">Tap to deploy companion</small></span></button>'+
+  '<div class="hm-hint">Drag to rotate · tap a model to animate</div>';
   document.body.appendChild(d);
   $('hmPlay').onclick=()=>openSub('play','play');
   $('hmProfile').onclick=()=>openSub('play','profile');
@@ -33,6 +35,7 @@ function buildDom(){
   $('hmShop').onclick=()=>openSub('shop');
   $('hmRanks').onclick=()=>openSub('ranks');
   $('hmChar').onclick=()=>H.setChar(H.char()==='male'?'female':'male',true);
+  $('hmPet').onclick=togglePet;
 }
 
 /* ---------------- 3D stage ---------------- */
@@ -61,7 +64,23 @@ function buildStage(){
   sparks=new T3.Points(pg,new T3.PointsMaterial({map:spriteTex(),size:0.09,transparent:true,depthWrite:false,blending:T3.AdditiveBlending,color:0xffaa66}));sparks.userData.spd=spd;root.add(sparks);
   // fox
   fox=FoxLib.create(T3);fox.g.scale.setScalar(1.0);root.add(fox.g);fox.g.position.set(1.0,0,0.55);
+  fox.g.visible=false;
   built=true;resize();
+}
+function refreshPetButton(){
+  const b=$('hmPet');if(!b)return;
+  b.classList.toggle('deployed',petDeployed);
+  $('hmPetTitle').textContent=petDeployed?'CINDER · DEPLOYED':'CINDER · BOXED';
+  $('hmPetDesc').textContent=petDeployed?'Tap to recall · Fire companion':'Tap to release your fire fox';
+  $('hmPetIcon').textContent=petDeployed?'◆':'▣';
+  const c=$('hmPetHealth');if(c)c.style.strokeDashoffset=String(113.1*(1-petHealth/100));
+  b.setAttribute('aria-label',petDeployed?'Recall Cinder fox':'Deploy Cinder fox');
+}
+function togglePet(){
+  if(!fox)return;
+  if(petDeployed){petDeployed=false;petHealClock=0;fox.g.visible=false;}
+  else if(petHealth>0){petDeployed=true;petReleaseT=0;fox.g.visible=true;fox.g.position.set(0.1,0,1.2);fox.play('pounce');}
+  refreshPetButton();
 }
 function heroSkin(){
   if(window.TACTICAL_GEN&&TACTICAL_GEN.ready())return {tex:null,key:'char:'+(window.__charPref||'male')};
@@ -75,7 +94,7 @@ function buildHero(){
   hero=(window.TACTICAL_GEN&&TACTICAL_GEN.ready())?TACTICAL_GEN.build(window.__charPref||'male'):SOLDIER_GEN.build({});if(!(window.TACTICAL_GEN&&TACTICAL_GEN.ready()))SOLDIER_GEN.applySkin(hero.scene,sk.tex);
   hero.scene.scale.setScalar(1);root.add(hero.scene);
   mixer=new T3.AnimationMixer(hero.scene);mixer.clipAction(hero.animations[0]).play();
-  hero.scene.traverse(o=>{if(o.name)bones[o.name.replace(/^mixamorig/,'')]=o;});
+  hero.scene.traverse(o=>{if(o.name)bones[o.name.replace(/^mixamorig:?/i,'').replace(/^mixamorig/,'')]=o;});
   hero.scene.userData.hero=true;
 }
 
@@ -105,7 +124,7 @@ function foxStep(dt){
     if(s[0]==='stunt'){fox.play(s[1]);if(window.HOME&&['flip','jump','dance','howl'].includes(s[1])&&!emote&&Math.random()<0.7)startEmote(s[1]==='dance'?'pump':'cheer');}
     if(s[0]==='orbit'){foxAng=Math.atan2(g.position.z,g.position.x);}}
   foxT-=dt;
-  if(foxState==='orbit'){const R=1.25,w=2.9;foxAng+=w*dt;const px=Math.cos(foxAng)*R,pz=Math.sin(foxAng)*R;
+  if(foxState==='orbit'){const R=petDeployed?2.0:1.25,w=petDeployed?1.7:2.9;foxAng+=w*dt;const px=Math.cos(foxAng)*R,pz=Math.sin(foxAng)*R;
     const dx=px-g.position.x,dz=pz-g.position.z,dd=Math.hypot(dx,dz);
     const k=Math.min(1,dt*6);g.position.x+=dx*k;g.position.z+=dz*k;speed=w*R;
     const ty=Math.atan2(-(-Math.sin(foxAng)),-(Math.cos(foxAng)));  // tangent (counter-clockwise)
@@ -152,7 +171,7 @@ function frame(){
 function pick(ev){
   if(!hero||!fox)return;const r=$('homeCv').getBoundingClientRect(),x=((ev.clientX-r.left)/r.width)*2-1,y=-((ev.clientY-r.top)/r.height)*2+1;
   const rc=new T3.Raycaster();rc.setFromCamera({x,y},cam);
-  if(rc.intersectObject(fox.g,true).length){fox.play(['flip','spin','jump','dance','pounce','howl','bow'][(Math.random()*7)|0]);foxState='idle';foxT=1.5;return true;}
+  if(rc.intersectObject(fox.g,true).length){fox.play(['flip','spin','jump','dance','pounce','howl','bow'][(Math.random()*7)|0]);foxState='stunt';foxT=fox.STUNTS.dance||1.5;return true;}
   if(rc.intersectObject(hero.scene,true).length){startEmote(Object.keys(EMOTES)[(Math.random()*6)|0]);return true;}
   return false;
 }
@@ -165,7 +184,7 @@ function bindInput(){
 }
 
 
-const CHARS={male:{name:'Shadow Operative',tag:'Male',sym:'♂',blurb:'All-black tactical operator'},female:{name:'Neon Vanguard',tag:'Female',sym:'♀',blurb:'Neon-pink tactical vanguard'}};
+const CHARS={male:{name:'Vanguard-07',tag:'Male',sym:'♂',blurb:'Stealth assault operator'},female:{name:'Nyx Sentinel',tag:'Female',sym:'♀',blurb:'Recon specialist'}};
 H.char=()=>window.__charPref||'male';
 H.setChar=function(k,wave){
   if(!CHARS[k])return;try{localStorage.setItem('shotline.char',k);}catch(e){}
@@ -220,7 +239,7 @@ function injectBack(){
   const t2=document.createElement('div');t2.id='subTitle';t2.className='sub-title';hdr.insertBefore(t2,b.nextSibling);
 }
 function init(){
-  buildDom();injectBack();injectChars();refreshChar();
+  buildDom();injectBack();injectChars();refreshChar();refreshPetButton();
   const m=$('menu');
   new MutationObserver(()=>{
     const hidden=m.classList.contains('hidden');

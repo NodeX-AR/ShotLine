@@ -119,3 +119,59 @@
 #charCards .cc:active{transform:scale(.97)}
 .cc-note{margin:10px 0 0;font-size:12px;opacity:.6;text-align:center}
 @media (max-height:430px){.hm-char{top:calc(max(10px,env(safe-area-inset-top)) + 54px);min-height:44px}.hm-char-i{width:32px;height:32px}}
+
+
+/* Cinder companion capsule + responsive lobby polish */
+.hm-pet{
+  position:absolute;right:max(16px,env(safe-area-inset-right));bottom:calc(max(16px,env(safe-area-inset-bottom)) + 96px);
+  display:flex;align-items:center;gap:11px;padding:9px 17px 9px 9px;min-height:68px;
+  border:1px solid rgba(255,150,76,.52)!important;border-radius:22px;
+  background:linear-gradient(135deg,rgba(38,23,19,.94),rgba(12,17,26,.92));
+  box-shadow:0 10px 30px rgba(0,0,0,.4),0 0 24px rgba(255,102,32,.12);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);z-index:3;
+  transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease;
+}
+.hm-pet:hover{transform:translateY(-2px);border-color:rgba(255,176,102,.9)!important;box-shadow:0 12px 34px rgba(0,0,0,.46),0 0 28px rgba(255,102,32,.22)}
+.hm-pet-ring{width:48px;height:48px;position:relative;display:grid;place-items:center;flex:none}
+.hm-pet-ring svg{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg);overflow:visible}
+.hm-pet-track,.hm-pet-health{fill:none;stroke-width:3.5}
+.hm-pet-track{stroke:rgba(255,255,255,.14)}
+.hm-pet-health{stroke:#ff8a3d;stroke-linecap:round;stroke-dasharray:113.1;stroke-dashoffset:0;filter:drop-shadow(0 0 4px rgba(255,112,45,.8));transition:stroke-dashoffset .35s ease,stroke .25s ease}
+.hm-pet-icon{font-size:23px;color:#ffd0a0;text-shadow:0 0 14px rgba(255,126,48,.6)}
+.hm-pet-copy{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left}
+.hm-pet-copy b{font-size:11px;letter-spacing:.1em;color:#ffd2a8}
+.hm-pet-copy small{font-size:11px;color:rgba(255,255,255,.64);white-space:nowrap}
+.hm-pet.deployed{border-color:rgba(255,92,46,.8)!important;box-shadow:0 0 28px rgba(255,82,32,.22)}
+.hm-pet.deployed .hm-pet-health{stroke:#ff4c35}
+.hm-pet.deployed .hm-pet-icon{color:#ff7b3d;animation:hmPetPulse 1.25s ease-in-out infinite}
+@keyframes hmPetPulse{50%{transform:scale(1.12);filter:drop-shadow(0 0 9px #ff5c25)}}
+.hm-hint{max-width:45vw;text-align:center}
+@media(max-width:700px){
+  .hm-title{top:max(12px,env(safe-area-inset-top));font-size:13px;letter-spacing:.22em}
+  .hm-profile{left:max(10px,env(safe-area-inset-left));top:max(10px,env(safe-area-inset-top));min-height:44px;padding:5px 11px 5px 5px;gap:7px}
+  .hm-av{width:34px;height:34px;font-size:16px}
+  .hm-pi b{font-size:12px;max-width:25vw}.hm-pi small{font-size:10px}
+  .hm-tr{right:max(10px,env(safe-area-inset-right));top:max(10px,env(safe-area-inset-top));gap:6px}
+  .hm-ic{width:42px;height:42px;border-radius:13px}.hm-ic svg{width:21px;height:21px}
+  .hm-char{top:calc(max(10px,env(safe-area-inset-top)) + 52px);left:max(10px,env(safe-area-inset-left));min-height:42px;padding:5px 10px 5px 5px;gap:7px}
+  .hm-char-i{width:31px;height:31px;font-size:16px}.hm-char-t small{font-size:8px}.hm-char-t b{font-size:11px}.hm-char-s{font-size:15px}
+  .hm-pet{right:max(10px,env(safe-area-inset-right));bottom:calc(max(12px,env(safe-area-inset-bottom)) + 74px);min-height:58px;padding:6px 11px 6px 7px;gap:8px;border-radius:18px}
+  .hm-pet-ring{width:40px;height:40px}.hm-pet-icon{font-size:19px}.hm-pet-copy b{font-size:9px}.hm-pet-copy small{font-size:10px}
+  .hm-shop{left:max(10px,env(safe-area-inset-left));bottom:max(12px,env(safe-area-inset-bottom));padding:8px 14px;min-height:48px}
+  .hm-play{right:max(10px,env(safe-area-inset-right));bottom: max(12px,env(safe-area-inset-bottom));min-height:54px}
+  .hm-hint{bottom:calc(max(12px,env(safe-area-inset-bottom)) + 64px);font-size:10px;max-width:55vw}
+}
+@media(max-width:390px){
+  .hm-pet{bottom:calc(max(10px,env(safe-area-inset-bottom)) + 66px)}
+  .hm-pet-copy small{max-width:135px;white-space:normal}
+  .hm-shop{font-size:11px}
+}
+@media(prefers-reduced-motion:reduce){
+  .hm-pet,.hm-pet-health{transition:none!important}
+  .hm-pet.deployed .hm-pet-icon{animation:none!important}
+}
+
+@media(max-width:700px) and (orientation:portrait){
+  .hm-pet{bottom:max(12px,env(safe-area-inset-bottom));right:max(10px,env(safe-area-inset-right));}
+  .hm-pet-copy small{max-width:125px}
+}
