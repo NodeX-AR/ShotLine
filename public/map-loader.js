@@ -16,7 +16,6 @@
   }
 
   const MAP_FILE   = 'models/map.glb';
-  const MAP_URL = MAP_FILE + '?v=3';
   const MAP_SCALE  = 1;   // already authored at human/game scale (~93 x 32 x 64 units) — no correction needed
   const MAP_ROT_Y  = 0;   // radians, in case the model faces the wrong way once you can see it
 
@@ -79,7 +78,7 @@
     return comps;
   }
 
-  window.MAP_GLB_PROMISE = fetch(MAP_URL, { cache: 'reload' })
+  window.MAP_GLB_PROMISE = fetch(MAP_FILE, { cache: 'no-store' })
     .then(r => {
       if (!r.ok) throw new Error('HTTP ' + r.status + ' for ' + MAP_FILE);
       return r.arrayBuffer();
@@ -147,7 +146,6 @@
 
           console.log('[map-loader] ' + MAP_FILE + ' loaded ·', colliders.length,
                       'colliders ·', spawns.length, 'spawn candidates · floor snapped to y=0 (was ' + floorY.toFixed(2) + ')');
-          window.__GLB_MAP_SPAWNS = spawns.slice();
           resolve({ scene, colliders, spawns });
         } catch (err) { reject(err); }
       }, reject);

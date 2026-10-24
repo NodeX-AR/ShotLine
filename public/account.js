@@ -76,28 +76,26 @@ function withSkin(cb){
 function drawHead(cv,skin){const g=cv.getContext('2d');g.imageSmoothingEnabled=false;g.clearRect(0,0,cv.width,cv.height);if(!skin)return;g.drawImage(skin,8,8,8,8,0,0,cv.width,cv.height);g.drawImage(skin,40,8,8,8,0,0,cv.width,cv.height);}
 function renderOperator(){
   const el=$('opCard');if(!el)return;const m=A.me;
-  if(!m){el.innerHTML='<div class="eyebrow">Operator</div><div class="op-guest"><b>Guest</b><span>Guests can play, but coins, skins, levels and the shop need an account.</span><button class="chip" id="opLogin">Log in / Sign up</button></div>';
+  if(!m){el.innerHTML='<div class="eyebrow">Operator</div><div class="op-guest"><b>Guest</b><span>Guests can play, but coins, levels and the shop need an account.</span><button class="chip" id="opLogin">Log in / Sign up</button></div>';
     const b=$('opLogin');if(b)b.onclick=showAuth;return;}
   const lv=m.level||1,span=Math.max(1,m.xpNext-m.xpThis),pc=Math.min(100,Math.max(0,(m.xp-m.xpThis)/span*100));
   const pw={heal:'Healing Ring',poison:'Poison Ring',dash:'Dash',shield:'Shield Pulse',spectral:'Spectral Arrow',frost:'Frost Nova',adrenaline:'Adrenaline'}[m.power]||'None equipped';
-  el.innerHTML='<div class="eyebrow">Operator</div><div class="op-top"><canvas id="opSkin" width="96" height="192" aria-label="Your skin"></canvas><div class="op-info"><div class="op-name">'+A.nameHTML(m.un,m.col,m.tag,lv)+'</div><div class="op-title">'+m.title+' · Level '+lv+'</div><div class="bar"><i style="width:'+pc.toFixed(1)+'%;background:linear-gradient(90deg,var(--accent),var(--gold))"></i></div><small>'+Math.max(0,m.xpNext-m.xp).toLocaleString()+' XP to level '+(lv+1)+'</small></div></div>'+
+  el.innerHTML='<div class="eyebrow">Operator</div><div class="op-top"><div class="op-av" aria-hidden="true">'+(m.un||'?')[0].toUpperCase()+'</div><div class="op-info"><div class="op-name">'+A.nameHTML(m.un,m.col,m.tag,lv)+'</div><div class="op-title">'+m.title+' · Level '+lv+'</div><div class="bar"><i style="width:'+pc.toFixed(1)+'%;background:linear-gradient(90deg,var(--accent),var(--gold))"></i></div><small>'+Math.max(0,m.xpNext-m.xp).toLocaleString()+' XP to level '+(lv+1)+'</small></div></div>'+
    '<div class="op-stats"><div><b>'+(m.kills||0).toLocaleString()+'</b><span>Kills</span></div><div><b>'+fmtTime(m.playsec||0)+'</b><span>Played</span></div><div><b>'+m.money.toLocaleString()+'</b><span>Coins</span></div></div>'+
-   '<div class="op-load"><div class="lo"><span>Power</span><b>'+pw+'</b></div><div class="lo"><span>Drone</span><b>'+((m.items||[]).includes('pet_buddy')?'Ready':'Not owned')+'</b></div></div>'+
+   '<div class="op-load"><div class="lo"><span>Power</span><b>'+pw+'</b></div><div class="lo"><span>Fox</span><b>'+((m.items||[]).includes('pet_buddy')?'Ready':'Not owned')+'</b></div></div>'+
    '<button class="chip" id="opShop">Open shop &amp; profile</button>';
   const sb=$('opShop');if(sb)sb.onclick=()=>{const t=document.querySelector('.tab-btn[data-tab="shop"]');if(t)t.click();};
-  withSkin(cv=>{const c=$('opSkin');if(c)drawPreview(c,cv);});
 }
 function renderBar(){
   const bar=$('acctBar');if(!bar)return;const m=A.me,nm=$('name');
   if(!m){bar.innerHTML='<span class="who">Guest</span><button class="chip" id="barLogin">Log in / Sign up</button>';
     const b=$('barLogin');if(b)b.onclick=showAuth;if(nm){nm.readOnly=false;}renderOperator();return;}
-  bar.innerHTML='<canvas class="av" id="barAv" width="32" height="32" aria-hidden="true"></canvas><span class="who">'+A.nameHTML(m.un,m.col,m.tag,m.level)+'</span>'+
+  bar.innerHTML='<span class="av" aria-hidden="true">'+(m.un||'?')[0].toUpperCase()+'</span><span class="who">'+A.nameHTML(m.un,m.col,m.tag,m.level)+'</span>'+
     '<span class="coins">'+SVGC+'<b id="coinNum">'+m.money.toLocaleString()+'</b></span>'+
     '<button class="chip ghost" id="barOut">Log out</button>';
   $('barOut').onclick=A.logout;
   if(nm){nm.value=m.un;nm.readOnly=true;}
   const mp=$('mpPower');if(mp)mp.textContent=m.power?('Online power: '+({heal:'Healing Ring',poison:'Poison Ring',dash:'Dash',shield:'Shield Pulse',spectral:'Spectral Arrow',frost:'Frost Nova',adrenaline:'Adrenaline'}[m.power]||m.power)):'Online power: none equipped (see Shop)';
-  withSkin(cv=>{const c=$('barAv');if(c)drawHead(c,cv);});
   renderOperator();
 }
 A.setCoins=function(total){if(A.me){A.me.money=total;const n=$('coinNum');if(n)n.textContent=total.toLocaleString();renderShop();renderOperator();}};
@@ -133,19 +131,13 @@ function wire(){
   $('authSignupForm').onsubmit=async e=>{e.preventDefault();
     if($('suPw').value!==$('suPw2').value){say('Passwords do not match',true);return;}
     say('Creating account…');
-    const j=await api('signup',{un:$('suUn').value.trim(),pw:$('suPw').value,skin:signupSkin?signupSkin.b64:undefined,slim:$('suSlim').checked});
+    const j=await api('signup',{un:$('suUn').value.trim(),pw:$('suPw').value});
     if(!j.ok){say(j.error||'Sign-up failed',true);return;}
     setSession(j.token,j.me);$('recCode').textContent=j.recovery;show('authRecovery');};
   $('recDone').onclick=()=>{enterMenu();claimDaily(true);};
   $('authResetForm').onsubmit=async e=>{e.preventDefault();say('Resetting…');
     const j=await api('reset',{un:$('rsUn').value.trim(),code:$('rsCode').value.trim(),pw:$('rsPw').value});
     if(!j.ok){say(j.error||'Reset failed',true);return;}show('authLoginForm');say('Password changed — log in with the new one.');};
-  $('suSkin').onchange=e=>pickSkin(e.target.files[0],(r,err)=>{if(!r){signupSkin=null;drawPreview($('suPrev'),null);say(err,true);return;}signupSkin=r;drawPreview($('suPrev'),r.cv);say('');});
-  $('pfSkin').onchange=e=>pickSkin(e.target.files[0],(r,err)=>{if(!r){profileSkin=null;say(err,true);return;}profileSkin=r;drawPreview($('pfPrev'),r.cv);$('pfUp').disabled=false;});
-  $('pfUp').onclick=async()=>{if(!profileSkin)return;$('pfUp').disabled=true;
-    const j=await api('skin',{skin:profileSkin.b64,slim:$('pfSlim').checked});
-    if(!j.ok){if(A.notify)A.notify(j.error||'Upload failed');$('pfUp').disabled=false;return;}
-    A.me=j.me;profileSkin=null;changed();if(A.notify)A.notify('Skin updated');renderShop();};
   $('dailyBtn').onclick=()=>claimDaily(false);
   $('colApplySolid').onclick=()=>setColor($('colSolid').value);
   $('colApplyGrad').onclick=()=>setColor('g:'+$('colG1').value+','+$('colG2').value);

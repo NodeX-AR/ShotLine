@@ -4,7 +4,7 @@
    - 1 skin pixel = 0.05625 m  ->  32px tall = 1.8 m                              */
 window.SOLDIER_GEN=(function(){
 'use strict';
-const U=0.05625, HIPY=12*U;
+const U=0.05625, HIPY=12*U*1.28;
 const SKIN_W=64;
 
 /* ---------- skin helpers ---------- */
@@ -68,43 +68,64 @@ function defaultSkin(seed){
 const texCache=new Map();
 function makeTexture(canvas){
   const t=new THREE.CanvasTexture(canvas);
-  t.magFilter=THREE.NearestFilter;t.minFilter=THREE.NearestFilter;t.generateMipmaps=false;
+  t.magFilter=THREE.NearestFilter;t.minFilter=THREE.NearestMipmapLinearFilter;t.generateMipmaps=true;t.anisotropy=4;
   if(THREE.sRGBEncoding)t.encoding=THREE.sRGBEncoding;else if(THREE.SRGBColorSpace)t.colorSpace=THREE.SRGBColorSpace;
   t.needsUpdate=true;return t;
 }
 
 /* ---------- geometry: a box UV-mapped onto the skin sheet ----------
    w,h,d: pixel size; ox,oy: skin origin; fa..fb: vertical slice of the box (0 top .. 1 bottom); infl: extra px */
-function mcGeo(w,h,d,ox,oy,fa,fb,infl){
+const LF=1.28,TF=0.88,HS=0.70;           // leg length, torso compression, head scale (human proportions)
+const lerpK=(pts,t)=>{for(let i=1;i<pts.length;i++){if(t<=pts[i][0]){const [t0,v0]=pts[i-1],[t1,v1]=pts[i];return v0+(v1-v0)*(t-t0)/(t1-t0||1);}}return pts[pts.length-1][1];};
+const PROF={
+  torso:{x:[[0,1.26],[.28,1.2],[.65,0.96],[1,0.92]],z:[[0,0.98],[.3,1.12],[1,0.92]],rr:0.78},
+  arm:{x:[[0,1.12],[.2,1.06],[.5,0.86],[1,0.62]],z:[[0,1.12],[.2,1.06],[.5,0.86],[1,0.64]],rr:0.95},
+  leg:{x:[[0,1.22],[.45,0.9],[.66,0.98],[1,0.68]],z:[[0,1.2],[.45,0.92],[.66,1.0],[1,0.7]],rr:0.92},
+  head:{x:[[0,0.86],[.5,1],[1,0.8]],z:[[0,0.92],[.5,1],[1,0.9]],rr:0.8}
+};
+function mcGeo(w,h,d,ox,oy,fa,fb,infl,kind,tw){
   fa=fa||0;fb=fb===undefined?1:fb;infl=infl||0;
-  const sh=(fb-fa)*h;
-  const g=new THREE.BoxGeometry((w+infl)*U,(sh+infl)*U,(d+infl)*U);
-  const faces=[
-    [ox+d+w,oy+d,d,h,true],   // +X  (character's left)
-    [ox,oy+d,d,h,true],       // -X  (character's right)
-    [ox+d,oy,w,d,false],      // +Y
-    [ox+d+w,oy,w,d,false],    // -Y
-    [ox+d,oy+d,w,h,true],     // +Z  front
-    [ox+2*d+w,oy+d,w,h,true]  // -Z  back
-  ];
-  const uv=g.attributes.uv;
-  for(let f=0;f<6;f++){
+  const sh=(fb-fa)*h,sy=kind==='torso'?TF:kind==='leg'?LF:kind==='head'?HS:1;
+  const g=new THREE.BoxGeometry((w+infl)*U,(sh+infl)*U,(d+infl)*U,kind==='head'?8:(kind?5:2),kind==='head'?8:(kind?4:3),kind==='head'?8:(kind?5:2));
+  const faces=[[ox+d+w,oy+d,d,h,true],[ox,oy+d,d,h,true],[ox+d,oy,w,d,false],[ox+d+w,oy,w,d,false],[ox+d,oy+d,w,h,true],[ox+2*d+w,oy+d,w,h,true]];
+  const uv=g.attributes.uv,nr=g.attributes.normal,ps=g.attributes.position;
+  for(let i=0;i<ps.count;i++){
+    const nx=nr.getX(i),ny=nr.getY(i),nz=nr.getZ(i),ax=Math.abs(nx),ay=Math.abs(ny),az=Math.abs(nz);
+    let f=ax>=ay&&ax>=az?(nx>0?0:1):(ay>=az?(ny>0?2:3):(nz>0?4:5));
     let [x,y,rw,rh,side]=faces[f];
     if(side){y=y+fa*h;rh=sh;}
-    else if((f===2&&fa>0)||(f===3&&fb<1)){rw=0.01;rh=0.01;}   // hidden cap of a partial slice
-    for(let k=0;k<4;k++){
-      const i=f*4+k,a=uv.getX(i),b=uv.getY(i);
-      uv.setXY(i,(x+a*rw)/SKIN_W,1-(y+(1-b)*rh)/SKIN_W);
-    }
+    else if((f===2&&fa>0)||(f===3&&fb<1)){rw=0.01;rh=0.01;}
+    const a=uv.getX(i),b=uv.getY(i);
+    uv.setXY(i,(x+a*rw)/SKIN_W,1-(y+(1-b)*rh)/SKIN_W);
   }
-  uv.needsUpdate=true;return g;
+  uv.needsUpdate=true;
+  if(kind&&PROF[kind]){
+    const P=PROF[kind],A=(w+infl)*U/2,B=(sh+infl)*U/2,C=(d+infl)*U/2,v=new THREE.Vector3();
+    for(let i=0;i<ps.count;i++){
+      let x=ps.getX(i),y=ps.getY(i),z=ps.getZ(i);
+      const t=fa+(0.5-y/(2*B))*(fb-fa);
+      let qx=x/A,qz=z/C,qy=y/B;
+      if(kind==='head'){const m=Math.max(Math.abs(qx),Math.abs(qy),Math.abs(qz)),l=Math.hypot(qx,qy,qz)||1,k=1+(m/l-1)*P.rr;qx*=k;qy*=k;qz*=k;}
+      else{const m=Math.max(Math.abs(qx),Math.abs(qz)),l=Math.hypot(qx,qz)||1,k=1+(m/l-1)*P.rr;qx*=k;qz*=k;}
+      const sx=lerpK(P.x,t)*(tw||1),sz=lerpK(P.z,t);
+      x=qx*A*sx;z=qz*C*sz;y=(kind==='head'?qy*B:y)*sy;
+      if(kind==='leg'&&t>0.82&&z<0)z-= (t-0.82)/0.18*0.05*(0.5+0.5*(1-Math.abs(qx)));  // toe of the boot
+      ps.setXYZ(i,x,y,z);
+      const nyv=nr.getY(i);
+      if(kind==='head'){v.set(qx,qy,qz).normalize();nr.setXYZ(i,v.x,v.y,v.z);}
+      else if(Math.abs(nyv)<0.5){v.set(qx,0,qz).normalize().multiplyScalar(0.85).add(new THREE.Vector3(nr.getX(i),0,nr.getZ(i)).multiplyScalar(0.15)).normalize();nr.setXYZ(i,v.x,0,v.z);}
+    }
+    ps.needsUpdate=true;nr.needsUpdate=true;
+  }
+  return g;
 }
+const AX=6.7*U,LX=2.35*U;
 const BD={
-  Hips:[null,0,HIPY,0],Spine:['Hips',0,0,0],Spine1:['Spine',0,4*U,0],Spine2:['Spine1',0,4*U,0],Neck:['Spine2',0,4*U,0],Head:['Neck',0,0,0],HeadTop_End:['Head',0,8*U,0],
-  RightShoulder:['Spine2',0,4*U,0],RightArm:['RightShoulder',-6*U,0,0],RightForeArm:['RightArm',0,-6*U,0],RightHand:['RightForeArm',0,-6*U,0],
-  LeftShoulder:['Spine2',0,4*U,0],LeftArm:['LeftShoulder',6*U,0,0],LeftForeArm:['LeftArm',0,-6*U,0],LeftHand:['LeftForeArm',0,-6*U,0],
-  LeftUpLeg:['Hips',2*U,0,0],LeftLeg:['LeftUpLeg',0,-6*U,0],LeftFoot:['LeftLeg',0,-6*U,0],LeftToeBase:['LeftFoot',0,0,3*U],
-  RightUpLeg:['Hips',-2*U,0,0],RightLeg:['RightUpLeg',0,-6*U,0],RightFoot:['RightLeg',0,-6*U,0],RightToeBase:['RightFoot',0,0,3*U]
+  Hips:[null,0,HIPY,0],Spine:['Hips',0,0,0],Spine1:['Spine',0,4*U*TF,0],Spine2:['Spine1',0,4*U*TF,0],Neck:['Spine2',0,4*U*TF,0],Head:['Neck',0,0,0],HeadTop_End:['Head',0,8*U*HS,0],
+  RightShoulder:['Spine2',0,4*U*TF,0],RightArm:['RightShoulder',-AX,0,0],RightForeArm:['RightArm',0,-6.2*U,0],RightHand:['RightForeArm',0,-6.2*U,0],
+  LeftShoulder:['Spine2',0,4*U*TF,0],LeftArm:['LeftShoulder',AX,0,0],LeftForeArm:['LeftArm',0,-6.2*U,0],LeftHand:['LeftForeArm',0,-6.2*U,0],
+  LeftUpLeg:['Hips',LX,0,0],LeftLeg:['LeftUpLeg',0,-6*U*LF,0],LeftFoot:['LeftLeg',0,-6*U*LF,0],LeftToeBase:['LeftFoot',0,0,3*U],
+  RightUpLeg:['Hips',-LX,0,0],RightLeg:['RightUpLeg',0,-6*U*LF,0],RightFoot:['RightLeg',0,-6*U*LF,0],RightToeBase:['RightFoot',0,0,3*U]
 };
 function build(opt){
   opt=opt||{};const slim=!!opt.slim,aw=slim?3:4;
@@ -115,7 +136,10 @@ function build(opt){
     const m=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.95,metalness:0,alphaTest:over?0.5:0,side:over?THREE.DoubleSide:THREE.FrontSide}));
     m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;m.frustumCulled=false;m.userData.mc=over?2:1;bones[bone].add(m);return m;};
   const part=(bone,w,h,d,ox,oy,fa,fb,cy,over,infl,cx)=>{
-    const sh=(fb-fa)*h;mk(mcGeo(w,h,d,ox,oy,fa,fb,over?infl:0),bone,cx||0,cy,0,over);};
+    const kind=/^Head/.test(bone)?'head':/Spine/.test(bone)?'torso':/Leg/.test(bone)?'leg':'arm';
+    const sh=(fb-fa)*h,sc=kind==='torso'?TF:kind==='leg'?LF:kind==='head'?HS:1;
+    // arm/leg slices: whole-limb profile is applied through fa/fb so both halves taper smoothly
+    mk(mcGeo(w,h,d,ox,oy,fa,fb,over?infl:0,kind,kind==='arm'&&w===3?0.94:1),bone,cx||0,cy*(kind==='head'?HS:sc===1?1:sc),0,over);};
   for(const over of [false,true]){
     const ov=over?1:0, i1=over?0.5:0;
     // head
@@ -150,21 +174,23 @@ function build(opt){
       RightArm:q(0,0,-0.07+sw*0.015),LeftArm:q(0,0,0.07-sw*0.015),RightForeArm:q(0.10,0,0),LeftForeArm:q(0.10,0,0),
       Hips:new THREE.Vector3(sw*0.004,HIPY+br*0.002,0)};
   });
-  const walk=sampleClip('Walk',1.0,40,(t)=>{
-    const ph=t*Math.PI*2,sL=Math.sin(ph)*0.62,sR=Math.sin(ph+Math.PI)*0.62;
-    const bL=Math.max(0,Math.sin(ph+Math.PI))*0.7,bR=Math.max(0,Math.sin(ph))*0.7;
-    const aR=-Math.sin(ph)*0.5,aL=-Math.sin(ph+Math.PI)*0.5,tw=sL*0.06;
-    return {LeftUpLeg:q(-sL,0,0),LeftLeg:q(bL,0,0),RightUpLeg:q(-sR,0,0),RightLeg:q(bR,0,0),
-      RightArm:q(aR,0,-0.06),LeftArm:q(aL,0,0.06),RightForeArm:q(0.2+Math.max(0,aR)*0.5,0,0),LeftForeArm:q(0.2+Math.max(0,aL)*0.5,0,0),
-      Hips:new THREE.Vector3(0,HIPY+Math.abs(Math.sin(ph))*0.02,0),Spine1:q(0,tw,0),Spine2:q(0.02,-tw*0.6,0),Head:q(0,-tw*0.2,0)};
+  const walk=sampleClip('Walk',1.0,48,(t)=>{
+    const ph=t*Math.PI*2,sn=Math.sin(ph),cs=Math.cos(ph);
+    const sL=sn*0.58,sR=-sn*0.58,bL=Math.max(0,-cs)*0.62,bR=Math.max(0,cs)*0.62;
+    const aR=sn*0.45,aL=-sn*0.45,tw=sn*0.09;
+    return {LeftUpLeg:q(-sL,0,0.02),LeftLeg:q(bL,0,0),LeftFoot:q(sL*0.25-bL*0.2,0,0),RightUpLeg:q(-sR,0,-0.02),RightLeg:q(bR,0,0),RightFoot:q(sR*0.25-bR*0.2,0,0),
+      RightArm:q(aR,0,-0.07),LeftArm:q(aL,0,0.07),RightForeArm:q(0.22+Math.max(0,aR)*0.5,0,0),LeftForeArm:q(0.22+Math.max(0,aL)*0.5,0,0),
+      Hips:new THREE.Vector3(Math.sin(ph)*0.012,HIPY-0.012+Math.abs(cs)*0.026,0),Spine:q(0.03,tw*0.8,sn*0.025),Spine1:q(0,-tw*0.6,0),Spine2:q(0.02,-tw*0.5,-sn*0.02),Head:q(-0.03,tw*0.8,0)};
   });
-  const run=sampleClip('Run',0.7,36,(t)=>{
-    const ph=t*Math.PI*2,sL=Math.sin(ph)*0.95,sR=Math.sin(ph+Math.PI)*0.95;
-    const bL=Math.max(0,Math.sin(ph+Math.PI))*1.25,bR=Math.max(0,Math.sin(ph))*1.25;
-    const aR=-Math.sin(ph)*1.0,aL=-Math.sin(ph+Math.PI)*1.0,tw=sL*0.12;
-    return {LeftUpLeg:q(-sL,0,0),LeftLeg:q(bL,0,0),RightUpLeg:q(-sR,0,0),RightLeg:q(bR,0,0),
-      RightArm:q(aR,0,-0.1),LeftArm:q(aL,0,0.1),RightForeArm:q(1.0+Math.max(0,aR)*0.4,0,0),LeftForeArm:q(1.0+Math.max(0,aL)*0.4,0,0),
-      Hips:new THREE.Vector3(0,HIPY+Math.abs(Math.sin(ph))*0.035,0),Spine:q(0.14,0,0),Spine1:q(0,tw,0),Spine2:q(0.04,-tw*0.7,0),Head:q(-0.05,-tw*0.12,0)};
+  // Sprint: strong forward lean, high knee drive, pumping bent arms, pelvis twist + bounce, planted-foot toe-off
+  const run=sampleClip('Run',0.62,48,(t)=>{
+    const ph=t*Math.PI*2,sn=Math.sin(ph),cs=Math.cos(ph);
+    const sL=sn*1.05,sR=-sn*1.05;
+    const bL=Math.max(0,-cs)*1.55+Math.max(0,sn)*0.2,bR=Math.max(0,cs)*1.55+Math.max(0,-sn)*0.2;
+    const aR=sn*1.15,aL=-sn*1.15,tw=sn*0.2;
+    return {LeftUpLeg:q(-sL,0,0.03),LeftLeg:q(bL,0,0),LeftFoot:q(sL*0.3-bL*0.25+0.1,0,0),RightUpLeg:q(-sR,0,-0.03),RightLeg:q(bR,0,0),RightFoot:q(sR*0.3-bR*0.25+0.1,0,0),
+      RightArm:q(aR,0,-0.12),LeftArm:q(aL,0,0.12),RightForeArm:q(1.25+Math.max(0,aR)*0.35,0,0),LeftForeArm:q(1.25+Math.max(0,aL)*0.35,0,0),
+      Hips:new THREE.Vector3(sn*0.018,HIPY-0.05+Math.abs(Math.sin(ph))*0.06,0),Spine:q(0.2,tw*0.7,sn*0.05),Spine1:q(0.05,-tw*0.9,-sn*0.03),Spine2:q(0.05,-tw*0.6,0),Neck:q(-0.1,0,0),Head:q(-0.12,tw*0.5,-sn*0.03)};
   });
   return {scene:root,animations:[idle,walk,run]};
 }
