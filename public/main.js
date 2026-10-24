@@ -162,9 +162,9 @@ function ultraHeroMoment(){ultraSlowTimer=Math.max(ultraSlowTimer,0.4);ultraPuls
 const ULTRA_PROGRESS_KEY='shotline.ultra.progress.v1';
 const ultraProgress={xp:0,level:1,credits:0,kills:0};
 try{const saved=JSON.parse(localStorage.getItem(ULTRA_PROGRESS_KEY)||'{}');for(const k of Object.keys(ultraProgress))if(Number.isFinite(saved[k])&&saved[k]>=0)ultraProgress[k]=saved[k];}catch(e){}
-function renderUltraProgress(){let need=ultraProgress.level*100,inside=ultraProgress.xp%need;const lv=document.getElementById('ultraLevel'),tx=document.getElementById('ultraXpText'),fill=document.getElementById('ultraXpFill');if(lv)lv.textContent='LV '+ultraProgress.level;if(tx)tx.textContent=inside+' / '+need+' XP';if(fill)fill.style.width=Math.min(100,inside/need*100)+'%';document.body.classList.toggle('hud-critical',!!(player&&player.hp<=20&&player.hp>0));document.body.classList.toggle('ultra-critical',!!(player&&player.hp<=25&&player.hp>0));}
+function renderUltraProgress(){let need=ultraProgress.level*100,inside=ultraProgress.xp%need;const lv=document.getElementById('ultraLevel'),tx=document.getElementById('ultraXpText'),fill=document.getElementById('ultraXpFill');if(lv)lv.textContent='LV '+ultraProgress.level;if(tx)tx.textContent=inside+' / '+need+' XP';if(fill)fill.style.width=Math.min(100,inside/need*100)+'%';const menuXp=document.getElementById('xpVal'),menuFill=document.getElementById('xpFill'),menuLv=document.getElementById('menuLevel'),menuKills=document.getElementById('menuKills'),menuCredits=document.getElementById('menuCredits'),menuName=document.getElementById('userName');if(menuXp)menuXp.textContent=inside+' / '+need;if(menuFill)menuFill.style.width=Math.min(100,inside/need*100)+'%';if(menuLv)menuLv.textContent=String(ultraProgress.level).padStart(2,'0');if(menuKills)menuKills.textContent=String(ultraProgress.kills).padStart(2,'0');if(menuCredits)menuCredits.textContent=String(ultraProgress.credits).padStart(2,'0');if(menuName){let n='COMMANDER';try{n=localStorage.getItem('shotline.name')||document.getElementById('name')?.value||n;}catch(e){}menuName.textContent=String(n).toUpperCase().slice(0,14);}document.body.classList.toggle('hud-critical',!!(player&&player.hp<=20&&player.hp>0));document.body.classList.toggle('ultra-critical',!!(player&&player.hp<=25&&player.hp>0));}
 function ultraAwardKill(head){ultraProgress.kills++;ultraProgress.xp+=head?150:100;ultraProgress.credits+=head?15:10;let changed=false;while(ultraProgress.xp>=ultraProgress.level*100){ultraProgress.level++;changed=true;}try{localStorage.setItem(ULTRA_PROGRESS_KEY,JSON.stringify(ultraProgress));}catch(e){}renderUltraProgress();if(changed)toast('LEVEL UP · '+ultraProgress.level,'good');}
-renderUltraProgress();
+/* Initial menu XP render is deferred until the player binding has been initialized below. */
 /* Cannon-es bridge for physical shell casings and dropped magazines. The existing player/map
    collision solver remains authoritative so movement and network sync are not destabilized. */
 let ultraPhysics=null;
@@ -2275,7 +2275,7 @@ function applyMeta(f,m){
   applyIdentity(f,{slim:m.sm==='slim',col:m.col,tag:m.tag,skin:(m.sv|0)>0?'/api/skin/'+encodeURIComponent(f.name)+'?v='+(m.sv|0):null});
 }
 function setFighterWeapon(f,kind){if(!kind)kind='rifle';if(f.weaponKind===kind&&f.mesh)return;f.weaponKind=kind;f.weaponState=f.weaponState||{revision:0};f.weaponState.id=kind;f.weaponState.revision=(f.weaponState.revision||0)+1;if(!f.mesh){makePlayerMesh(f);return;}CH.setGun(f,kind);f.ammo=undefined;f.rlT=0;}
-const player=makeFighter('You',true,0x6fe3ff);fighters.push(player);
+let player=makeFighter('You',true,0x6fe3ff);fighters.push(player);renderUltraProgress();
 makePlayerMesh(player);player.mesh.visible=false;
 
 const CAMERA_MODES=[
@@ -2818,6 +2818,7 @@ function hideAdminPrompt(){$('adminPrompt').classList.add('hidden');if(state==='
 $('adminOk').addEventListener('click',()=>{const pass=$('adminPass').value;if(!pass){$('adminMsg').textContent='Enter a password.';return;}if(!net.ws||net.ws.readyState!==1){$('adminMsg').textContent='Not connected.';return;}net.ws.send(JSON.stringify({t:adminPromptMode==='teleport'?'teleport':'admin',pass}));$('adminMsg').textContent='Transmitting…';});
 $('adminCancel').addEventListener('click',hideAdminPrompt);
 $('adminPass').addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter'){e.preventDefault();$('adminOk').click();}else if(e.key==='Escape')hideAdminPrompt();});
+document.querySelectorAll('[data-tab-jump]').forEach(el=>el.addEventListener('click',()=>{const target=el.getAttribute('data-tab-jump');const tab=document.querySelector('.tab-btn[data-tab="'+target+'"]');if(tab)tab.click();}));
 $('playSolo').addEventListener('click',()=>startGame('single'));
 $('playMulti').addEventListener('click',()=>startGame('multi'));
 $('leave').addEventListener('click',e=>{e.stopPropagation();leaveMatch();});
