@@ -128,3 +128,51 @@ export async function verifyPassword(pw, stored) {
   let d = 0; for (let i = 0; i < want.length; i++) d |= want[i] ^ got[i];
   return d === 0;
 }
+
+/* ======================================================================
+   Match rules + movement-tech validation (pure; unit-tested in tests/systems.cjs).
+   The arena used to be endless; a match is now first-to-scoreLimit or durationMs,
+   followed by an intermission. All state lives in memory on the Durable Object
+   (never on the 2 KB WebSocket attachment).
+   ====================================================================== */
+export const MATCH = { scoreLimit: 25, durationMs: 10 * 60 * 1000, intermissionMs: 15000 };
+
+/* Grapple-sling / chrono-recall server limits.
+   slingLimit is an *apparent* speed ceiling (m/s) applied only inside a short, client-announced,
+   rate-limited window; slingMinDt raises the dt floor so packet bunching cannot inflate apparent speed. */
+export const MOVE_TECH = {
+  slingLimit: 70, slingMinDt: 0.045, slingWindowMs: 12000, slingReleaseMs: 6000, slingRegrantMs: 400,
+  recallCooldownMs: 7000, recallMinAgeMs: 700, recallMaxAgeMs: 6500, recallTolerance: 3.0, recallBlindRange: 40,
+  histKeepMs: 7000,
+};
+
+/* Kills desc, deaths asc, id asc (deterministic). Never mutates the input. */
+export function rankBoard(list) {
+  return list.slice().sort((a, b) =>
+    ((b.kills | 0) - (a.kills | 0)) || ((a.deaths | 0) - (b.deaths | 0)) || String(a.id).localeCompare(String(b.id)));
+}
+
+/* Winner, or null for "no kills at all" / a dead heat on kills AND deaths. */
+export function matchWinner(board) {
+  const r = rankBoard(board);
+  if (!r.length || (r[0].kills | 0) < 1) return null;
+  if (r.length > 1 && (r[1].kills | 0) === (r[0].kills | 0) && (r[1].deaths | 0) === (r[0].deaths | 0)) return null;
+  return r[0];
+}
+
+/* Is a claimed Chrono-Recall destination plausible?
+   hist = [[tMs,x,y,z],...] recorded server-side from accepted state packets.
+   Accept if some sample aged [recallMinAgeMs, recallMaxAgeMs] lies within recallTolerance metres of the target.
+   If there is no usable history (fresh join / instance restart) accept only a short blind hop from `cur`. */
+export function recallPlausible(hist, now, target, cur, M = MOVE_TECH) {
+  if (!target.every(Number.isFinite)) return false;
+  let sawOld = false;
+  for (const h of hist || []) {
+    const age = now - h[0];
+    if (age < M.recallMinAgeMs || age > M.recallMaxAgeMs) continue;
+    sawOld = true;
+    if (Math.hypot(h[1] - target[0], h[2] - target[1], h[3] - target[2]) <= M.recallTolerance) return true;
+  }
+  if (sawOld) return false;
+  return Math.hypot(cur[0] - target[0], cur[1] - target[1], cur[2] - target[2]) <= M.recallBlindRange;
+}

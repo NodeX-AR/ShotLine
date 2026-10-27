@@ -1,0 +1,33 @@
+/* ShotLine AAA HUD — consolidated presentation layer; gameplay stays in main.js. */
+@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700;900&family=Teko:wght@500;600;700&display=swap');
+:root{--sl-cyan:#00f2ff;--sl-amber:#ffbd52;--sl-red:#ff3152;--sl-gold:#ffd700;--sl-glass:rgba(5,13,21,.86);--sl-line:rgba(0,242,255,.42)}
+body{font-family:'Chakra Petch',sans-serif}
+#menu .hud-card,#menu .card,#auth .auth-card,.deployment-panel,#deployPanel{position:relative;border-radius:0;clip-path:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,14px 100%,0 calc(100% - 14px))}
+#menu .hud-card:after,#menu .card:after,#auth .auth-card:after{content:"";position:absolute;inset:0;pointer-events:none;border:1px solid rgba(0,242,255,.12);background:repeating-linear-gradient(180deg,transparent 0 5px,rgba(0,242,255,.025) 6px);opacity:.6}
+#menu button,#auth button,.btn-tactical{font-family:'Chakra Petch',sans-serif;letter-spacing:.06em;text-transform:uppercase}
+#ultra-damage-layer{position:fixed;inset:0;z-index:90;overflow:hidden;pointer-events:none}
+.ultra-damage-number{position:absolute;font:700 30px/1 'Teko','Chakra Petch',sans-serif;letter-spacing:.06em;color:#fff;text-shadow:0 0 9px rgba(255,255,255,.8),0 2px 4px #000;transform:translate(-50%,calc(-50% + var(--rise,0px)));will-change:transform,opacity;white-space:nowrap;pointer-events:none}
+.ultra-damage-number:not(.crit):nth-child(odd){color:var(--sl-amber);text-shadow:0 0 9px rgba(255,189,82,.75),0 2px 4px #000}
+.ultra-damage-number.crit{font-size:42px;color:var(--sl-red);text-shadow:0 0 8px #ff173b,0 0 20px rgba(255,24,59,.95),0 2px 4px #000;animation:ultraCritPop .32s cubic-bezier(.15,1.6,.35,1) both}
+@keyframes ultraCritPop{0%{scale:.3;rotate:-8deg}70%{scale:1.2;rotate:3deg}100%{scale:1;rotate:0}}
+#ultra-cascade{position:fixed;z-index:100;left:50%;top:28%;width:min(90vw,680px);transform:translate(-50%,-20px) skewX(-8deg);opacity:0;pointer-events:none;text-align:center;color:#fff;text-shadow:0 0 16px rgba(0,242,255,.75);border-block:1px solid rgba(0,242,255,.75);padding:12px 24px;background:linear-gradient(90deg,transparent,rgba(3,15,24,.9) 18%,rgba(3,15,24,.9) 82%,transparent);clip-path:polygon(4% 0,100% 0,96% 100%,0 100%);backdrop-filter:blur(8px);box-shadow:0 0 24px rgba(0,242,255,.12)}
+#ultra-cascade.show{animation:ultraCascadeIn 1.65s ease-out both}
+.uc-skull{font-size:34px;color:var(--sl-red);filter:drop-shadow(0 0 10px var(--sl-red));line-height:1}
+.uc-title{font:700 clamp(32px,5vw,54px)/1.05 'Teko','Chakra Petch',sans-serif;letter-spacing:.16em;color:#f5fcff}
+.uc-sub{font:700 10px 'Chakra Petch',sans-serif;letter-spacing:.2em;color:#9debf0;margin-top:5px}
+@keyframes ultraCascadeIn{0%{opacity:0;transform:translate(-50%,-35px) skewX(-8deg);filter:blur(5px)}12%,76%{opacity:1;transform:translate(-50%,0) skewX(-8deg);filter:blur(0)}100%{opacity:0;transform:translate(-50%,18px) skewX(-8deg)}}
+#ultra-bounty{position:fixed;z-index:79;top:17%;left:50%;transform:translateX(-50%);display:none;pointer-events:none;padding:8px 18px;color:#ffdf7b;background:linear-gradient(100deg,rgba(25,15,4,.94),rgba(18,8,12,.84));border:1px solid var(--sl-amber);font:700 14px 'Chakra Petch',sans-serif;letter-spacing:.12em;clip-path:polygon(4% 0,100% 0,96% 100%,0 100%);text-shadow:0 0 12px rgba(255,50,50,.65);box-shadow:0 0 22px rgba(255,189,82,.18)}
+#ultra-bounty.show{display:block;animation:bountyPulse 1.7s ease-in-out infinite alternate}
+@keyframes bountyPulse{to{box-shadow:0 0 22px rgba(255,40,50,.4);border-color:#ffb35c}}
+#ultra-bounty-marker{position:fixed;z-index:78;display:none;transform:translate(-50%,-50%);pointer-events:none;padding:4px 9px;color:#ffe18a;background:rgba(25,12,5,.9);border:1px solid rgba(255,189,82,.8);font:700 11px 'Chakra Petch',sans-serif;letter-spacing:.1em;text-shadow:0 0 9px rgba(255,170,0,.55);white-space:nowrap;clip-path:polygon(0 0,100% 0,100% 70%,calc(100% - 7px) 100%,0 100%)}
+#ultra-bounty-marker.show{display:block}
+#ultra-weapon-inspect{position:fixed;z-index:82;right:22px;bottom:100px;min-width:230px;display:flex;flex-direction:column;gap:4px;padding:13px 18px;background:linear-gradient(110deg,rgba(5,15,22,.94),rgba(8,30,40,.78));border:1px solid rgba(0,242,255,.65);border-right:4px solid var(--sl-cyan);clip-path:polygon(0 0,100% 0,100% 82%,92% 100%,0 100%);opacity:0;transform:translateX(24px);pointer-events:none;font:600 11px 'Chakra Petch',sans-serif;letter-spacing:.13em;color:#b7eaf0;transition:opacity .18s,transform .18s;backdrop-filter:blur(12px);box-shadow:0 0 22px rgba(0,242,255,.12)}
+#ultra-weapon-inspect.show{opacity:1;transform:translateX(0)}
+#ultra-weapon-inspect b{font:700 28px/1 'Teko','Chakra Petch',sans-serif;color:#fff;letter-spacing:.1em}
+#ultra-weapon-inspect span{border-top:1px solid rgba(0,242,255,.14);padding-top:4px}
+#ultra-optics:before{animation:slScanDrift 7s linear infinite}
+@keyframes slScanDrift{0%{transform:translateY(-10%)}100%{transform:translateY(10%)}}
+body.ultra-vignette-pulse:after{content:"";position:fixed;inset:0;z-index:99;pointer-events:none;box-shadow:inset 0 0 100px 20px rgba(0,242,255,.4);animation:ultraEdgePulse .65s ease-out both}
+@keyframes ultraEdgePulse{0%{opacity:0}20%{opacity:1}100%{opacity:0}}
+@media(max-width:650px){#ultra-bounty{top:12%;font-size:12px;max-width:92vw;text-align:center}#ultra-weapon-inspect{right:8px;bottom:85px;min-width:180px}#ultra-cascade{top:24%}}
+@media(prefers-reduced-motion:reduce){#ultra-optics:before,body.ultra-vignette-pulse:after{animation:none!important}*{scroll-behavior:auto!important;transition:none!important}}

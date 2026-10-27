@@ -620,6 +620,9 @@ button:focus-visible{outline:2px solid #9edfff;outline-offset:3px}
 
 </style>
 <link rel="stylesheet" href="home.css">
+<link rel="stylesheet" href="cinematic-stability.css">
+<link rel="stylesheet" href="aaa-hud.css">
+<link rel="stylesheet" href="shotline-systems.css">
 </head>
 <body>
 
@@ -658,6 +661,11 @@ button:focus-visible{outline:2px solid #9edfff;outline-offset:3px}
 <!-- ==========================================================================
      GAME CANVAS + VISUAL OVERLAYS
      ========================================================================== -->
+<div id="ultra-damage-layer" aria-hidden="true"></div>
+<div id="ultra-cascade" aria-live="polite" aria-atomic="true"></div>
+<div id="ultra-bounty" aria-live="polite"></div>
+<div id="ultra-bounty-marker" aria-hidden="true"></div>
+<div id="ultra-weapon-inspect" aria-live="polite"></div>
 <div id="ultra-optics" aria-hidden="true"></div>
 <div id="game"></div>
 <div id="grade" aria-hidden="true"></div>
@@ -939,6 +947,7 @@ button:focus-visible{outline:2px solid #9edfff;outline-offset:3px}
       <label class="toggle-row"><span>Sound effects</span><input id="optSfx" type="checkbox" checked></label>
       <label class="toggle-row"><span>Bot chatter</span><input id="optChat" type="checkbox" checked></label>
       <label class="toggle-row"><span>Laser sight</span><input id="optLaser" type="checkbox" checked></label>
+      <label class="toggle-row"><span>Stunt clip recorder (TikTok export)</span><input id="optClip" type="checkbox" checked></label>
     </div>
     <div class="settings-group">
       <h3>HUD</h3>
@@ -994,6 +1003,12 @@ button:focus-visible{outline:2px solid #9edfff;outline-offset:3px}
         <div class="bind-row"><span>Chat</span><button class="bind-key" data-bind="chat">Enter</button></div>
         <div class="bind-row"><span>Leaderboard</span><button class="bind-key" data-bind="leaderboard">Tab</button></div>
         <div class="bind-row"><span>View (1st/3rd person)</span><button class="bind-key" data-bind="view">V</button></div>
+      </div>
+      <div class="settings-group">
+        <h3>Kinetic</h3>
+        <div class="bind-row"><span>Grapple (hold)</span><button class="bind-key" data-bind="grapple">E</button></div>
+        <div class="bind-row"><span>Chrono-Recall (double-tap)</span><button class="bind-key" data-bind="recall">Q</button></div>
+        <div class="bind-row"><span>Export stunt clip</span><button class="bind-key" data-bind="clip">K</button></div>
       </div>
       <div class="settings-group">
         <h3>Weapons 1–8</h3>
@@ -1113,6 +1128,7 @@ button:focus-visible{outline:2px solid #9edfff;outline-offset:3px}
   <!-- Top-middle: chat + leaderboard -->
   <div id="mTopMid">
     <button class="mbtn" data-act="chat"  aria-label="Chat"        title="Chat"><svg class="micon" viewBox="0 0 24 24"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7A2.5 2.5 0 0 1 17.5 16H10l-4.2 3.2c-.5.4-1.3 0-1.3-.6V16h-.5A2.5 2.5 0 0 1 2 13.5"/><path d="M4 13.5v-7A2.5 2.5 0 0 1 6.5 4"/></svg></button>
+    <button id="mClip" class="mbtn" data-act="clip" aria-label="Save stunt clip" title="Save stunt clip"><svg class="micon" viewBox="0 0 24 24"><rect x="3.5" y="6.5" width="12" height="11" rx="2"/><path d="M15.5 10.5l5-2.8v8.6l-5-2.8"/></svg></button>
     <button class="mbtn" data-act="board" aria-label="Leaderboard" title="Leaderboard"><svg class="micon" viewBox="0 0 24 24"><path d="M5 19V13"/><path d="M12 19V8"/><path d="M19 19V5"/></svg></button>
   </div>
 
@@ -1135,6 +1151,8 @@ button:focus-visible{outline:2px solid #9edfff;outline-offset:3px}
     <button id="mJump"   class="mbtn" data-act="jump"   aria-label="Jump" title="Jump"><svg class="micon" viewBox="0 0 24 24"><path d="M12 19V6"/><path d="M6 11l6-6 6 6"/></svg></button>
     <button id="mReload" class="mbtn" data-act="reload" aria-label="Reload" title="Reload"><svg class="micon" viewBox="0 0 24 24"><path class="f" d="M12 6.4c1.3 1 2 2.3 2 3.6v5.2h-4V10c0-1.3.7-2.6 2-3.6z"/><rect class="f" x="10" y="15.6" width="4" height="2.2" rx=".6"/><path d="M4.95 9.43A7.5 7.5 0 0 1 18.5 8.25"/><path class="f" d="M20.32 7.2L19.8 10.5 16.68 9.3z"/><path d="M19.05 14.57A7.5 7.5 0 0 1 5.5 15.75"/><path class="f" d="M3.68 16.8L4.2 13.5 7.32 14.7z"/></svg></button>
     <button id="mSprint" class="mbtn" data-act="sprint" aria-label="Toggle sprint" title="Sprint"><svg class="micon" viewBox="0 0 24 24"><path d="M5 6l6 6-6 6"/><path d="M13 6l6 6-6 6"/></svg></button>
+    <button id="mGrapple" class="mbtn" data-act="grapple" aria-label="Grapple (hold)" title="Grapple (hold)"><svg class="micon" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.2"/><path d="M12 7.2v6"/><path d="M7 20l5-6.8L17 20"/></svg></button>
+    <button id="mRecall" class="mbtn" data-act="recall" aria-label="Chrono-Recall" title="Chrono-Recall"><svg class="micon" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.6-5.9"/><path d="M4 4.5v4.2h4.2"/><path d="M12 8v4.2l2.8 1.8"/></svg></button>
     <button id="mPet" class="mbtn" data-act="pet" aria-label="Deploy or recall fox companion" title="Fox companion"><svg class="micon" viewBox="0 0 24 24"><path d="M4 9 6 3l5 4h2l5-4 2 6-2 8-6 4-6-4z"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/></svg></button>
   </div>
 </div>
@@ -1152,6 +1170,8 @@ button:focus-visible{outline:2px solid #9edfff;outline-offset:3px}
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
 <script src="soldier-gen.js"></script>
+<script src="systems-core.js"></script>
+<script src="shotline-systems.js"></script>
 <script src="account.js"></script>
 <script src="map-loader.js"></script>
 <script src="nav.js"></script>

@@ -140,11 +140,10 @@ function frame(){
   const dt=Math.min(clock.getDelta(),0.05);t+=dt;
   if(mixer)mixer.update(dt);
   // emote scheduler
-  if(emote){emoteT+=dt;if(emoteT>EMOTES[emote]){emote=null;emoteNext=3.2+Math.random()*2.5;}}else{emoteNext-=dt;if(emoteNext<=0){const k=Object.keys(EMOTES);startEmote(k[(Math.random()*k.length)|0]);}}
-  heroYaw+=spinV*dt;spinV*=Math.pow(0.04,dt);
-  if(hero){const target=heroYaw*0.35+Math.sin(t*0.5)*0.07;hero.scene.rotation.y+=(target-hero.scene.rotation.y)*(1-Math.exp(-dt*7));
-    applyEmote(dt);
-    if(emote!=='spin')heroYaw+= -heroYaw*0.0; }
+  if(emote){emoteT+=dt;if(emoteT>EMOTES[emote])emote=null;}
+  // Stability pass: lobby operator remains in a fixed presentation pose.
+  spinV=0;
+  if(hero){hero.scene.rotation.y=0;applyEmote(dt);}
   foxStep(dt);
   ring2.rotation.z+=dt*0.5;ring1.material.color.setHSL(0.06+Math.sin(t*0.8)*0.01,1,0.55+Math.sin(t*3)*0.05);
   beam.material.opacity=0.06+Math.sin(t*1.7)*0.015;
@@ -160,13 +159,13 @@ function pick(ev){
   if(!hero||!fox)return;const r=$('homeCv').getBoundingClientRect(),x=((ev.clientX-r.left)/r.width)*2-1,y=-((ev.clientY-r.top)/r.height)*2+1;
   const rc=new T3.Raycaster();rc.setFromCamera({x,y},cam);
   if(rc.intersectObject(fox.g,true).length){fox.play(['flip','spin','jump','dance','pounce','howl','bow'][(Math.random()*7)|0]);foxState='stunt';foxT=fox.STUNTS.dance||1.5;return true;}
-  if(rc.intersectObject(hero.scene,true).length){startEmote(Object.keys(EMOTES)[(Math.random()*6)|0]);return true;}
+  if(rc.intersectObject(hero.scene,true).length){return true;}
   return false;
 }
 function bindInput(){
   const cv=$('homeCv');let down=null;
   cv.addEventListener('pointerdown',e=>{down={x:e.clientX,y:e.clientY,t:performance.now(),lx:e.clientX};cv.setPointerCapture&&cv.setPointerCapture(e.pointerId);});
-  cv.addEventListener('pointermove',e=>{if(!down)return;const dx=e.clientX-down.lx;down.lx=e.clientX;heroYaw+=dx*0.012;spinV=dx*0.9;});
+  cv.addEventListener('pointermove',e=>{if(!down)return;down.lx=e.clientX;});
   cv.addEventListener('pointerup',e=>{if(down&&Math.hypot(e.clientX-down.x,e.clientY-down.y)<8&&performance.now()-down.t<400)pick(e);down=null;});
   window.addEventListener('resize',resize);window.addEventListener('orientationchange',()=>setTimeout(resize,200));
 }

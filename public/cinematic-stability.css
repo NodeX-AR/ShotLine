@@ -1,0 +1,32 @@
+/* SHOTLINE ULTRA — cinematic stability overrides */
+:root{--hud-cyan:#00f2ff;--hud-red:#ff3e3e;--hud-glass:rgba(5,10,15,.86);--hud-edge:rgba(0,242,255,.38)}
+body{background:#05070a;color:#eef5fa}
+/* Non-blocking cinematic loading overlay: retain existing progress/status hooks. */
+#loading{background:radial-gradient(circle at 50% 42%,#0a1a25 0%,#05070a 72%);transition:opacity .45s ease;}
+#loading:after{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(transparent 50%,rgba(0,242,255,.035) 50%);background-size:100% 4px;}
+#loading .l-title{font-family:'Chakra Petch',sans-serif!important;font-weight:900!important;letter-spacing:.16em!important;text-shadow:0 0 24px rgba(0,242,255,.4)}
+#loading .l-spin{border-color:rgba(0,242,255,.16);border-top-color:var(--hud-cyan)}
+#loading .l-bar{height:4px;border-radius:0;background:rgba(255,255,255,.09)}
+#loading .l-bar i{border-radius:0;background:linear-gradient(90deg,#007d9a,var(--hud-cyan));box-shadow:0 0 16px #00f2ff55}
+#loading .l-steps li{border-radius:0;border-color:#00f2ff24;background:rgba(0,242,255,.035)}
+#loading .l-steps li.ok{border-color:#00f2ff77;background:#00f2ff12}
+/* Account gate gets the same tactical-glass language without replacing its working forms. */
+#auth{background:radial-gradient(ellipse at 50% 50%,#0b1822 0%,#05070a 72%)!important;gap:clamp(24px,6vw,90px)}
+#auth .auth-card{background:linear-gradient(145deg,rgba(10,22,31,.94),rgba(4,9,14,.96))!important;border:1px solid var(--hud-edge)!important;border-radius:0!important;backdrop-filter:blur(16px);box-shadow:0 22px 70px #0008,inset 0 0 24px #00f2ff08;clip-path:polygon(0 0,100% 0,100% calc(100% - 18px),calc(100% - 18px) 100%,0 100%)}
+#auth .btn,#auth button.btn{border-radius:0!important;text-transform:uppercase;letter-spacing:.12em;font-family:'Chakra Petch',sans-serif;border:1px solid var(--hud-cyan);background:linear-gradient(90deg,#00f2ff22,#00f2ff06);color:#eaffff;box-shadow:none;clip-path:polygon(7% 0,100% 0,100% 75%,93% 100%,0 100%,0 25%)}
+#auth .btn:hover{background:var(--hud-cyan);color:#020609;box-shadow:0 0 24px #00f2ff55}
+#auth input{border-radius:0!important;background:#03090f!important;border-color:#31505b!important;color:#e8fcff!important}
+/* Keep the complete lobby dashboard: profile/intel, deployment, operator preview and loadout. */
+#menu .hud-dashboard-grid{grid-template-columns:minmax(220px,.82fr) minmax(320px,1.35fr) minmax(230px,.82fr)!important;max-width:1600px;margin:0 auto;gap:clamp(12px,1.5vw,22px)}
+#menu .hud-side-left{display:flex!important;flex-direction:column;gap:14px;min-width:0}
+#menu .hud-deploy-card{min-height:390px!important;padding:clamp(20px,3vw,42px)!important;background:radial-gradient(ellipse at 90% 10%,#00f2ff12,transparent 50%),linear-gradient(145deg,rgba(10,22,31,.96),rgba(4,9,14,.97))!important}
+#menu .hud-deploy-heading h2{font-size:clamp(30px,4vw,52px)!important;letter-spacing:-.02em}
+#menu .hud-deploy-card .btn-tactical{min-height:76px!important;clip-path:polygon(7% 0,100% 0,100% 76%,93% 100%,0 100%,0 24%)!important}
+#menu .hud-deploy-card .btn-tactical.secondary{border-color:var(--hud-red)!important}
+#menu .hud-deploy-card #menumsg{min-height:1em}
+#menu .hud-operator-card{display:block!important;min-width:0}
+#menu .hud-loadout-card{display:flex!important;min-width:0}
+canvas{outline:none}
+@media(max-width:1100px){#menu .hud-dashboard-grid{grid-template-columns:minmax(190px,.8fr) minmax(280px,1.2fr)!important}#menu .hud-loadout-card{grid-column:1/-1}}
+@media(max-width:760px){#auth{gap:12px;padding:20px!important}#menu .lb-main{padding:12px!important}#menu .hud-dashboard-grid{grid-template-columns:minmax(0,1fr)!important}#menu .hud-side-left{display:grid!important;grid-template-columns:1fr!important}#menu .hud-deploy-card{min-height:0!important;padding:24px!important}#menu .hud-deploy-heading h2{font-size:34px!important}#menu .hud-loadout-card{grid-column:auto!important}}
+@media(prefers-reduced-motion:reduce){#loading,#auth *,#menu *{transition:none!important;animation:none!important}}

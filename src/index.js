@@ -1,6 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 import { handleApi, userByToken } from "./api.js";
-import { POWERS, ECON, PET, petPos, levelOf, xpOf, isReserved, parseTag, killReward } from "./lib.js";
+import { POWERS, ECON, PET, petPos, levelOf, xpOf, isReserved, parseTag, killReward, MATCH, MOVE_TECH, rankBoard, matchWinner, recallPlausible } from "./lib.js";
 
 const MAX_PLAYERS   = 20;
 const DAMAGE_CAP    = 160;
@@ -54,6 +54,8 @@ export class Arena extends DurableObject {
     this.chatHistory = [];
     this.zones = [];
     this.repeat = new Map();
+    this.hist = new Map();                       /* session id -> [[tMs,x,y,z],...] for Chrono-Recall validation (memory only) */
+    this.match = { startedAt: 0, endedAt: 0 };   /* first-to-N / timed match; resets with the instance */
     for (const ws of this.ctx.getWebSockets()) {
       const att = ws.deserializeAttachment();
       if (att) this.sessions.set(ws, att);
@@ -111,6 +113,8 @@ export class Arena extends DurableObject {
       case "power":    return this.onPower(ws, s, msg);
       case "nade":     return this.onNade(ws, s, msg);
       case "boom":     return this.onBoom(ws, s, msg);
+      case "sling":    return this.onSling(ws, s, msg);
+      case "recall":   return this.onRecall(ws, s, msg);
     }
   }
 
@@ -131,9 +135,10 @@ export class Arena extends DurableObject {
       this.chatHistory.push({ sys:"leave", name:s.name, t:Date.now() });
       if (this.chatHistory.length > CHAT_HISTORY) this.chatHistory.shift();
     }
+    if (s) this.hist.delete(s.id);
     this.sessions.delete(ws);
   }
-  async webSocketError(ws) { const so = this.sessions.get(ws); if (so) await this.flushPlay(so); this.sessions.delete(ws); }
+  async webSocketError(ws) { const so = this.sessions.get(ws); if (so) { await this.flushPlay(so); this.hist.delete(so.id); } this.sessions.delete(ws); }
 
   onMap(ws, msg) {
     if (this.mapReady || typeof msg.s !== "string" || !(msg.n > 0 && msg.n < 64)) return;
@@ -235,6 +240,7 @@ export class Arena extends DurableObject {
     s.name = name;
     s.color = (msg.color | 0) >>> 0;
     s.joined = true;
+    if (liveCount === 0 || !this.match.startedAt) this.match = { startedAt: Date.now(), endedAt: 0 };
     s.lastFlush = Date.now(); s.nadeStock = 1; s.nadeRegenAt = 0; s.nadeThrowAt = 0; s.nadesOut = 0;
     this.startTick();
     try { ws.send(JSON.stringify({ t:"ns", n:1, cap:s.pet ? PET.nadeCapPet : PET.nadeCapBase })); } catch {}
@@ -250,6 +256,7 @@ export class Arena extends DurableObject {
       }));
     ws.send(JSON.stringify({ t:"players", list: roster }));
     ws.send(JSON.stringify({ t:"you", name:s.name, power:s.power, ...this.meta(s) }));
+    ws.send(JSON.stringify(this.matchInfo()));
     this.broadcast({ t:"joined", id:s.id, name:s.name, color:s.color, ...this.meta(s) }, ws);
     this.chatHistory.push({ sys:"join", name:s.name, t:Date.now() });
     if (this.chatHistory.length > CHAT_HISTORY) this.chatHistory.shift();
@@ -259,10 +266,11 @@ export class Arena extends DurableObject {
     if (typeof msg.wk === "string" && ["pistol","rifle","sniper","shotgun","bazooka"].includes(msg.wk)) s.wk = msg.wk;
     if (!s.joined) return;
     const now = Date.now();
-    const dt = Math.max(0.02, (now - s.lastMove)/1000);
+    const inSling = now < (s.slingUntil||0);
+    const dt = Math.max(inSling ? MOVE_TECH.slingMinDt : 0.02, (now - s.lastMove)/1000);
     const dx = (+msg.x||0) - s.x;
     const dz = (+msg.z||0) - s.z;
-    if (s.alive && now > (s.dashUntil||0) && Math.hypot(dx,dz)/dt > SPRINT_LIMIT*2.2) {
+    if (s.alive && now > (s.dashUntil||0) && Math.hypot(dx,dz)/dt > (inSling ? MOVE_TECH.slingLimit : SPRINT_LIMIT*2.2)) {
       ws.send(JSON.stringify({ t:"snap", x:s.x, y:s.y, z:s.z, yaw:s.yaw }));
       return;
     }
@@ -276,6 +284,11 @@ export class Arena extends DurableObject {
       s.alive = !!msg.alive;
     }
     s.lastMove = now;
+    if (s.alive) {
+      let h = this.hist.get(s.id); if (!h) this.hist.set(s.id, h = []);
+      h.push([now, s.x, s.y, s.z]);
+      while (h.length && now - h[0][0] > MOVE_TECH.histKeepMs) h.shift();
+    }
 
     if (!wasAlive && s.alive && !s.spawnedAt) {
       s.spawnedAt = now;
@@ -399,6 +412,7 @@ export class Arena extends DurableObject {
   dealDamage(attacker, victim, dmg, head, cause) {
     if (!victim.alive) return;
     const now = Date.now();
+    if (this.match.endedAt) return;               /* intermission: no damage, no scoring */
     if (victim.shieldUntil > now && victim.shieldHp > 0) { const ab = Math.min(victim.shieldHp, dmg); victim.shieldHp -= ab; dmg -= ab; }
     if (dmg <= 0.01) return;
     dmg = Math.min(DAMAGE_CAP, dmg);
@@ -416,6 +430,58 @@ export class Arena extends DurableObject {
     if (cause) m.cause = cause;
     this.broadcast(m);
     if (real && !noCoins) this.awardKill(killer, victim).catch(() => {});
+    if (real && (killer.kills | 0) >= MATCH.scoreLimit) this.endMatch("score");
+  }
+
+  /* ---------- match flow (in-memory; broadcast only) ---------- */
+  matchInfo(now = Date.now()) {
+    const m = this.match;
+    return { t:"match", phase: m.endedAt ? "ended" : "play",
+      left: m.endedAt ? 0 : Math.max(0, MATCH.durationMs - (now - m.startedAt)),
+      next: m.endedAt ? Math.max(0, MATCH.intermissionMs - (now - m.endedAt)) : 0, limit: MATCH.scoreLimit };
+  }
+  endMatch(reason, now = Date.now()) {
+    if (this.match.endedAt) return;
+    this.match.endedAt = now;
+    const board = rankBoard([...this.sessions.values()].filter(o => o.joined)
+      .map(o => ({ id:o.id, name:o.name, kills:o.kills|0, deaths:o.deaths|0 })));
+    const w = matchWinner(board);
+    this.broadcast({ t:"matchend", reason, winner: w ? w.id : null, board: board.slice(0, 8), next: MATCH.intermissionMs });
+  }
+  startMatch(now = Date.now()) {
+    this.match = { startedAt: now, endedAt: 0 };
+    for (const o of this.sessions.values()) if (o.joined) { o.kills = 0; o.deaths = 0; }
+    this.broadcast({ t:"matchstart", left: MATCH.durationMs, limit: MATCH.scoreLimit });
+  }
+
+  /* ---------- kinetic movement tech: both are announced by the client, then bounded here ---------- */
+  onSling(ws, s, msg) {
+    if (!s.joined || !s.alive) return;
+    const now = Date.now();
+    if (msg.on) {
+      if (now < (s.slingReadyAt || 0)) return;                 /* re-grant rate limit */
+      s.slingReadyAt = now + MOVE_TECH.slingRegrantMs;
+      s.slingUntil = now + MOVE_TECH.slingWindowMs;
+      const a = Array.isArray(msg.a) ? msg.a.slice(0, 3).map(v => round2(+v || 0)) : null;
+      this.broadcast({ t:"sl", id:s.id, on:1, a }, ws);
+    } else {
+      s.slingUntil = Math.min(s.slingUntil || 0, now + MOVE_TECH.slingReleaseMs);
+      this.broadcast({ t:"sl", id:s.id, on:0 }, ws);
+    }
+  }
+  onRecall(ws, s, msg) {
+    if (!s.joined || !s.alive) return;
+    const now = Date.now();
+    const to = [+msg.x, +msg.y, +msg.z];
+    const reject = () => { try { ws.send(JSON.stringify({ t:"snap", x:s.x, y:s.y, z:s.z, yaw:s.yaw })); } catch {} };
+    if (now < (s.recallReadyAt || 0)) return reject();
+    if (!recallPlausible(this.hist.get(s.id) || [], now, to, [s.x, s.y, s.z])) return reject();
+    const from = [s.x, s.y, s.z];
+    s.recallReadyAt = now + MOVE_TECH.recallCooldownMs;
+    s.x = to[0]; s.y = to[1]; s.z = to[2]; s.lastMove = now;
+    s.dashUntil = Math.max(s.dashUntil || 0, now + 400);
+    this.hist.set(s.id, [[now, s.x, s.y, s.z]]);
+    this.broadcast({ t:"rc", id:s.id, a:from.map(round2), b:to.map(round2) }, ws);
   }
 
   async awardKill(killer, victim) {
@@ -497,6 +563,10 @@ export class Arena extends DurableObject {
   startTick() { if (!this.tickTimer) this.tickTimer = setInterval(() => this.tick(), 1000); }
   tick() {
     const now = Date.now();
+    if (this.match.startedAt) {
+      if (!this.match.endedAt && now - this.match.startedAt >= MATCH.durationMs) this.endMatch("time", now);
+      else if (this.match.endedAt && now - this.match.endedAt >= MATCH.intermissionMs) this.startMatch(now);
+    }
     this.zones = this.zones.filter(z => z.until > now);
     for (const z of this.zones) {
       for (const [w, o] of this.sessions) {

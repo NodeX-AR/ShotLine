@@ -1,4 +1,4 @@
-name = "shotline"
+name = "shotline-arena"
 main = "src/index.js"
 compatibility_date = "2025-04-01"
 compatibility_flags = ["nodejs_compat"]
@@ -19,7 +19,7 @@ new_sqlite_classes = ["Arena"]
 [[d1_databases]]
 binding = "DB"
 database_name = "shotline-db"
-database_id = "908c6686-3a5e-405c-91b7-c8ae9c93a6f5"  
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"   # wrangler d1 create shotline-db
 
 [observability]
 enabled = true

@@ -60,3 +60,6 @@ for(let i=0;i<100;i++){
 }
 for(const fps of [20,30,60,120]){let x=0,v=3;for(let i=0;i<fps*3;i++)[x,v]=spring(x,v,1/fps,230,19);assert.ok(Number.isFinite(x+v));assert.ok(Math.abs(x)<.00001);}
 console.log('PASS: body/weapon isolation; six switches; arm fallback; three Mixamo naming variants; 100 IK length and input-preservation cases; recoil stability at 20/30/60/120 FPS.');
+
+/* kinetic systems (grapple, chrono-ghost, overdrive, clip recorder, match/victory): core math, server helpers, integration smoke */
+require('./systems.cjs');
